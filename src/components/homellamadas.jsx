@@ -1,8 +1,7 @@
 import React from "react";
-import { Video, MessageSquare, Star, Home } from "lucide-react";
+import { MessageSquare, Star, Home, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import logoproncipal from "./imagenes/logoprincipal.png";
-
+import Header from "./header";
 export default function InterfazCliente() {
   const usuarios = [
     { nombre: "SofiSweet", estado: "Online", inicial: "S" },
@@ -16,47 +15,14 @@ export default function InterfazCliente() {
     { nombre: "Nico21", accion: "Te agregó a favoritos", hora: "Ayer, 7:30 PM" },
   ];
 
-  React.useEffect(() => {
-    const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Dancing+Script&display=swap";
-    link.rel = "stylesheet";
-    document.head.appendChild(link);
-
-    return () => {
-      if (document.head.contains(link)) {
-        document.head.removeChild(link);
-      }
-    };
-  }, []);
     const navigate = useNavigate();
 
 
   return (
     <div className="min-h-screen bg-ligand-mix-dark from-[#1a1c20] to-[#2b2d31] text-white p-6">
       {/* Header */}
-      <header className="flex justify-between items-center mb-4">
-        <div className="flex items-center">
-          <img src={logoproncipal} alt="Logo" className="w-14 h-14" />
-          <span className="text-2xl text-zorrofucsia font-pacifico ml-[-5px]">Ligand</span>
-        </div>
+        <Header />
 
-        <nav className="flex items-center gap-6 text-lg">
-          <button className="hover:scale-110 transition"
-            onClick={() => navigate("/homellamadas")}
-          >
-            <Home className="text-[#ff007a]" size={24} />
-          </button>
-          <button className="hover:scale-110 transition"
-            onClick={() => navigate("/mensajes")}
-          > 
-            <MessageSquare className="text-[#ff007a]" size={24} />
-          </button>
-          <button className="hover:scale-110 transition">
-            <Star className="text-[#ff007a]" size={24} />
-          </button>
-          <img src={logoproncipal} alt="Logo" className="w-10 h-10 ml-4" />
-        </nav>
-      </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Panel central */}
@@ -70,11 +36,15 @@ export default function InterfazCliente() {
 
           {/* Botones verticales */}
           <div className="flex flex-col items-center gap-4 w-full max-w-xs">
-            <button className="w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-8 py-4 rounded-full text-lg font-semibold shadow-md transition">
+            <button className="w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-8 py-4 rounded-full text-lg font-semibold shadow-md transition"
+               onClick={() => navigate("/esperandocall")}
+            >
               Iniciar Videollamada
             </button>
 
-            <button className="w-full bg-[#ffb6d2] text-[#4b2e35] px-8 py-4 rounded-full text-lg font-semibold shadow-md cursor-not-allowed">
+            <button className="w-full bg-[#ffb6d2] text-[#4b2e35] px-8 py-4 rounded-full text-lg font-semibold shadow-md "
+            onClick={() => navigate("/historysu")}
+            >
               Subir historia
             </button>
 
@@ -91,36 +61,46 @@ export default function InterfazCliente() {
         {/* Panel lateral derecho */}
         <aside className="flex flex-col gap-6">
           {/* Usuarios activos */}
-          <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg">
-            <h3 className="text-lg font-bold text-[#ff007a] mb-4">Usuarios activos</h3>
-            <div className="space-y-3">
-              {usuarios.map((user, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between bg-[#1f2125] p-3 rounded-xl"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#ff007a] flex items-center justify-center font-bold text-sm">
-                      {user.inicial}
-                    </div>
-                    <div>
-                      <div className="font-semibold">{user.nombre}</div>
-                      <div
-                        className={`text-xs ${
-                          user.estado === "Online" ? "text-green-400" : "text-gray-400"
-                        }`}
-                      >
-                        {user.estado}
-                      </div>
+        <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg">
+          <h3 className="text-lg font-bold text-[#ff007a] mb-4">Usuarios activos</h3>
+          <div className="space-y-3">
+            {usuarios.map((user, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between bg-[#1f2125] p-3 rounded-xl"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#ff007a] flex items-center justify-center font-bold text-sm">
+                    {user.inicial}
+                  </div>
+                  <div>
+                    <div className="font-semibold">{user.nombre}</div>
+                    <div
+                      className={`text-xs ${
+                        user.estado === "Online" ? "text-green-400" : "text-gray-400"
+                      }`}
+                    >
+                      {user.estado}
                     </div>
                   </div>
-                  <MessageSquare size={18} className="text-gray-400 hover:text-white transition" 
-                      onClick={() => navigate("/mensajes")}
+                </div>
+                {/* Íconos de acciones - Llamada primero, luego mensajes */}
+                <div className="flex items-center gap-3">
+                  <Phone
+                    size={18}
+                    className="text-[#ff007a] hover:text-white transition cursor-pointer"
+                    onClick={() => navigate("/homellamadas")}
+                  />
+                  <MessageSquare
+                    size={18}
+                    className="text-gray-400 hover:text-white transition cursor-pointer"
+                    onClick={() => navigate("/mensajes")}
                   />
                 </div>
-              ))}
-            </div>
-          </section>
+              </div>
+            ))}
+          </div>
+        </section>
 
           {/* Historial de interacción */}
           <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg">

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Header from "./header";
  
  import {
   MessageSquare,
@@ -11,7 +12,6 @@ import { useNavigate } from "react-router-dom";
   Ban,
   Languages,
 } from "lucide-react";
-import logoproncipal from "./imagenes/logoprincipal.png";
 
 export default function InterfazMensajes() {
   const [mensajes, setMensajes] = useState([
@@ -40,33 +40,7 @@ export default function InterfazMensajes() {
   return (
     <div className="min-h-screen bg-ligand-mix-dark from-[#0a0d10] to-[#131418] text-white p-6">
       {/* Navegador superior */}
-      <header className="flex justify-between items-center mb-4">
-        <div className="flex items-center">
-          <img src={logoproncipal} alt="Logo" className="w-14 h-14" />
-          <span className="text-2xl text-[#ff007a] font-pacifico ml-[-5px]">
-            Ligand
-          </span>
-        </div>
-        <nav className="flex items-center gap-6">
-          <button
-            className="hover:scale-110 transition"
-            onClick={() => navigate("/homellamadas")}
-          >
-            <Home size={24} className="text-[#ff007a]" />
-          </button>
-
-          <button className="hover:scale-110 transition"
-            onClick={() => navigate("/mensajes")}>
-            <MessageSquare size={24} className="text-[#ff007a]" />
-          </button>
-          <button className="hover:scale-110 transition"
-            onClick={() => navigate("/favoritos")}>
-            <Star size={24} className="text-[#ff007a]" />
-          </button>
-          <img src={logoproncipal} alt="Logo" className="w-10 h-10 ml-4" />
-        </nav>
-      </header>
-
+      <Header />
       {/* Contenedor del chat */}
       <div className="flex rounded-xl overflow-hidden shadow-lg h-[83vh] border border-[#ff007a]/10">
         {/* Sidebar de usuarios */}

@@ -2,27 +2,14 @@ import React from 'react';
 import { Heart } from 'lucide-react';
 import pruebahistorias from './imagenes/pruebahistorias.jpg';
 import logoproncipal from './imagenes/logoprincipal.png';
-import LoginLigand from "./loginligand"; 
-import Register from "./register"; // Asegúrate de tener este también
+import LoginLigand from "./verificacion/login/loginligand"; 
+import Register from "./verificacion/register/register"; // Asegúrate de tener este también
 
 export default function ParlandomChatApp() {
   // Estados de modal
   const [showLogin, setShowLogin] = React.useState(false);
   const [showRegister, setShowRegister] = React.useState(false);
 
-  // Fuente personalizada
-  React.useEffect(() => {
-    const link = document.createElement('link');
-    link.href = 'https://fonts.googleapis.com/css2?family=Dancing+Script&display=swap';
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-
-    return () => {
-      if (document.head.contains(link)) {
-        document.head.removeChild(link);
-      }
-    };
-  }, []);
 
   return (
     <div className="bg-ligand-mix-dark min-h-screen">
