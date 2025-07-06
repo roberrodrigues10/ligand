@@ -16,10 +16,17 @@ export const getUser = () => {
 };
 
 export const register = async (email, password) => {
-  await instance.get("/sanctum/csrf-cookie");
-  return instance.post("/register", {
+  return instance.post("/api/register-model", {
     email,
     password,
-    password_confirmation: password,
   });
 };
+
+export async function verificarCodigo(email, code) {
+  console.log("➡️ Enviando:", { email, code });
+  const response = await instance.post("/api/verify-email-code", {
+    email,
+    code,
+  });
+  return response.data;
+}
