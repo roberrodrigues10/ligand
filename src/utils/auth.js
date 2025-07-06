@@ -1,10 +1,11 @@
-// src/utils/auth.js
 import instance from "../api/axios";
 
-// Obtiene la cookie de sesión + token CSRF
+// ✅ Obtiene la cookie de sesión + token CSRF
 export const csrf = async () => {
   try {
-    await instance.get("/sanctum/csrf-cookie");
+    await instance.get("https://ligand-backend.onrender.com/sanctum/csrf-cookie", {
+      withCredentials: true,
+    });
     console.log("✅ Token CSRF obtenido exitosamente");
   } catch (error) {
     console.error("❌ Error al obtener token CSRF:", error);
@@ -12,35 +13,30 @@ export const csrf = async () => {
   }
 };
 
-// Registro - SIN password_confirmation
+// Registro
 export const register = async (email, password) => {
   try {
     await csrf();
     const response = await instance.post("/register", {
       email,
       password,
-      // No envíes password_confirmation
     });
     return response;
   } catch (error) {
     console.error("❌ Error en registro:", error);
-    
-    // Si es error 419, intenta una vez más
+
     if (error.response?.status === 419) {
       try {
         console.log("🔄 Reintentando registro con nuevo token CSRF...");
         await csrf();
-        const response = await instance.post("/register", {
-          email,
-          password,
-        });
+        const response = await instance.post("/register", { email, password });
         return response;
       } catch (secondError) {
         console.error("❌ Error persistente en registro:", secondError);
         throw secondError;
       }
     }
-    
+
     throw error;
   }
 };
@@ -53,7 +49,7 @@ export const login = async (email, password) => {
     return response;
   } catch (error) {
     console.error("❌ Error en login:", error);
-    
+
     if (error.response?.status === 419) {
       try {
         console.log("🔄 Reintentando login con nuevo token CSRF...");
@@ -65,7 +61,7 @@ export const login = async (email, password) => {
         throw secondError;
       }
     }
-    
+
     throw error;
   }
 };
