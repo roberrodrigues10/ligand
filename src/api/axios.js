@@ -1,46 +1,49 @@
 // src/api/axios.js
 import axios from "axios";
+import Cookies from "js-cookie";
 
-axios.defaults.withCredentials = true;
-axios.defaults.baseURL = 'https://ligand-backend.onrender.com';
-axios.defaults.headers.common['Accept'] = 'application/json';
-axios.defaults.headers.common['Content-Type'] = 'application/json';
-axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+// 👇 Asegúrate de usar el dominio completo del backend
+const instance = axios.create({
+  baseURL: "https://ligand-backend.onrender.com", // ⬅️ DOMINIO DE TU BACKEND DEPLOYADO
+  withCredentials: true,
+  headers: {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "X-Requested-With": "XMLHttpRequest", // necesario para Sanctum
+  },
+});
 
-// Interceptor CSRF
-axios.interceptors.request.use(async (config) => {
-  if (!getCsrfTokenFromCookie()) {
-    await getCsrfCookie();
-  }
+// Interceptor para añadir el token CSRF automáticamente
+instance.interceptors.request.use((config) => {
+  const token = Cookies.get("XSRF-TOKEN");
 
-  const token = getCsrfTokenFromCookie();
   if (token) {
-    config.headers['X-XSRF-TOKEN'] = decodeURIComponent(token);
+    config.headers["X-XSRF-TOKEN"] = decodeURIComponent(token); // lo que Sanctum espera
   }
+
+  // Logs de depuración
+  console.log("🔑 Token CSRF:", token ? "✅ Presente" : "❌ Faltante");
+  console.log("📡 Request URL:", config.url);
+  console.log("🔧 Headers:", config.headers);
 
   return config;
 });
 
-function getCsrfTokenFromCookie() {
-  const cookies = document.cookie.split(';');
-  for (let cookie of cookies) {
-    const [name, value] = cookie.trim().split('=');
-    if (name === 'XSRF-TOKEN') {
-      return decodeURIComponent(value);
+// Interceptor de respuesta
+instance.interceptors.response.use(
+  (response) => {
+    console.log("✅ Response exitosa:", response.status);
+    return response;
+  },
+  (error) => {
+    console.error("❌ Error de respuesta:", error.response?.status, error.response?.data);
+
+    if (error.response?.status === 419) {
+      console.error("🚫 Error 419 - Token CSRF inválido o expirado");
     }
-  }
-  return null;
-}
 
-async function getCsrfCookie() {
-  try {
-    await axios.get('/sanctum/csrf-cookie', { withCredentials: true });
-    return true;
-  } catch (error) {
-    console.error('❌ Error obteniendo CSRF cookie:', error);
-    return false;
+    return Promise.reject(error);
   }
-}
+);
 
-// 👇👇👇 ESTA ES LA LÍNEA QUE FALTABA
-export default axios;
+export default instance;
