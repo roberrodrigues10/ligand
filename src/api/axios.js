@@ -16,14 +16,13 @@ instance.interceptors.request.use((config) => {
   const token = Cookies.get("XSRF-TOKEN");
   
   if (token) {
-    // Usar X-CSRF-TOKEN que es más estándar para Laravel
-    config.headers["X-CSRF-TOKEN"] = decodeURIComponent(token);
+    // 👇 ESTA es la cabecera que Laravel Sanctum busca
+    config.headers["X-XSRF-TOKEN"] = decodeURIComponent(token);
   }
   
-  // También añadir X-Requested-With para Laravel
   config.headers["X-Requested-With"] = "XMLHttpRequest";
   
-  // Debug temporal (puedes quitar esto después de que funcione)
+  // Debug temporal
   console.log("🔑 Token CSRF:", token ? "✅ Presente" : "❌ Faltante");
   console.log("📡 Request URL:", config.url);
   console.log("🔧 Headers:", config.headers);
@@ -31,7 +30,7 @@ instance.interceptors.request.use((config) => {
   return config;
 });
 
-// Interceptor para manejar errores de respuesta
+// Interceptor de respuesta
 instance.interceptors.response.use(
   (response) => {
     console.log("✅ Response exitosa:", response.status);
