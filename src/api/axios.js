@@ -4,7 +4,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 
 const instance = axios.create({
-  baseURL: "http://localhost:8000", // sin /api, ya que estás llamando /login, etc.
+  baseURL: "https://ligand-backend.onrender.com", // sin /api, ya que estás llamando /login, etc.
   withCredentials: true,
 });
 
