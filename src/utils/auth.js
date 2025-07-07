@@ -42,7 +42,8 @@ export const login = async (email, password) => {
   }
 };
 
-
+const token = sessionStorage.getItem("token");
+console.log("Token usado en logout:", token);
 // ✅ Logout
 export const logout = async () => {
   try {
