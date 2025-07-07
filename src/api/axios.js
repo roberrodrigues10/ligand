@@ -23,7 +23,7 @@ instance.interceptors.request.use((config) => {
 
   // Logs de depuración
   console.log("🔑 Token CSRF:", token ? "✅ Presente" : "❌ Faltante");
-  console.log("📡 Request URL:", config.url);
+console.log("📡 Request URL:", config.baseURL + config.url);
   console.log("🔧 Headers:", config.headers);
 
   return config;
