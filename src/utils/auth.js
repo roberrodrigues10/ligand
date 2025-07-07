@@ -26,7 +26,7 @@ export const register = async (email, password) => {
 // ✅ Login
 export const login = async (email, password) => {
   try {
-    const response = await axios.post("/login", { email, password });
+    const response = await axios.post("/api/login", { email, password });
 
     const token = response.data.access_token;
     if (token) {
@@ -47,7 +47,7 @@ export const login = async (email, password) => {
 export const logout = async () => {
   try {
     sessionStorage.removeItem("token"); // Borra el token
-    await axios.post("/logout");
+    await axios.post("/api/logout");
     return true;
   } catch (error) {
     console.error("❌ Error en logout:", error.response?.data || error);
@@ -58,7 +58,7 @@ export const logout = async () => {
 // ✅ Obtener usuario autenticado
 export const getUser = async () => {
   try {
-    const response = await axios.get("/user");
+    const response = await axios.get("/api/user");
     return response.data;
   } catch (error) {
     console.error("❌ Error obteniendo usuario:", error.response?.data || error);
