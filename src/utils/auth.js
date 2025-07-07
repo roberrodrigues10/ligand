@@ -3,7 +3,7 @@ import axios from "../api/axios"; // instancia con baseURL y token dinámico
 // ✅ Registrar usuario
 export const register = async (email, password) => {
   try {
-    const response = await axios.post("/register", {
+    const response = await axios.post("/api/register", {
       email,
       password,
     });
