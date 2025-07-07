@@ -1,5 +1,14 @@
 import axios from "../api/axios"; // instancia con baseURL y token dinámico
 
+const token = response?.data?.access_token;
+
+if (token) {
+    sessionStorage.setItem("token", token);
+} else {
+    console.error("❌ No se recibió token del backend:", response.data);
+}
+
+
 // ✅ Registrar usuario
 export const register = async (email, password) => {
   try {
