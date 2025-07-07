@@ -1,5 +1,6 @@
 // src/api/axios.js
 import axios from "axios";
+import Cookies from "js-cookie";
 
 const instance = axios.create({
   baseURL: "https://ligand-backend.onrender.com",
@@ -11,9 +12,11 @@ const instance = axios.create({
   },
 });
 
-// Solo logs, sin leer cookies manualmente
 instance.interceptors.request.use((config) => {
-  console.log("📡 Request:", config.method?.toUpperCase(), config.url);
+  const token = Cookies.get("XSRF-TOKEN");
+  if (token) {
+    config.headers["X-XSRF-TOKEN"] = decodeURIComponent(token);
+  }
   return config;
 });
 
