@@ -1,7 +1,12 @@
 import React, { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import logoproncipal from "../../imagenes/logoprincipal.png";
+import { verificarCodigo } from "../../../utils/auth"; // asegúrate de que este archivo exista
+
+console.log("✅ Componente EmailVerification montado"); // este debe verse SIEMPRE
 
 export default function EmailVerification() {
+  const navigate = useNavigate();
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [message, setMessage] = useState("");
   const [resending, setResending] = useState(false);
@@ -34,22 +39,53 @@ export default function EmailVerification() {
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
+    console.log("🔍 handleVerify se ejecutó");
     const fullCode = code.join("");
-    if (fullCode.length === 6) {
-      setMessage("Verificando código...");
-      // Aquí deberías hacer la petición POST al backend
-    } else {
+    if (fullCode.length !== 6) {
       setMessage("Por favor ingresa los 6 dígitos.");
+      console.warn("Código incompleto:", fullCode);
+      return;
     }
+
+    const email = localStorage.getItem("emailToVerify");
+    console.log("📧 Email desde localStorage:", email);
+    console.log("🔢 Código a verificar:", fullCode);
+
+    if (!email) {
+      setMessage("No se encontró el correo registrado.");
+      console.error("No se encontró 'emailToVerify' en localStorage.");
+      return;
+    }
+
+    try {
+      setMessage("Verificando...");
+      const response = await verificarCodigo(email, fullCode);
+      console.log("✅ Verificación exitosa:", response);
+
+      localStorage.removeItem("emailToVerify");
+      setMessage("Correo verificado exitosamente.");
+      navigate("/verificacion");
+    } catch (error) {
+      if (error.response && error.response.status === 422) {
+        console.error("🔍 Errores de validación:", error.response.data.errors);
+      } else {
+        console.error("❌ Error al verificar código:", error);
+      }
+    }
+
   };
 
   const handleResend = () => {
     setResending(true);
     setMessage("Reenviando código...");
+    console.log("📩 Reenviando código...");
+
+    // Aquí podrías implementar el endpoint para reenviar el código
     setTimeout(() => {
       setResending(false);
       setMessage("Código reenviado al correo.");
+      console.log("✅ Código reenviado");
     }, 2000);
   };
 
@@ -102,7 +138,7 @@ export default function EmailVerification() {
         </button>
 
         {message && (
-          <p className="mt-4 text-sm text-gray-300">{message}</p>
+          <p className="mt-4 text-sm text-gray-300 text-center">{message}</p>
         )}
       </div>
     </div>

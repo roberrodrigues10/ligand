@@ -66,3 +66,12 @@ export const getUser = async () => {
     throw error;
   }
 };
+
+export async function verificarCodigo(email, code) {
+  console.log("➡️ Enviando:", { email, code });
+  const response = await instance.post("/api/verify-email-code", {
+    email,
+    code,
+  });
+  return response.data;
+}
