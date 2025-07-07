@@ -1,10 +1,9 @@
-// src/api/axios.js
 import axios from "axios";
-import Cookies from "js-cookie";
+import Cookies from "js-cookie"; // npm install js-cookie
 
 const instance = axios.create({
   baseURL: "https://ligand-backend.onrender.com",
-  withCredentials: true, // habilita las cookies cross-domain
+  withCredentials: true,
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -17,6 +16,7 @@ instance.interceptors.request.use((config) => {
   if (token) {
     config.headers["X-XSRF-TOKEN"] = decodeURIComponent(token);
   }
+  console.log("📡 Request:", config.method?.toUpperCase(), config.url);
   return config;
 });
 
