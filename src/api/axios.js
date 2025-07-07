@@ -1,22 +1,21 @@
+// src/api/axios.js
 import axios from "axios";
-import Cookies from "js-cookie"; // npm install js-cookie
 
 const instance = axios.create({
   baseURL: "https://ligand-backend.onrender.com",
-  withCredentials: true,
+  withCredentials: false, // no usamos cookies
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
-    "X-Requested-With": "XMLHttpRequest",
   },
 });
 
+// Interceptor para agregar token Bearer
 instance.interceptors.request.use((config) => {
-  const token = Cookies.get("XSRF-TOKEN");
+  const token = sessionStorage.getItem("token");
   if (token) {
-    config.headers["X-XSRF-TOKEN"] = decodeURIComponent(token);
+    config.headers.Authorization = `Bearer ${token}`;
   }
-  console.log("📡 Request:", config.method?.toUpperCase(), config.url);
   return config;
 });
 

@@ -1,25 +1,16 @@
-import axios from "../api/axios"; // instancia con baseURL y withCredentials
-
-// ✅ Obtener cookie CSRF desde el backend (Sanctum)
-export const getCsrfCookie = async () => {
-  try {
-    await axios.get("/sanctum/csrf-cookie");
-    console.log("✅ CSRF cookie obtenida");
-  } catch (error) {
-    console.error("❌ Error obteniendo CSRF cookie:", error);
-    throw error;
-  }
-};
+import axios from "../api/axios"; // instancia con baseURL y token dinámico
 
 // ✅ Registrar usuario
 export const register = async (email, password) => {
   try {
-    await getCsrfCookie();
     const response = await axios.post("/register", {
       email,
       password,
-      password_confirmation: password,
     });
+
+    // Guardar el token en sessionStorage
+    sessionStorage.setItem("token", response.data.token);
+
     return response.data;
   } catch (error) {
     console.error("❌ Error en registro:", error.response?.data || error);
@@ -30,8 +21,11 @@ export const register = async (email, password) => {
 // ✅ Login
 export const login = async (email, password) => {
   try {
-    await getCsrfCookie();
     const response = await axios.post("/login", { email, password });
+
+    // Guardar token en sessionStorage (se borra al cerrar pestaña)
+    sessionStorage.setItem("token", response.data.token);
+
     return response.data;
   } catch (error) {
     console.error("❌ Error en login:", error.response?.data || error);
@@ -42,6 +36,7 @@ export const login = async (email, password) => {
 // ✅ Logout
 export const logout = async () => {
   try {
+    sessionStorage.removeItem("token"); // Borra el token
     await axios.post("/logout");
     return true;
   } catch (error) {
