@@ -1,13 +1,5 @@
 import axios from "../api/axios"; // instancia con baseURL y token dinámico
 
-const token = response?.data?.access_token;
-
-if (token) {
-    sessionStorage.setItem("token", token);
-} else {
-    console.error("❌ No se recibió token del backend:", response.data);
-}
-
 
 // ✅ Registrar usuario
 export const register = async (email, password) => {
@@ -17,8 +9,12 @@ export const register = async (email, password) => {
       password,
     });
 
-    // Guardar el token en sessionStorage
-    sessionStorage.setItem("token", response.data.token);
+    const token = response.data.access_token;
+    if (token) {
+      sessionStorage.setItem("token", token);
+    } else {
+      console.warn("⚠️ No se recibió access_token en registro:", response.data);
+    }
 
     return response.data;
   } catch (error) {
@@ -32,8 +28,12 @@ export const login = async (email, password) => {
   try {
     const response = await axios.post("/login", { email, password });
 
-    // Guardar token en sessionStorage (se borra al cerrar pestaña)
-    sessionStorage.setItem("token", response.data.token);
+    const token = response.data.access_token;
+    if (token) {
+      sessionStorage.setItem("token", token);
+    } else {
+      console.warn("⚠️ No se recibió access_token en login:", response.data);
+    }
 
     return response.data;
   } catch (error) {
@@ -41,6 +41,7 @@ export const login = async (email, password) => {
     throw error;
   }
 };
+
 
 // ✅ Logout
 export const logout = async () => {
