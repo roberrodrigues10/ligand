@@ -1,4 +1,5 @@
 import axios from "../api/axios"; // instancia con baseURL y token dinámico
+import instance from "../api/axios"; // instancia con baseURL y token dinámico
 
 
 // ✅ Registrar usuario
