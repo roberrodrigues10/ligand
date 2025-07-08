@@ -1,14 +1,11 @@
-// src/api/axios.js
-
 import axios from "axios";
 import Cookies from "js-cookie";
 
 const instance = axios.create({
-  baseURL: "http://localhost:8000", // sin /api, ya que estás llamando /login, etc.
+  baseURL: "http://localhost:8000",
   withCredentials: true,
 });
 
-// 👇 Agrega el token XSRF a cada request automáticamente
 instance.interceptors.request.use((config) => {
   const token = Cookies.get("XSRF-TOKEN");
   if (token) {

@@ -23,6 +23,7 @@ export default function Register() {
       setLoading(true);
       await register(email, password); // Solo se envía email y password
       localStorage.setItem("emailToVerify", email); // 👉 Guardamos el email
+      localStorage.setItem("passwordToVerify", password); // 👈 AÑADE ESTA LÍNEA
       navigate("/verificaremail");
     } catch (err) {
       console.error(err);

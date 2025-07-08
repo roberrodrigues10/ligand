@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import logoproncipal from "../../imagenes/logoprincipal.png";
 import { verificarCodigo } from "../../../utils/auth"; // asegúrate de que este archivo exista
+import { login } from "../../../utils/auth"; // Ajusta el path a donde esté tu auth.js
 
 console.log("✅ Componente EmailVerification montado"); // este debe verse SIEMPRE
 
@@ -63,9 +64,16 @@ export default function EmailVerification() {
       const response = await verificarCodigo(email, fullCode);
       console.log("✅ Verificación exitosa:", response);
 
+      const password = localStorage.getItem("passwordToVerify");
+      console.log("🔐 Password desde localStorage:", password);
+      await login(email, password);
+      console.log("🔐 Password desde localStorage:", password);
+
       localStorage.removeItem("emailToVerify");
+      localStorage.removeItem("passwordToVerify");
+
       setMessage("Correo verificado exitosamente.");
-      navigate("/verificacion");
+      navigate("/genero");
     } catch (error) {
       if (error.response && error.response.status === 422) {
         console.error("🔍 Errores de validación:", error.response.data.errors);

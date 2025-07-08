@@ -13,14 +13,35 @@ export default function SeleccionGenero() {
   const [nombreError, setNombreError] = useState("");
   const navigate = useNavigate();
 
-  const handleContinue = (e) => {
+  const handleContinue = async (e) => {
     e.preventDefault();
+
     if (!genero) {
       setError("Por favor selecciona un rol");
       return;
     }
+
     setError(null);
-    setShowModal(true);
+
+    if (genero === "cliente") {
+      // Asignar nombre por defecto y enviar directamente
+      try {
+        setCargando(true);
+        await api.get("/sanctum/csrf-cookie");
+        await api.post("/api/asignar-rol", {
+          rol: "cliente",
+          name: "Cliente",
+        });
+        navigate("/homellamadas"); // O a donde deba ir el cliente
+      } catch (err) {
+        setError("Error al guardar el rol. Intenta nuevamente.");
+      } finally {
+        setCargando(false);
+      }
+    } else {
+      // Si es modelo, mostrar el modal
+      setShowModal(true);
+    }
   };
 
   const validarNombreYEnviar = async () => {
@@ -42,9 +63,10 @@ export default function SeleccionGenero() {
     try {
       await api.get("/sanctum/csrf-cookie");
       await api.post("/api/asignar-rol", {
-        rol: genero,
-        nombre: nombre.trim(),
+        rol: "model",
+        name: nombre.trim(),
       });
+
       navigate("/homellamadas");
     } catch (err) {
       setError("Error al guardar el rol. Intenta nuevamente.");
@@ -67,7 +89,7 @@ export default function SeleccionGenero() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <label
             className={`rounded-2xl p-6 flex flex-col items-center justify-center border-2 cursor-pointer transition ${
-              genero === "modelo"
+              genero === "model"
                 ? "border-fucsia bg-[#2d2f33]"
                 : "border-gray-600 bg-[#1f2125] hover:border-fucsia"
             }`}
@@ -77,8 +99,8 @@ export default function SeleccionGenero() {
             <input
               type="radio"
               name="rol"
-              value="modelo"
-              checked={genero === "modelo"}
+              value="model"
+              checked={genero === "model"}
               onChange={(e) => setGenero(e.target.value)}
               className="hidden"
             />
