@@ -13,9 +13,12 @@ import EsperancoCall from "./components/esperacall";
 import Videochat from "./components/videochat";
 import ConfiPerfil from "./components/confiperfil";
 import RutaProtegida from "./routes/protegerruta";
-import Logout from "./components/verificacion/login/logout"; // o donde pongas esto
-import Genero from "./components/verificacion/register/genero"; // Asegúrate de importar el componente de selección de género
-import VerificarCodigo from "./components/verificacion/register/verificarcodigo"; // Asegúrate de importar el componente de selección de género
+import Logout from "./components/verificacion/login/logout";
+import Genero from "./components/verificacion/register/genero";
+import VerificarCodigo from "./components/verificacion/register/verificarcodigo";
+
+// 🆕 Importa el componente de reset de contraseña
+import ResetPassword from "./components/verificacion/register/ResetPassword"; // asegúrate de que exista
 
 function App() {
   return (
@@ -27,6 +30,9 @@ function App() {
         <Route path="/logout" element={<Logout />} />
         <Route path="/genero" element={<Genero />} />
         <Route path="/verificaremail" element={<VerificarCodigo />} />
+
+        {/* 🆕 Ruta pública para restablecer contraseña */}
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
         {/* Rutas protegidas */}
         <Route element={<RutaProtegida />}>
