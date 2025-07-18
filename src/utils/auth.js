@@ -11,7 +11,7 @@ export const register = async (email, password) => {
       sessionStorage.setItem("token", token);
       console.log("✅ Token guardado en registro:", token.substring(0, 10) + "...");
     } else {
-      console.warn("⚠️ No se recibió access_token en registro:", response.data);
+      console.warn("⚠️ No se recibió access_token en registro.", response.data);
     }
 
     return response.data;
