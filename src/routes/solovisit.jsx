@@ -30,7 +30,13 @@ const RutaSoloVisitantes = () => {
     verificarUsuario();
   }, []);
 
-  if (loading) return null; // o un spinner
+if (loading) {
+  return (
+    <div style={{ padding: 20, textAlign: "center", color: "white" }}>
+      Cargando...
+    </div>
+  );
+}
 
   return redirect ? <Navigate to={redirect} replace /> : <Outlet />;
 };
