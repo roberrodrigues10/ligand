@@ -13,45 +13,108 @@ export default function SeleccionGenero() {
   const [nombreError, setNombreError] = useState("");
   const navigate = useNavigate();
 
-  const handleContinue = (e) => {
+  const handleContinue = async (e) => {
     e.preventDefault();
+
     if (!genero) {
       setError("Por favor selecciona un rol");
       return;
     }
+
     setError(null);
-    setShowModal(true);
+    setShowModal(true); // Mostrar modal tanto para cliente como modelo
   };
 
   const validarNombreYEnviar = async () => {
-    const soloLetras = /^[A-Za-z\s]+$/;
+  const soloLetras = /^[A-Za-z\s]+$/;
 
-    if (!nombre.trim()) {
-      setNombreError("El nombre es obligatorio.");
-      return;
-    }
+  if (!nombre.trim()) {
+    setNombreError("El nombre es obligatorio.");
+    return;
+  }
 
-    if (!soloLetras.test(nombre)) {
-      setNombreError("Solo se permiten letras.");
-      return;
-    }
+  if (!soloLetras.test(nombre)) {
+    setNombreError("Solo se permiten letras.");
+    return;
+  }
 
-    setNombreError("");
-    setCargando(true);
+  setNombreError("");
+  setCargando(true);
 
-    try {
-      await api.get("/sanctum/csrf-cookie");
-      await api.post("/api/asignar-rol", {
-        rol: genero,
-        nombre: nombre.trim(),
+  try {
+    console.log("📤 Enviando nombre y rol a backend...");
+    await api.post("/api/asignar-rol", {
+      rol: genero,
+      name: nombre.trim(),
+    });
+
+    console.log("✅ Rol asignado exitosamente. Esperando para actualizar perfil...");
+
+    // Esperar unos milisegundos para que el backend persista los cambios
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Función de retry para asegurar que el perfil ya esté actualizado
+    let user = null;
+    let intentos = 0;
+    let actualizado = false;
+
+    while (intentos < 3 && !actualizado) {
+      const res = await api.get("/api/profile", {
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
       });
-      navigate("/homellamadas");
-    } catch (err) {
-      setError("Error al guardar el rol. Intenta nuevamente.");
-    } finally {
-      setCargando(false);
+
+      user = res.data.user;
+      console.log(`🔄 Intento ${intentos + 1} - Perfil obtenido:`, user);
+
+      if (user.rol && user.name) {
+        actualizado = true;
+        break;
+      }
+
+      await new Promise((r) => setTimeout(r, 300)); // espera antes de reintentar
+      intentos++;
     }
-  };
+
+    if (!actualizado) {
+      console.warn("⚠️ El perfil aún no refleja los cambios. Redirección cancelada.");
+      setError("No se pudo confirmar los datos. Intenta nuevamente.");
+      return;
+    }
+
+    // ✅ Guardar flag local (opcional)
+    sessionStorage.setItem("perfil_actualizado", "1");
+
+    // ✅ Refresca header de token por seguridad
+    api.defaults.headers.common["Authorization"] = `Bearer ${sessionStorage.getItem("token")}`;
+
+    // ✅ Cierra modal
+    setShowModal(false);
+
+    // ✅ Redirección
+    const destino = genero === "modelo" ? "/anteveri" : "/homellamadas";
+    console.log("👉 Navegando a:", destino);
+    navigate(destino);
+    console.log("✅ Redirección ejecutada");
+
+    // ⚠️ Fallback: fuerza recarga si la redirección visual no ocurre
+    setTimeout(() => {
+      if (window.location.pathname !== destino) {
+        console.warn("⚠️ Redirección no aplicada visualmente. Recargando...");
+        window.location.href = destino;
+      }
+    }, 400);
+
+  } catch (err) {
+    console.error("❌ Error al guardar rol o al obtener perfil:", err);
+    setError("Error al guardar el rol. Intenta nuevamente.");
+  } finally {
+    setCargando(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-ligand-mix-dark text-white px-4 py-10">
@@ -127,7 +190,9 @@ export default function SeleccionGenero() {
             </button>
 
             <h2 className="text-xl font-bold text-fucsia mb-4 text-center">
-              Ingresa tu nombre 
+              {genero === "cliente"
+                ? "Ingresa tu nombre"
+                : "Ingresa tu nombre artístico"}
             </h2>
 
             <input

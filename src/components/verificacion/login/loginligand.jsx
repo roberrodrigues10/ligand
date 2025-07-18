@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, getUser } from "../../../utils/auth";
 
-export default function LoginLigand({ onClose }) {
+export default function LoginLigand({ onClose, onShowRegister }) {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -13,24 +13,27 @@ export default function LoginLigand({ onClose }) {
     setError("");
 
     try {
-      await login(email, password);       // Paso 1: CSRF + login
-      await getUser();                    // Paso 2: confirmar sesión activa
-      navigate("/anteveri");              // Paso 3: redirigir
+      await login(email, password, navigate);
+      await getUser();
+      navigate("/anteveri");
     } catch (err) {
-      setError("Correo o contraseña incorrectos.");
-      console.error(err);
+      // Captura el mensaje del backend si existe
+      const backendMessage = err?.message || "Correo o contraseña incorrectos.";
+      setError(backendMessage);
+      console.error("🛑 Error en login:", backendMessage);
     }
   };
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 px-4"
       onClick={onClose}
     >
       <div
-        className="bg-[#1a1c20] rounded-2xl p-10 w-[400px] shadow-xl relative"
+        className="bg-[#1a1c20] rounded-2xl p-6 sm:p-10 w-[350px] max-w-full shadow-xl relative"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Botón cerrar */}
         <button
           className="absolute top-3 right-4 text-white text-xl hover:text-[#ff007a] transition"
           onClick={onClose}
@@ -76,25 +79,12 @@ export default function LoginLigand({ onClose }) {
             Iniciar sesión
           </button>
 
-          <div className="text-center text-white/40 my-3">o</div>
-
-          <button
-            type="button"
-            className="w-full py-3 border border-[#2c2e33] bg-[#1a1c20] text-white rounded-xl flex justify-center items-center gap-2"
-          >
-            <span className="text-lg font-bold text-[#ff007a]">G</span>
-            Iniciar sesión con Google
-          </button>
-
           <div className="text-center text-white/80 mt-6">
             ¿Aún no tienes cuenta?{" "}
             <button
               type="button"
               className="text-[#ff007a] underline"
-              onClick={() => {
-                onClose();
-                // Aquí puedes abrir el modal de registro
-              }}
+              onClick={() => navigate("/home?auth=register")}
             >
               Regístrate aquí
             </button>
