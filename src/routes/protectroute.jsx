@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../hooks/useUser"; // supongamos que ahí tienes el user global
 import api from "../services/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function ProtectedRoute({ children }) {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ export default function ProtectedRoute({ children }) {
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const res = await api.get("/api/profile");
+        const res = await api.get(`${API_BASE_URL}/api/profile`);
         const user = res.data.user;
         setUser(user);
 

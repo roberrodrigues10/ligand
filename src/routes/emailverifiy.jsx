@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import api from "../api/axios";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function RutaEmailVerificado() {
   const [cargando, setCargando] = useState(true);
@@ -12,7 +13,7 @@ export default function RutaEmailVerificado() {
   useEffect(() => {
     const verificar = async () => {
       try {
-        const res = await api.get("/api/profile");
+        const res = await api.get(`${API_BASE_URL}/api/profile`);
         const user = res.data.user;
 
         setAutenticado(true);

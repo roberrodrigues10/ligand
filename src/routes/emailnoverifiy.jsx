@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, Navigate, Outlet } from "react-router-dom";
 import api from "../api/axios";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function RutaProtegida() {
   const [user, setUser] = useState(null);
@@ -10,7 +11,7 @@ export default function RutaProtegida() {
   useEffect(() => {
     const cargar = async () => {
       try {
-        const res = await api.get("/api/profile");
+        const res = await api.get(`${API_BASE_URL}/api/profile`);
         setUser(res.data.user);
 
         // 🔁 Si el perfil fue actualizado, forzar recarga una sola vez

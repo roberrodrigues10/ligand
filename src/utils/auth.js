@@ -1,9 +1,10 @@
 import axios from "../api/axios";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // ✅ Registrar usuario
 export const register = async (email, password) => {
   try {
-    const response = await axios.post("/api/register", { email, password }, { skipInterceptor: true });
+    const response = await axios.post(`${API_BASE_URL}/api/register`, { email, password }, { skipInterceptor: true });
 
     const token = response.data.access_token;
     if (token) {
@@ -23,7 +24,7 @@ export const register = async (email, password) => {
 // ✅ Login
 export const login = async (email, password, navigate) => {
   try {
-    const response = await axios.post("/api/login", { email, password });
+    const response = await axios.post(`${API_BASE_URL}/api/login`, { email, password });
 
     const token = response.data.access_token;
     if (token) {
@@ -69,7 +70,7 @@ export const login = async (email, password, navigate) => {
 // ✅ Logout
 export const logout = async () => {
   try {
-    await axios.post("/api/logout");
+    await axios.post(`${API_BASE_URL}/api/logout`);
     sessionStorage.removeItem("token");
     return true;
   } catch (error) {
@@ -84,7 +85,7 @@ export const getUser = async () => {
     const token = sessionStorage.getItem("token");
     console.log("🔐 Token disponible para profile:", token ? "Sí" : "No");
     
-    const response = await axios.get("/api/profile"); // ← SIN skipInterceptor
+    const response = await axios.get(`${API_BASE_URL}/api/profile`); // ← SIN skipInterceptor
     console.log("✅ Perfil obtenido exitosamente");
     console.log("👤 Usuario:", response.data);
     return response.data;
@@ -104,7 +105,7 @@ export const getUser = async () => {
 // ✅ Verificar código
 export async function verificarCodigo(email, code) {
   console.log("➡️ Enviando:", { email, code });
-  const response = await axios.post("/api/verify-email-code", {
+  const response = await axios.post(`${API_BASE_URL}/api/verify-email-code`, {
     email,
     code,
   });
@@ -113,11 +114,11 @@ export async function verificarCodigo(email, code) {
 
 // ✅ Reenviar código
 export async function reenviarCodigo(email) {
-  return await axios.post("/api/resend-code", { email });
+  return await axios.post(`${API_BASE_URL}/api/resend-code`, { email });
 }
 
 export const asignarRol = async ({ rol, nombre }) => {
-  return axios.post("/api/asignar-rol", {
+  return axios.post(`${API_BASE_URL}/api/asignar-rol`, {
     rol,
     name: nombre,
   });
@@ -128,7 +129,7 @@ export const reclamarSesion = async () => {
   try {
     const token = sessionStorage.getItem("token");
     const response = await axios.post(
-      "/api/reclamar-sesion",
+      `${API_BASE_URL}/api/reclamar-sesion`,
       {},
       {
         skipInterceptor: true,

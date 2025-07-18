@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import api from '../api/axios'; // Usa axios con credenciales habilitadas (withCredentials: true)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const RutaClienteYaVerificado = () => {
   const [isValidCliente, setIsValidCliente] = useState(false);
@@ -13,7 +14,7 @@ const RutaClienteYaVerificado = () => {
 
   const verificarCliente = async () => {
     try {
-      const response = await api.get('/api/profile'); // Usa cookies para autenticar
+      const response = await api.get(`${API_BASE_URL}/api/profile`); // Usa cookies para autenticar
 
       if (response?.data?.user?.rol === 'cliente') {
         setIsValidCliente(true);

@@ -8,6 +8,7 @@ const RutaProcesoRegistro = () => {
   const [error, setError] = useState(null);
   const [redirectTo, setRedirectTo] = useState(null);
   const location = useLocation();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL; // Asegúrate de que esta variable esté definida en tu entorno
 
   useEffect(() => {
     verificarAcceso();
@@ -15,7 +16,7 @@ const RutaProcesoRegistro = () => {
 
   const verificarAcceso = async () => {
     try {
-      const response = await api.get('/api/profile'); // Usa cookies para autenticar
+      const response = await api.get(`${API_BASE_URL}/api/profile`); // Usa cookies para autenticar
       const user = response?.data?.user;
 
       if (!user) {
