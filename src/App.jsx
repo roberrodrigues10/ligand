@@ -1,76 +1,106 @@
-import React, { Suspense } from "react";
+import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-// Lazy loading de componentes para evitar errores de carga
-const LigandHome = React.lazy(() => import("./components/ligandHome"));
-const LoginLigand = React.lazy(() => import("./components/verificacion/login/loginligand"));
-const Logout = React.lazy(() => import("./components/verificacion/login/logout"));
-const VerificarSesionActiva = React.lazy(() => import("./components/verificacion/login/verifysession"));
+// Importaciones directas (sin lazy loading)
+import LigandHome from "./components/ligandHome";
+import LoginLigand from "./components/verificacion/login/loginligand";
+import Logout from "./components/verificacion/login/logout";
+import VerificarSesionActiva from "./components/verificacion/login/verifysession";
 
-const VerificarCodigo = React.lazy(() => import("./components/verificacion/register/verificarcodigo"));
-const Genero = React.lazy(() => import("./components/verificacion/register/genero"));
-const Verificacion = React.lazy(() => import("./components/verificacion/register/verificacion"));
-const Anteveri = React.lazy(() => import("./components/verificacion/register/anteveri"));
-const Esperando = React.lazy(() => import("./components/verificacion/register/esperandoverifi"));
+import VerificarCodigo from "./components/verificacion/register/verificarcodigo";
+import Genero from "./components/verificacion/register/genero";
+import Verificacion from "./components/verificacion/register/verificacion";
+import Anteveri from "./components/verificacion/register/anteveri";
+import Esperando from "./components/verificacion/register/esperandoverifi";
 
-const HomeLlamadas = React.lazy(() => import("./components/homellamadas"));
-const Mensajes = React.lazy(() => import("./components/mensajes"));
-const Favoritos = React.lazy(() => import("./components/favorites"));
-const HistorySub = React.lazy(() => import("./components/historysu"));
-const EsperancoCall = React.lazy(() => import("./components/esperacall"));
-const Videochat = React.lazy(() => import("./components/videochat"));
-const ConfiPerfil = React.lazy(() => import("./components/confiperfil"));
+import HomeLlamadas from "./components/homellamadas";
+import Mensajes from "./components/mensajes";
+import Favoritos from "./components/favorites";
+import HistorySub from "./components/historysu";
+import EsperancoCall from "./components/esperacall";
+import Videochat from "./components/videochat";
+import ConfiPerfil from "./components/confiperfil";
 
-const RutaSoloVisitantes = React.lazy(() => import("./routes/solovisit"));
-const RutaProtegida = React.lazy(() => import("./routes/ss"));
-const RutaEmailNoVerificado = React.lazy(() => import("./routes/emailnoverifiy"));
-const RutaEmailVerificado = React.lazy(() => import("./routes/emailverifiy"));
-const RutaClienteYaVerificado = React.lazy(() => import("./routes/routeclient"));
-const RutaModeloNoVerificada = React.lazy(() => import("./routes/routemodel"));
-const RutaProcesoRegistro = React.lazy(() => import("./routes/procesoregistro"));
+import RutaSoloVisitantes from "./routes/solovisit";
+import RutaProtegida from "./routes/ss";
+import RutaEmailNoVerificado from "./routes/emailnoverifiy";
+import RutaEmailVerificado from "./routes/emailverifiy";
+import RutaClienteYaVerificado from "./routes/routeclient";
+import RutaModeloNoVerificada from "./routes/routemodel";
+import RutaProcesoRegistro from "./routes/procesoregistro";
 
-// Componente de carga
-const LoadingSpinner = () => (
-  <div style={{ 
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    height: '100vh' 
-  }}>
-    <div>⏳ Cargando...</div>
-  </div>
-);
+// Componente de prueba simple
+const TestComponent = () => {
+  return (
+    <div style={{ 
+      padding: '20px', 
+      textAlign: 'center',
+      backgroundColor: '#f0f0f0',
+      minHeight: '100vh'
+    }}>
+      <h1>🎯 Aplicación funcionando correctamente</h1>
+      <p>Si ves esto, el router está funcionando</p>
+      <p>Hora actual: {new Date().toLocaleTimeString()}</p>
+    </div>
+  );
+};
 
-// Componente de error
-const ErrorFallback = ({ error, resetErrorBoundary }) => (
-  <div style={{ padding: '20px', textAlign: 'center' }}>
-    <h2>🚨 Error en la aplicación</h2>
-    <details style={{ marginTop: '20px' }}>
-      <summary>Detalles del error</summary>
-      <pre>{error?.message}</pre>
-    </details>
-    <button onClick={resetErrorBoundary}>Reintentar</button>
-  </div>
-);
-
-// Error Boundary
+// Error Boundary simple
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Error capturado:', error, errorInfo);
+    console.error('🚨 Error capturado por ErrorBoundary:', error);
+    console.error('📍 Stack trace:', errorInfo);
+    this.setState({ error, errorInfo });
   }
 
   render() {
     if (this.state.hasError) {
-      return <ErrorFallback error={this.state.error} resetErrorBoundary={() => this.setState({ hasError: false, error: null })} />;
+      return (
+        <div style={{ 
+          padding: '20px', 
+          textAlign: 'center',
+          backgroundColor: '#ffe6e6',
+          minHeight: '100vh'
+        }}>
+          <h1>🚨 Error detectado</h1>
+          <p>La aplicación ha encontrado un error:</p>
+          <div style={{ 
+            backgroundColor: '#fff', 
+            padding: '10px', 
+            margin: '20px 0',
+            borderRadius: '5px',
+            textAlign: 'left'
+          }}>
+            <strong>Error:</strong> {this.state.error?.toString()}
+          </div>
+          <div style={{ 
+            backgroundColor: '#fff', 
+            padding: '10px', 
+            margin: '20px 0',
+            borderRadius: '5px',
+            textAlign: 'left',
+            fontSize: '12px'
+          }}>
+            <strong>Stack:</strong>
+            <pre>{this.state.errorInfo?.componentStack}</pre>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{ padding: '10px 20px', fontSize: '16px' }}
+          >
+            🔄 Recargar página
+          </button>
+        </div>
+      );
     }
 
     return this.props.children;
@@ -78,14 +108,21 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
+  console.log('🚀 App component renderizando...');
+  
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <Suspense fallback={<LoadingSpinner />}>
+        <div>
+          {/* Renderizar VerificarSesionActiva solo si no hay errores */}
           <VerificarSesionActiva />
+          
           <Routes>
-            {/* Ruta raíz - redirige a home */}
-            <Route path="/" element={<Navigate to="/home" replace />} />
+            {/* Ruta de prueba simple */}
+            <Route path="/test" element={<TestComponent />} />
+            
+            {/* Ruta raíz - redirige a test temporalmente */}
+            <Route path="/" element={<Navigate to="/test" replace />} />
             
             {/* Rutas públicas */}
             <Route element={<RutaSoloVisitantes />}>
@@ -128,9 +165,9 @@ function App() {
             </Route>
 
             {/* Ruta catch-all para URLs no encontradas */}
-            <Route path="*" element={<Navigate to="/home" replace />} />
+            <Route path="*" element={<Navigate to="/test" replace />} />
           </Routes>
-        </Suspense>
+        </div>
       </BrowserRouter>
     </ErrorBoundary>
   );
