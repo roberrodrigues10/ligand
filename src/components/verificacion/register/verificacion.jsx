@@ -7,6 +7,7 @@
   import api from "../../../api/axios";
   import Header from "../../header";
   import { useNavigate } from "react-router-dom";
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   export default function VerificacionIdentidad() {
     const [paso, setPaso] = useState(1);
@@ -63,7 +64,7 @@
 
       try {
         setEnviando(true);
-        const response = await api.post("/api/verificacion", formData, {
+        const response = await api.post(`${API_BASE_URL}/api/verificacion`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../../api/axios";
 import { User, Heart, X } from "lucide-react";
 import logoproncipal from "../../imagenes/logoprincipal.png";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function SeleccionGenero() {
   const [genero, setGenero] = useState("");
@@ -43,7 +44,7 @@ export default function SeleccionGenero() {
 
   try {
     console.log("📤 Enviando nombre y rol a backend...");
-    await api.post("/api/asignar-rol", {
+    await api.post(`${API_BASE_URL}/api/asignar-rol`, {
       rol: genero,
       name: nombre.trim(),
     });
@@ -59,7 +60,7 @@ export default function SeleccionGenero() {
     let actualizado = false;
 
     while (intentos < 3 && !actualizado) {
-      const res = await api.get("/api/profile", {
+      const res = await api.get(`${API_BASE_URL}/api/profile`, {
         headers: {
           "Cache-Control": "no-cache",
           Pragma: "no-cache",
