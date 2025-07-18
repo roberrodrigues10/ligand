@@ -1,87 +1,138 @@
+import React, { Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import LigandHome from "./components/ligandHome";
-import LoginLigand from "./components/verificacion/login/loginligand";
-import Logout from "./components/verificacion/login/logout";
-import VerificarSesionActiva from "./components/verificacion/login/verifysession";
 
-import VerificarCodigo from "./components/verificacion/register/verificarcodigo";
-import Genero from "./components/verificacion/register/genero";
-import Verificacion from "./components/verificacion/register/verificacion";
-import Anteveri from "./components/verificacion/register/anteveri";
-import Esperando from "./components/verificacion/register/esperandoverifi";
+// Lazy loading de componentes para evitar errores de carga
+const LigandHome = React.lazy(() => import("./components/ligandHome"));
+const LoginLigand = React.lazy(() => import("./components/verificacion/login/loginligand"));
+const Logout = React.lazy(() => import("./components/verificacion/login/logout"));
+const VerificarSesionActiva = React.lazy(() => import("./components/verificacion/login/verifysession"));
 
-import HomeLlamadas from "./components/homellamadas";
-import Mensajes from "./components/mensajes";
-import Favoritos from "./components/favorites";
-import HistorySub from "./components/historysu";
-import EsperancoCall from "./components/esperacall";
-import Videochat from "./components/videochat";
-import ConfiPerfil from "./components/confiperfil";
+const VerificarCodigo = React.lazy(() => import("./components/verificacion/register/verificarcodigo"));
+const Genero = React.lazy(() => import("./components/verificacion/register/genero"));
+const Verificacion = React.lazy(() => import("./components/verificacion/register/verificacion"));
+const Anteveri = React.lazy(() => import("./components/verificacion/register/anteveri"));
+const Esperando = React.lazy(() => import("./components/verificacion/register/esperandoverifi"));
 
-import RutaSoloVisitantes from "./routes/solovisit";
+const HomeLlamadas = React.lazy(() => import("./components/homellamadas"));
+const Mensajes = React.lazy(() => import("./components/mensajes"));
+const Favoritos = React.lazy(() => import("./components/favorites"));
+const HistorySub = React.lazy(() => import("./components/historysu"));
+const EsperancoCall = React.lazy(() => import("./components/esperacall"));
+const Videochat = React.lazy(() => import("./components/videochat"));
+const ConfiPerfil = React.lazy(() => import("./components/confiperfil"));
 
-// Rutas protegidas
-import RutaProtegida from "./routes/ss";
-import RutaEmailNoVerificado from "./routes/emailnoverifiy";
-import RutaEmailVerificado from "./routes/emailverifiy";
-import RutaClienteYaVerificado from "./routes/routeclient";
-import RutaModeloNoVerificada from "./routes/routemodel";
+const RutaSoloVisitantes = React.lazy(() => import("./routes/solovisit"));
+const RutaProtegida = React.lazy(() => import("./routes/ss"));
+const RutaEmailNoVerificado = React.lazy(() => import("./routes/emailnoverifiy"));
+const RutaEmailVerificado = React.lazy(() => import("./routes/emailverifiy"));
+const RutaClienteYaVerificado = React.lazy(() => import("./routes/routeclient"));
+const RutaModeloNoVerificada = React.lazy(() => import("./routes/routemodel"));
+const RutaProcesoRegistro = React.lazy(() => import("./routes/procesoregistro"));
 
-// Nueva ruta protegida para proceso de registro
-import RutaProcesoRegistro from "./routes/procesoregistro";
+// Componente de carga
+const LoadingSpinner = () => (
+  <div style={{ 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    height: '100vh' 
+  }}>
+    <div>⏳ Cargando...</div>
+  </div>
+);
+
+// Componente de error
+const ErrorFallback = ({ error, resetErrorBoundary }) => (
+  <div style={{ padding: '20px', textAlign: 'center' }}>
+    <h2>🚨 Error en la aplicación</h2>
+    <details style={{ marginTop: '20px' }}>
+      <summary>Detalles del error</summary>
+      <pre>{error?.message}</pre>
+    </details>
+    <button onClick={resetErrorBoundary}>Reintentar</button>
+  </div>
+);
+
+// Error Boundary
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error capturado:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <ErrorFallback error={this.state.error} resetErrorBoundary={() => this.setState({ hasError: false, error: null })} />;
+    }
+
+    return this.props.children;
+  }
+}
 
 function App() {
   return (
-    <BrowserRouter>
-      <VerificarSesionActiva />
-      <Routes>
-        {/* Ruta raíz - redirige a home */}
-        <Route path="/" element={<Navigate to="/home" replace />} />
-        
-        {/* Rutas públicas */}
-        <Route element={<RutaSoloVisitantes />}>
-          <Route path="/home" element={<LigandHome />} />
-          <Route path="/login" element={<LoginLigand />} />
-        </Route>
-        <Route path="/logout" element={<Logout />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Suspense fallback={<LoadingSpinner />}>
+          <VerificarSesionActiva />
+          <Routes>
+            {/* Ruta raíz - redirige a home */}
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            
+            {/* Rutas públicas */}
+            <Route element={<RutaSoloVisitantes />}>
+              <Route path="/home" element={<LigandHome />} />
+              <Route path="/login" element={<LoginLigand />} />
+            </Route>
+            <Route path="/logout" element={<Logout />} />
 
-        {/* Rutas para quienes NO han verificado el email */}
-        <Route element={<RutaEmailNoVerificado />}>
-          <Route element={<RutaProcesoRegistro />}>
-            <Route path="/verificaremail" element={<VerificarCodigo />} />
-          </Route>
-        </Route>
+            {/* Rutas para quienes NO han verificado el email */}
+            <Route element={<RutaEmailNoVerificado />}>
+              <Route element={<RutaProcesoRegistro />}>
+                <Route path="/verificaremail" element={<VerificarCodigo />} />
+              </Route>
+            </Route>
 
-        {/* Rutas para quienes SÍ han verificado el email */}
-        <Route element={<RutaEmailVerificado />}>
-          {/* Rutas SOLO para clientes que ya pasaron por género y alias */}
-          <Route element={<RutaClienteYaVerificado />}>
-            <Route path="/homellamadas" element={<HomeLlamadas />} />
-            <Route path="/mensajes" element={<Mensajes />} />
-            <Route path="/favorites" element={<Favoritos />} />
-            <Route path="/historysu" element={<HistorySub />} />
-            <Route path="/esperandocall" element={<EsperancoCall />} />
-            <Route path="/videochat" element={<Videochat />} />
-            <Route path="/configuracion" element={<ConfiPerfil />} />
-          </Route>
+            {/* Rutas para quienes SÍ han verificado el email */}
+            <Route element={<RutaEmailVerificado />}>
+              {/* Rutas SOLO para clientes que ya pasaron por género y alias */}
+              <Route element={<RutaClienteYaVerificado />}>
+                <Route path="/homellamadas" element={<HomeLlamadas />} />
+                <Route path="/mensajes" element={<Mensajes />} />
+                <Route path="/favorites" element={<Favoritos />} />
+                <Route path="/historysu" element={<HistorySub />} />
+                <Route path="/esperandocall" element={<EsperancoCall />} />
+                <Route path="/videochat" element={<Videochat />} />
+                <Route path="/configuracion" element={<ConfiPerfil />} />
+              </Route>
 
-          {/* Ruta de género protegida */}
-          <Route element={<RutaProcesoRegistro />}>
-            <Route path="/genero" element={<Genero />} />
-          </Route>
+              {/* Ruta de género protegida */}
+              <Route element={<RutaProcesoRegistro />}>
+                <Route path="/genero" element={<Genero />} />
+              </Route>
 
-          {/* Rutas SOLO para modelos que aún no han terminado verificación */}
-          <Route element={<RutaModeloNoVerificada />}>
-            <Route path="/verificacion" element={<Verificacion />} />
-            <Route path="/anteveri" element={<Anteveri />} />
-          </Route>
-          <Route path="/esperando" element={<Esperando />} />
-        </Route>
+              {/* Rutas SOLO para modelos que aún no han terminado verificación */}
+              <Route element={<RutaModeloNoVerificada />}>
+                <Route path="/verificacion" element={<Verificacion />} />
+                <Route path="/anteveri" element={<Anteveri />} />
+              </Route>
+              <Route path="/esperando" element={<Esperando />} />
+            </Route>
 
-        {/* Ruta catch-all para URLs no encontradas */}
-        <Route path="*" element={<Navigate to="/home" replace />} />
-      </Routes>
-    </BrowserRouter>
+            {/* Ruta catch-all para URLs no encontradas */}
+            <Route path="*" element={<Navigate to="/home" replace />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 
