@@ -1,9 +1,7 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: import.meta.env.DEV
-    ? "http://192.168.1.109:8000"
-    : "https://ligand-backend-oz6a.onrender.com",
+  baseURL: import.meta.env.VITE_API_URL,
   withCredentials: false,
   headers: {
     Accept: "application/json",
