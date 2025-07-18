@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LigandHome from "./components/ligandHome";
 import LoginLigand from "./components/verificacion/login/loginligand";
 import Logout from "./components/verificacion/login/logout";
@@ -35,6 +35,9 @@ function App() {
     <BrowserRouter>
       <VerificarSesionActiva />
       <Routes>
+        {/* Ruta raíz - redirige a home */}
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        
         {/* Rutas públicas */}
         <Route element={<RutaSoloVisitantes />}>
           <Route path="/home" element={<LigandHome />} />
@@ -74,6 +77,9 @@ function App() {
           </Route>
           <Route path="/esperando" element={<Esperando />} />
         </Route>
+
+        {/* Ruta catch-all para URLs no encontradas */}
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   );
