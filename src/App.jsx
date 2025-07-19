@@ -22,6 +22,10 @@ import ConfiPerfil from "./components/confiperfil";
 
 import RutaSoloVisitantes from "./routes/solovisit";
 
+//Rutas admin
+import VerificacionesAdmin from "./components/admin/adminverification";
+
+
 // Rutas protegidas
 import RutaProtegida from "./routes/ss";
 import RutaEmailNoVerificado from "./routes/emailnoverifiy";
@@ -87,6 +91,8 @@ function App() {
             <Route path="/configuracion" element={<ConfiPerfil />} />
           </Route>
         </Route>
+        {/* Rutas protegidas para admin autenticados */}
+          <Route path="/verificacionesadmin" element={<VerificacionesAdmin />} />
         
 
         {/* Ruta catch-all para URLs no encontradas */}
