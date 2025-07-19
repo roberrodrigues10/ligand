@@ -10,11 +10,20 @@ const VideoRecorder = ({ onRecorded, onCancel }) => {
   const [time, setTime] = useState(0);
   const [intervalId, setIntervalId] = useState(null);
   const [videoBlob, setVideoBlob] = useState(null);
+  
+  const MAX_RECORDING_TIME = 5; // Límite de 5 segundos
 
   useEffect(() => {
     if (recording) {
       const id = setInterval(() => {
-        setTime((prev) => prev + 1);
+        setTime((prev) => {
+          const newTime = prev + 1;
+          // Detener automáticamente cuando llegue a 5 segundos
+          if (newTime >= MAX_RECORDING_TIME) {
+            stopRecording();
+          }
+          return newTime;
+        });
       }, 1000);
       setIntervalId(id);
     } else {
@@ -86,7 +95,6 @@ const VideoRecorder = ({ onRecorded, onCancel }) => {
       const url = URL.createObjectURL(blob);
       setVideoUrl(url);
       setVideoBlob(blob);
-      // Ya no necesitamos manejar la previsualización aquí
     };
 
     recorder.start();
@@ -221,6 +229,9 @@ const VideoRecorder = ({ onRecorded, onCancel }) => {
     return `${minutes}:${seconds}`;
   };
 
+  // Calcular el progreso para la barra
+  const progressPercentage = (time / MAX_RECORDING_TIME) * 100;
+
   return (
     <div
       className="flex flex-col items-center justify-center w-full h-full gap-4 overflow-hidden relative"
@@ -252,9 +263,20 @@ const VideoRecorder = ({ onRecorded, onCancel }) => {
           />
         )}
         {recording && (
-          <div className="absolute top-2 left-2 px-3 py-1 text-white text-sm bg-red-600 rounded-full shadow-lg">
-            ⏺ {formatTime(time)}
-          </div>
+          <>
+            <div className="absolute top-2 left-2 px-3 py-1 text-white text-sm bg-red-600 rounded-full shadow-lg">
+              ⏺ {formatTime(time)} / {formatTime(MAX_RECORDING_TIME)}
+            </div>
+            {/* Barra de progreso */}
+            <div className="absolute bottom-2 left-2 right-2">
+              <div className="w-full bg-black bg-opacity-50 rounded-full h-2">
+                <div 
+                  className="bg-red-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progressPercentage}%` }}
+                ></div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -263,7 +285,7 @@ const VideoRecorder = ({ onRecorded, onCancel }) => {
           onClick={startRecording}
           className="bg-[#ff007a] text-white px-6 py-2 rounded-2xl"
         >
-          Comenzar grabación
+          Comenzar grabación (máx. 5 seg)
         </button>
       )}
 
