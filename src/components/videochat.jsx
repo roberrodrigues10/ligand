@@ -4,6 +4,7 @@ import {
   LiveKitRoom,
   RoomAudioRenderer,
   useParticipants,
+  useLocalParticipant,
   VideoTrack,
   useTracks,
 } from "@livekit/components-react";
@@ -11,7 +12,9 @@ import { Track } from "livekit-client";
 import "@livekit/components-styles";
 import {
   Mic,
+  MicOff,
   Video,
+  VideoOff,
   Repeat,
   Heart,
   Ban,
@@ -23,175 +26,140 @@ import {
 import Header from "./header";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// ✅ COMPONENTE CORREGIDO PARA LA MODELO
+// ✅ COMPONENTE CON VIDEO REAL PARA LA MODELO
 const VideoDisplay = ({ onCameraSwitch, mainCamera }) => {
   const participants = useParticipants();
-  
-  // Obtener todos los tracks de video disponibles
-  const videoTracks = useTracks(
-    [
-      { source: Track.Source.Camera, withPlaceholder: true },
-    ],
-    { onlySubscribed: false }
-  );
-
-  console.log("🎥 VideoDisplay Debug:", {
-    participants: participants.length,
-    videoTracks: videoTracks.length,
-    mainCamera,
-    participantIds: participants.map(p => ({ identity: p.identity, isLocal: p.isLocal }))
-  });
-
-  // Separar participantes
   const localParticipant = participants.find(p => p.isLocal);
   const remoteParticipant = participants.find(p => !p.isLocal);
-
-  // Obtener tracks específicos
-  const localVideoTrack = videoTracks.find(
-    track => track.participant.isLocal
-  );
   
-  const remoteVideoTrack = videoTracks.find(
-    track => !track.participant.isLocal
-  );
+  // Obtener tracks de video
+  const tracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: true },
+  ], { onlySubscribed: false });
 
-  console.log("🎥 Tracks encontrados:", {
-    localVideoTrack: !!localVideoTrack,
-    remoteVideoTrack: !!remoteVideoTrack,
-    localIdentity: localVideoTrack?.participant?.identity,
-    remoteIdentity: remoteVideoTrack?.participant?.identity
-  });
-
-  // ✅ FUNCIÓN PARA VIDEO PRINCIPAL
   const getMainVideo = () => {
-    if (mainCamera === "local" && localVideoTrack) {
-      console.log("📺 Mostrando LOCAL en principal");
-      return (
-        <VideoTrack 
-          trackRef={localVideoTrack}
-          className="w-full h-full object-cover"
-        />
-      );
-    } else if (mainCamera === "remote" && remoteVideoTrack) {
-      console.log("📺 Mostrando REMOTO en principal");
-      return (
-        <VideoTrack 
-          trackRef={remoteVideoTrack}
-          className="w-full h-full object-cover"
-        />
-      );
+    try {
+      if (mainCamera === "local" && localParticipant) {
+        // Mostrar video local en grande (la modelo se ve a sí misma)
+        const localVideoTrack = tracks.find(
+          trackRef => trackRef.participant.sid === localParticipant.sid && trackRef.source === Track.Source.Camera
+        );
+        
+        if (localVideoTrack) {
+          return (
+            <VideoTrack 
+              trackRef={localVideoTrack}
+              className="w-full h-full object-cover"
+            />
+          );
+        }
+      } else if (remoteParticipant) {
+        // Mostrar video remoto en grande (ve al cliente) - VISTA POR DEFECTO
+        const remoteVideoTrack = tracks.find(
+          trackRef => trackRef.participant.sid === remoteParticipant.sid && trackRef.source === Track.Source.Camera
+        );
+        
+        if (remoteVideoTrack) {
+          return (
+            <VideoTrack 
+              trackRef={remoteVideoTrack}
+              className="w-full h-full object-cover"
+            />
+          );
+        }
+      }
+    } catch (error) {
+      console.log("Error rendering main video:", error);
     }
 
-    // Fallback - mostrar info de debug
+    // Fallback cuando no hay video
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-800 text-white">
         <div className="text-center">
-          <div className="animate-pulse text-6xl mb-4">🎥</div>
-          <p className="text-xl mb-4">Video Chat</p>
-          
-          <div className="space-y-2 text-sm">
-            <p className="text-green-400">
-              ✅ Conectado al servidor LiveKit
+          <div className="animate-pulse text-6xl mb-4">👩‍💼</div>
+          <p className="text-xl mb-2">Vista de la Modelo</p>
+          <div className="space-y-2">
+            <p className="text-sm text-green-400">
+              ✅ Conectada al servidor LiveKit
             </p>
-            <p className="text-gray-400">
-              👥 Total participantes: {participants.length}
+            <p className="text-sm text-gray-400">
+              👥 Participantes: {participants.length}
             </p>
-            <p className="text-gray-400">
-              🎬 Video tracks: {videoTracks.length}
-            </p>
-            
             {localParticipant && (
-              <div className="mt-2 p-2 bg-blue-900/30 rounded">
-                <p className="text-blue-400">
-                  🟦 TÚ: {localParticipant.identity}
-                </p>
-                <p className="text-xs text-gray-300">
-                  Video local: {localVideoTrack ? "✅" : "❌"}
-                </p>
-              </div>
-            )}
-            
-            {remoteParticipant && (
-              <div className="mt-2 p-2 bg-pink-900/30 rounded">
-                <p className="text-pink-400">
-                  🟪 CONECTADO: {remoteParticipant.identity}
-                </p>
-                <p className="text-xs text-gray-300">
-                  Video remoto: {remoteVideoTrack ? "✅" : "❌"}
-                </p>
-              </div>
-            )}
-            
-            {!remoteParticipant && participants.length === 1 && (
-              <p className="text-yellow-400 mt-2">
-                ⏳ Esperando que se conecte otra persona...
+              <p className="text-sm text-blue-400">
+                🟦 Tú (Modelo): {localParticipant.identity}
               </p>
             )}
-
-            <div className="mt-4 text-xs text-gray-500">
-              <p>Vista principal: {mainCamera === "local" ? "TU CÁMARA" : "CÁMARA REMOTA"}</p>
-              <p>Haz clic en la vista mini para cambiar</p>
-            </div>
+            {remoteParticipant && (
+              <p className="text-sm text-pink-400">
+                🟪 Cliente: {remoteParticipant.identity}
+              </p>
+            )}
+            {!remoteParticipant && participants.length === 1 && (
+              <p className="text-sm text-yellow-400">
+                ⏳ Esperando que se conecte el cliente...
+              </p>
+            )}
           </div>
         </div>
       </div>
     );
   };
 
-  // ✅ FUNCIÓN PARA VIDEO MINI
   const getMiniVideo = () => {
-    // Mostrar lo contrario al video principal
-    if (mainCamera === "local" && remoteVideoTrack) {
-      return (
-        <VideoTrack 
-          trackRef={remoteVideoTrack}
-          className="w-full h-full object-cover"
-        />
-      );
-    } else if (mainCamera === "remote" && localVideoTrack) {
-      return (
-        <VideoTrack 
-          trackRef={localVideoTrack}
-          className="w-full h-full object-cover"
-        />
-      );
+    try {
+      if (mainCamera === "local" && remoteParticipant) {
+        // Mostrar video remoto en mini
+        const remoteVideoTrack = tracks.find(
+          trackRef => trackRef.participant.sid === remoteParticipant.sid && trackRef.source === Track.Source.Camera
+        );
+        
+        if (remoteVideoTrack) {
+          return (
+            <VideoTrack 
+              trackRef={remoteVideoTrack}
+              className="w-full h-full object-cover"
+            />
+          );
+        }
+      } else if (localParticipant) {
+        // Mostrar video local en mini
+        const localVideoTrack = tracks.find(
+          trackRef => trackRef.participant.sid === localParticipant.sid && trackRef.source === Track.Source.Camera
+        );
+        
+        if (localVideoTrack) {
+          return (
+            <VideoTrack 
+              trackRef={localVideoTrack}
+              className="w-full h-full object-cover"
+            />
+          );
+        }
+      }
+    } catch (error) {
+      console.log("Error rendering mini video:", error);
     }
 
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-600 text-white text-xs">
-        <div className="text-center">
-          <p>Mini</p>
-          <p className="text-[10px]">
-            {mainCamera === "local" ? "Remoto" : "Local"}
-          </p>
-        </div>
+        <span>Vista mini</span>
       </div>
     );
   };
 
   return (
     <>
-      {/* VIDEO PRINCIPAL */}
-      <div className="w-full h-full relative">
-        {getMainVideo()}
-        
-        {/* Indicador de vista activa */}
-        <div className="absolute top-4 right-4 bg-black/50 px-2 py-1 rounded text-xs text-white">
-          {mainCamera === "local" ? "TU VISTA" : "VISTA REMOTA"}
-        </div>
-      </div>
-
-      {/* VIDEO MINI */}
+      <div className="w-full h-full">{getMainVideo()}</div>
       <div
-        className="absolute bottom-4 left-4 w-40 h-28 rounded-lg overflow-hidden border-2 border-[#ff007a] shadow-lg cursor-pointer hover:border-white transition-colors"
+        className="absolute bottom-4 left-4 w-40 h-28 rounded-lg overflow-hidden border-2 border-[#ff007a] shadow-lg cursor-pointer"
         onClick={onCameraSwitch}
-        title="Haz clic para cambiar vista"
       >
         {getMiniVideo()}
         
         {/* Indicador en mini */}
         <div className="absolute top-1 left-1 bg-black/70 px-1 py-0.5 rounded text-[10px] text-white">
-          {mainCamera === "local" ? "REMOTO" : "TU VISTA"}
+          {mainCamera === "local" ? "CLIENTE" : "TU VISTA"}
         </div>
       </div>
     </>
@@ -223,6 +191,11 @@ export default function VideoChat() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [connected, setConnected] = useState(false);
+  
+  // ✅ ESTADOS PARA CONTROLES (IGUAL QUE EL CLIENTE)
+  const [micEnabled, setMicEnabled] = useState(true);
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  
   // ✅ CORRIGIDO: La modelo inicia viendo al cliente por defecto
   const [camaraPrincipal, setCamaraPrincipal] = useState("remote");
   const [tiempo, setTiempo] = useState(0);
@@ -325,6 +298,11 @@ export default function VideoChat() {
     setConnected(false);
   };
 
+  const nuevaRuleta = () => {
+    // Navegar a la página de inicio de ruleta para modelos
+    navigate('/precallmodel'); // o la ruta que uses para modelos
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex items-center justify-center">
@@ -347,18 +325,20 @@ export default function VideoChat() {
       <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex items-center justify-center">
         <div className="text-center max-w-md">
           <p className="text-red-500 text-xl mb-4">Error: {error}</p>
-          <button
-            onClick={() => navigate(-1)}
-            className="bg-[#ff007a] px-6 py-3 rounded-full text-white mr-2"
-          >
-            Volver
-          </button>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-gray-600 px-6 py-3 rounded-full text-white"
-          >
-            Recargar
-          </button>
+          <div className="space-x-4">
+            <button 
+              onClick={nuevaRuleta}
+              className="bg-[#ff007a] px-6 py-3 rounded-full text-white"
+            >
+              🎰 Nueva Ruleta
+            </button>
+            <button 
+              onClick={() => navigate(-1)}
+              className="bg-gray-600 px-6 py-3 rounded-full text-white"
+            >
+              Volver
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -366,8 +346,8 @@ export default function VideoChat() {
 
   return (
     <LiveKitRoom
-      video
-      audio
+      video={cameraEnabled}
+      audio={micEnabled}
       token={token}
       serverUrl={serverUrl}
       data-lk-theme="default"
@@ -376,6 +356,15 @@ export default function VideoChat() {
       className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white p-4"
     >
       <RoomAudioRenderer />
+      
+      {/* ✅ COMPONENTE PARA CONTROLES */}
+      <MediaControls 
+        micEnabled={micEnabled}
+        cameraEnabled={cameraEnabled}
+        setMicEnabled={setMicEnabled}
+        setCameraEnabled={setCameraEnabled}
+      />
+      
       <Header />
 
       <div className="flex justify-between items-center text-sm text-white/70 mt-4 mb-2 font-mono px-2">
@@ -385,7 +374,7 @@ export default function VideoChat() {
         </div>
         <div className="flex items-center gap-2">
           <Clock size={16} className="text-[#ff007a]" />
-          <span className="text-[#ff007a] font-bold">12 min restantes</span>
+          <span className="text-[#ff007a] font-bold">∞ Tiempo ilimitado</span>
           {connected && (
             <span className="text-green-400 text-xs ml-2">🟢 Conectada</span>
           )}
@@ -395,7 +384,7 @@ export default function VideoChat() {
 
       <div className="flex gap-6 mt-4">
         {/* ZONA VIDEO */}
-        <div className="flex-1 bg-[#1f2125] rounded-2xl overflow-hidden relative flex items-center justify-center h-[500px]">
+        <div className="flex-1 bg-[#1f2125] rounded-2xl overflow-hidden relative flex items-center justify-center h-[500px] transition-all duration-500">
           <VideoDisplay onCameraSwitch={cambiarCamara} mainCamera={camaraPrincipal} />
         </div>
 
@@ -408,9 +397,13 @@ export default function VideoChat() {
               <p className="text-sm text-white/60">🌎 Online</p>
             </div>
             <div className="flex items-center gap-2">
-              <ShieldCheck size={18} className="text-green-400" />
-              <Heart className="text-[#ff007a] hover:scale-110 cursor-pointer" />
-              <Ban className="text-red-400 hover:scale-110 cursor-pointer" />
+              <ShieldCheck size={18} className="text-green-400" title="Verificado" />
+              <button title="Favorito" className="text-[#ff007a] hover:scale-110">
+                <Heart />
+              </button>
+              <button title="Bloquear" className="text-red-400 hover:scale-110">
+                <Ban />
+              </button>
             </div>
           </div>
 
@@ -460,7 +453,7 @@ export default function VideoChat() {
                   { nombre: "📱 Celular", valor: 80 },
                   { nombre: "💎 Diamante", valor: 100 },
                 ].map((regalo, i) => (
-                  <div key={i} className="bg-[#2b2d31] px-3 py-2 rounded-xl flex items-center justify-between hover:bg-[#383c44] cursor-pointer">
+                  <div key={i} className="bg-[#2b2d31] px-3 py-2 rounded-xl flex items-center justify-between hover:bg-[#383c44] cursor-pointer transition">
                     <span className="text-sm text-white">{regalo.nombre}</span>
                     <span className="text-xs text-[#ff007a] font-bold">+{regalo.valor} min</span>
                   </div>
@@ -471,8 +464,15 @@ export default function VideoChat() {
 
           {/* Input */}
           <div className="border-t border-[#ff007a]/20 p-3 flex gap-2 items-center">
-            <Gift size={20} className="text-[#ff007a] hover:text-white cursor-pointer" onClick={() => setMostrarRegalos(!mostrarRegalos)} />
-            <Smile size={20} className="text-[#ff007a] hover:text-white cursor-pointer" />
+            <button
+              className="text-[#ff007a] hover:text-white"
+              onClick={() => setMostrarRegalos(!mostrarRegalos)}
+            >
+              <Gift size={20} />
+            </button>
+            <button className="text-[#ff007a] hover:text-white">
+              <Smile size={20} />
+            </button>
             <input
               value={mensaje}
               onChange={(e) => setMensaje(e.target.value)}
@@ -488,13 +488,72 @@ export default function VideoChat() {
         </div>
       </div>
 
-      {/* Controles */}
+      {/* ✅ CONTROLES FUNCIONALES IGUALES AL CLIENTE */}
       <div className="flex justify-center gap-10 mt-6">
-        <button className="bg-[#2b2d31] p-4 rounded-full hover:bg-[#3a3d44]"><Mic size={22} /></button>
-        <button className="bg-[#2b2d31] p-4 rounded-full hover:bg-[#3a3d44]"><Video size={22} /></button>
-        <button className="bg-[#ff007a] p-4 rounded-full hover:bg-[#e6006e]" onClick={cambiarCamara}><Repeat size={22} /></button>
-        <button className="bg-[#ff007a] hover:bg-[#e6006e] px-6 py-3 rounded-full text-white text-lg font-semibold">Siguiente</button>
+        {/* Botón Micrófono */}
+        <button 
+          className={`p-4 rounded-full transition ${
+            micEnabled 
+              ? 'bg-[#2b2d31] hover:bg-[#3a3d44]' 
+              : 'bg-red-500 hover:bg-red-600'
+          }`}
+          onClick={() => setMicEnabled(!micEnabled)}
+          title={micEnabled ? 'Silenciar micrófono' : 'Activar micrófono'}
+        >
+          {micEnabled ? <Mic size={22} /> : <MicOff size={22} />}
+        </button>
+
+        {/* Botón Cámara */}
+        <button 
+          className={`p-4 rounded-full transition ${
+            cameraEnabled 
+              ? 'bg-[#2b2d31] hover:bg-[#3a3d44]' 
+              : 'bg-red-500 hover:bg-red-600'
+          }`}
+          onClick={() => setCameraEnabled(!cameraEnabled)}
+          title={cameraEnabled ? 'Apagar cámara' : 'Encender cámara'}
+        >
+          {cameraEnabled ? <Video size={22} /> : <VideoOff size={22} />}
+        </button>
+
+        {/* Cambiar vista */}
+        <button
+          className="bg-[#ff007a] p-4 rounded-full hover:bg-[#e6006e]"
+          onClick={cambiarCamara}
+          title="Intercambiar vista"
+        >
+          <Repeat size={22} />
+        </button>
+
+        {/* Nueva Ruleta */}
+        <button 
+          className="bg-[#ff007a] hover:bg-[#e6006e] px-6 py-3 rounded-full text-white text-lg font-semibold"
+          onClick={nuevaRuleta}
+        >
+          🎰 Nueva Ruleta
+        </button>
       </div>
     </LiveKitRoom>
   );
 }
+
+// ✅ COMPONENTE PARA CONTROLAR MEDIA (IGUAL QUE EL CLIENTE)
+const MediaControls = ({ micEnabled, cameraEnabled, setMicEnabled, setCameraEnabled }) => {
+  const { localParticipant } = useLocalParticipant();
+
+  useEffect(() => {
+    if (localParticipant) {
+      // Controlar micrófono
+      localParticipant.setMicrophoneEnabled(micEnabled);
+    }
+  }, [micEnabled, localParticipant]);
+
+  useEffect(() => {
+    if (localParticipant) {
+      // Controlar cámara
+      localParticipant.setCameraEnabled(cameraEnabled);
+    }
+  }, [cameraEnabled, localParticipant]);
+
+  return null; // Componente invisible, solo para lógica
+};
