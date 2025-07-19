@@ -73,10 +73,6 @@
         setVideo(null);
         setPaso(1);
         setMensaje({ tipo: "exito", texto: "✅ Verificación enviada correctamente. Serás redirigido..." });
-
-        setTimeout(() => {
-          navigate("/esperando");
-        }, 1000);
         window.location.reload
       } catch (error) {
         console.error("❌ Error al enviar verificación:", error);
