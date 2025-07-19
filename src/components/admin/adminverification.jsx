@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function AdminVerification() {
   const [verificaciones, setVerificaciones] = useState([]);
