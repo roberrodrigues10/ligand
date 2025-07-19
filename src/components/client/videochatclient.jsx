@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
-  ParticipantTile,
-  useTracks,
   useParticipants,
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 import {
   Mic,
@@ -20,79 +17,59 @@ import {
   ShieldCheck,
   Clock,
 } from "lucide-react";
-import Header from "../header";
+import Header from "./headercliente";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Componente personalizado para manejar los videos
+
+// ✅ COMPONENTE SÚPER SIMPLE - Sin useTracks problemático
 const VideoDisplay = ({ onCameraSwitch, mainCamera }) => {
-  const tracks = useTracks([
-    { source: Track.Source.Camera, withPlaceholder: true },
-  ]);
-  
   const participants = useParticipants();
   const localParticipant = participants.find(p => p.isLocal);
   const remoteParticipant = participants.find(p => !p.isLocal);
 
-  const getMainVideo = () => {
-    if (mainCamera === "local" && localParticipant) {
-      return (
-        <ParticipantTile 
-          participant={localParticipant} 
-          className="w-full h-full"
-          displayName={false}
-        />
-      );
-    } else if (remoteParticipant) {
-      return (
-        <ParticipantTile 
-          participant={remoteParticipant} 
-          className="w-full h-full"
-          displayName={false}
-        />
-      );
-    }
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-800">
-        <p className="text-white">Esperando conexión...</p>
-      </div>
-    );
-  };
-
-  const getMiniVideo = () => {
-    if (mainCamera === "local" && remoteParticipant) {
-      return (
-        <ParticipantTile 
-          participant={remoteParticipant} 
-          className="w-full h-full"
-          displayName={false}
-        />
-      );
-    } else if (localParticipant) {
-      return (
-        <ParticipantTile 
-          participant={localParticipant} 
-          className="w-full h-full"
-          displayName={false}
-        />
-      );
-    }
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-600">
-        <p className="text-white text-xs">Tu video</p>
-      </div>
-    );
-  };
-
   return (
     <>
-      {/* Cámara principal */}
-      <div className="w-full h-full">
-        {getMainVideo()}
+      <div className="w-full h-full flex items-center justify-center bg-gray-800 text-white">
+        <div className="text-center">
+          <div className="animate-pulse text-6xl mb-4">🎰</div>
+          <p className="text-xl mb-2">Ruleta de Video Chat</p>
+          <div className="space-y-2">
+            <p className="text-sm text-green-400">
+              ✅ Conectado al servidor LiveKit
+            </p>
+            <p className="text-sm text-gray-400">
+              👥 Participantes: {participants.length}
+            </p>
+            {localParticipant && (
+              <p className="text-sm text-blue-400">
+                🟦 Tú: {localParticipant.identity}
+              </p>
+            )}
+            {remoteParticipant && (
+              <p className="text-sm text-pink-400">
+                🟪 Modelo: {remoteParticipant.identity}
+              </p>
+            )}
+            {!remoteParticipant && participants.length === 1 && (
+              <p className="text-sm text-yellow-400">
+                ⏳ Esperando que el modelo se conecte...
+              </p>
+            )}
+            {participants.length === 0 && (
+              <p className="text-sm text-red-400">
+                🔄 Conectando...
+              </p>
+            )}
+          </div>
+        </div>
       </div>
-
-      {/* Cámara mini flotante */}
-      <div className="absolute bottom-4 left-4 w-40 h-28 rounded-lg overflow-hidden border-2 border-[#ff007a] shadow-lg cursor-pointer"
-           onClick={onCameraSwitch}>
-        {getMiniVideo()}
+      
+      {/* Mini video placeholder */}
+      <div
+        className="absolute bottom-4 left-4 w-40 h-28 rounded-lg overflow-hidden border-2 border-[#ff007a] shadow-lg cursor-pointer bg-gray-700 flex items-center justify-center"
+        onClick={onCameraSwitch}
+      >
+        <span className="text-white text-xs">Vista mini</span>
       </div>
     </>
   );
@@ -100,11 +77,20 @@ const VideoDisplay = ({ onCameraSwitch, mainCamera }) => {
 
 export default function VideoChat() {
   const location = useLocation();
-  const { roomName, userName, selectedCamera, selectedMic } = location.state || {};
+  const navigate = useNavigate();
+  
+  // ✅ OBTENER DATOS DE LA RULETA
+  const { 
+    roomName, 
+    userName, 
+    selectedCamera, 
+    selectedMic, 
+    modelo // Info del modelo de la ruleta
+  } = location.state || {};
   
   const [tiempo, setTiempo] = useState(0);
   const [mensaje, setMensaje] = useState("");
-  const [camaraPrincipal, setCamaraPrincipal] = useState("remote"); // "local" o "remote"
+  const [camaraPrincipal, setCamaraPrincipal] = useState("remote");
   const [mostrarRegalos, setMostrarRegalos] = useState(false);
   
   // Estados para LiveKit
@@ -117,10 +103,15 @@ export default function VideoChat() {
   useEffect(() => {
     const getToken = async () => {
       try {
-        const authToken = localStorage.getItem('auth_token'); // Tu token de autenticación
+        const authToken = sessionStorage.getItem('token');
         
-          const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://ligand-backend-oz6a.onrender.com';
-          const response = await fetch(`${apiUrl}/api/livekit/token`, {
+        if (!authToken) {
+          throw new Error('No hay token de autenticación');
+        }
+
+        console.log("🎰 Obteniendo token de LiveKit para:", { roomName, userName });
+
+        const response = await fetch(`${API_BASE_URL}/api/livekit/token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -133,15 +124,18 @@ export default function VideoChat() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to get token');
+          const errorData = await response.text();
+          throw new Error(`Error ${response.status}: ${errorData}`);
         }
 
         const data = await response.json();
+        console.log("✅ Token de LiveKit obtenido exitosamente");
+        
         setToken(data.token);
         setServerUrl(data.serverUrl);
         setLoading(false);
       } catch (err) {
-        console.error('Error getting token:', err);
+        console.error('❌ Error getting token:', err);
         setError(err.message);
         setLoading(false);
       }
@@ -150,7 +144,7 @@ export default function VideoChat() {
     if (roomName && userName) {
       getToken();
     } else {
-      setError('Faltan parámetros de la sala');
+      setError('Faltan parámetros de la sala - Intenta hacer otra ruleta');
       setLoading(false);
     }
   }, [roomName, userName]);
@@ -172,12 +166,16 @@ export default function VideoChat() {
 
   const handleRoomConnected = () => {
     setConnected(true);
-    console.log('Conectado a la sala LiveKit');
+    console.log('🟢 Conectado a la sala LiveKit');
   };
 
   const handleRoomDisconnected = () => {
     setConnected(false);
-    console.log('Desconectado de la sala LiveKit');
+    console.log('🔴 Desconectado de la sala LiveKit');
+  };
+
+  const nuevaRuleta = () => {
+    navigate('/precallclient');
   };
 
   if (loading) {
@@ -186,6 +184,11 @@ export default function VideoChat() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#ff007a] mx-auto mb-4"></div>
           <p className="text-xl">Conectando a la videollamada...</p>
+          {modelo && (
+            <div className="mt-4 text-sm text-gray-400">
+              <p>🎰 Conectando con: <span className="text-[#ff007a]">{modelo.nombre}</span> {modelo.pais}</p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -196,12 +199,20 @@ export default function VideoChat() {
       <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-500 text-xl mb-4">Error: {error}</p>
-          <button 
-            onClick={() => window.history.back()}
-            className="bg-[#ff007a] px-6 py-3 rounded-full text-white"
-          >
-            Volver
-          </button>
+          <div className="space-x-4">
+            <button 
+              onClick={nuevaRuleta}
+              className="bg-[#ff007a] px-6 py-3 rounded-full text-white"
+            >
+              🎰 Nueva Ruleta
+            </button>
+            <button 
+              onClick={() => window.history.back()}
+              className="bg-gray-600 px-6 py-3 rounded-full text-white"
+            >
+              Volver
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -230,7 +241,7 @@ export default function VideoChat() {
         </div>
         <div className="flex items-center gap-2">
           <Clock size={16} className="text-[#ff007a]" />
-          <span className="text-[#ff007a] font-bold">12 min restantes</span>
+          <span className="text-[#ff007a] font-bold">∞ Tiempo ilimitado</span>
           {connected && (
             <span className="text-green-400 text-xs ml-2">🟢 Conectado</span>
           )}
@@ -248,11 +259,11 @@ export default function VideoChat() {
 
         {/* PANEL DERECHO */}
         <div className="w-[340px] bg-[#1f2125] rounded-2xl flex flex-col justify-between relative">
-          {/* Info del usuario */}
+          {/* ✅ INFO DEL MODELO DE LA RULETA */}
           <div className="flex justify-between items-center p-4 border-b border-[#ff007a]/20">
             <div>
-              <p className="font-semibold text-white">Lucas</p>
-              <p className="text-sm text-white/60">🇵🇭 Filipinas</p>
+              <p className="font-semibold text-white">{modelo?.nombre || 'Modelo'}</p>
+              <p className="text-sm text-white/60">{modelo?.pais || '🌎'} Online</p>
             </div>
             <div className="flex items-center gap-2">
               <ShieldCheck size={18} className="text-green-400" title="Verificado" />
@@ -267,15 +278,30 @@ export default function VideoChat() {
 
           {/* Mensajes */}
           <div className="flex-1 p-4 space-y-3 overflow-y-auto relative custom-scroll">
+            {/* ✅ MENSAJE DE CONFIRMACIÓN DE RULETA */}
             <div className="text-sm">
-              <span className="font-bold text-white">Lucas 🇵🇭</span>
+              <span className="font-bold text-green-400">🎰 Sistema</span>
+              <p className="bg-[#1f2937] inline-block px-3 py-1 mt-1 rounded-xl border border-green-400/30">
+                Ruleta exitosa: Conectado con {modelo?.nombre || 'modelo'} {modelo?.pais || ''}
+              </p>
+            </div>
+            
+            <div className="text-sm">
+              <span className="font-bold text-white">{modelo?.nombre || 'Modelo'} {modelo?.pais || ''}</span>
               <p className="bg-[#2b2d31] inline-block px-3 py-1 mt-1 rounded-xl">
-                Hi, how are you?
+                ¡Hola! ¿Cómo estás? 😊
               </p>
             </div>
             <div className="text-right">
               <p className="bg-[#ff007a] inline-block px-3 py-1 mt-1 rounded-xl text-white">
-                Good, and you?
+                ¡Bien, gracias! La ruleta funcionó perfecto 🎰
+              </p>
+            </div>
+            
+            <div className="text-sm">
+              <span className="font-bold text-blue-400">ℹ️ Info</span>
+              <p className="bg-[#1e3a8a]/20 inline-block px-3 py-1 mt-1 rounded-xl border border-blue-400/30 text-blue-200">
+                Sala: {roomName}
               </p>
             </div>
           </div>
@@ -285,7 +311,7 @@ export default function VideoChat() {
             <div className="absolute bottom-[70px] left-1/2 transform -translate-x-1/2 bg-[#1a1c20] p-5 rounded-xl shadow-2xl w-[300px] max-h-[360px] overflow-y-auto z-50 border border-[#ff007a]/30 scrollbar-thin scrollbar-thumb-[#ff007a88] scrollbar-track-[#2b2d31]">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-white font-semibold text-sm">
-                  🎁 Elige un regalo para pedir
+                  🎁 Regalos para {modelo?.nombre || 'el modelo'}
                 </h3>
                 <button
                   className="text-white/50 hover:text-white text-sm"
@@ -335,7 +361,7 @@ export default function VideoChat() {
             <input
               value={mensaje}
               onChange={(e) => setMensaje(e.target.value)}
-              placeholder="Escribe un mensaje"
+              placeholder={`Escribe a ${modelo?.nombre || 'modelo'}...`}
               className="flex-1 bg-[#131418] px-4 py-2 rounded-full outline-none text-white text-sm"
             />
             <button className="text-[#ff007a] hover:text-white">
@@ -367,8 +393,11 @@ export default function VideoChat() {
         >
           <Repeat size={22} />
         </button>
-        <button className="bg-[#ff007a] hover:bg-[#e6006e] px-6 py-3 rounded-full text-white text-lg font-semibold">
-          Siguiente
+        <button 
+          className="bg-[#ff007a] hover:bg-[#e6006e] px-6 py-3 rounded-full text-white text-lg font-semibold"
+          onClick={nuevaRuleta}
+        >
+          🎰 Nueva Ruleta
         </button>
       </div>
     </LiveKitRoom>

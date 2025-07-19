@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./header";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-export default function PreCallLobby() {
+export default function PreCallLobbyModelo() {
   const [selectedCamera, setSelectedCamera] = useState("");
   const [selectedMic, setSelectedMic] = useState("");
   const [cameras, setCameras] = useState([]);
   const [microphones, setMicrophones] = useState([]);
+  const [loading, setLoading] = useState(false);
   const videoRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const navigate = useNavigate();
@@ -63,6 +65,63 @@ export default function PreCallLobby() {
     };
   }, [selectedCamera, selectedMic]);
 
+  // ✅ FUNCIÓN PRINCIPAL: Iniciar ruleta (IGUAL QUE CLIENTE)
+  const iniciarRuleta = async () => {
+    setLoading(true);
+    
+    try {
+      const authToken = sessionStorage.getItem('token');
+      if (!authToken) {
+        throw new Error('No hay token de autenticación');
+      }
+
+      console.log("👩‍💻 Modelo iniciando ruleta...");
+
+      // Llamar al MISMO endpoint de ruleta
+      const response = await fetch(`${API_BASE_URL}/api/ruleta/iniciar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Error ${response.status}: ${errorData}`);
+      }
+
+      const data = await response.json();
+      
+      console.log("✅ Ruleta exitosa:", data);
+
+      // Detener el stream actual
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      }
+
+      // Navegar al videochat del modelo
+      navigate("/videochat", {
+        state: {
+          roomName: data.roomName,
+          userName: data.userName,
+          selectedCamera,
+          selectedMic,
+          ruletaData: data, // Toda la info de la ruleta
+          // Si hay match, info del otro usuario
+          matchedWith: data.matched_with || null,
+          type: data.type // 'match_found' o 'waiting'
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error en ruleta:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-ligand-mix-dark from-[#0a0d10] to-[#131418] text-white">
       <div className="w-full px-6 pt-6">
@@ -83,10 +142,10 @@ export default function PreCallLobby() {
           </div>
 
           <div className="text-center mb-4">
-            <h2 className="text-xl font-semibold">Mandy, 23</h2>
+            <h2 className="text-xl font-semibold">👩‍💻 ¡Lista para la ruleta!</h2>
             <p className="text-green-400 text-sm flex items-center justify-center gap-2">
               <span className="w-2 h-2 rounded-full bg-green-400 inline-block" />
-              Active
+              Modelo conectada
             </p>
           </div>
 
@@ -98,6 +157,7 @@ export default function PreCallLobby() {
                 value={selectedCamera}
                 onChange={(e) => setSelectedCamera(e.target.value)}
                 className="w-full mt-1 p-2 rounded-lg bg-[#2b2d31] text-white outline-none"
+                disabled={loading}
               >
                 {cameras.map((cam) => (
                   <option key={cam.deviceId} value={cam.deviceId}>
@@ -113,6 +173,7 @@ export default function PreCallLobby() {
                 value={selectedMic}
                 onChange={(e) => setSelectedMic(e.target.value)}
                 className="w-full mt-1 p-2 rounded-lg bg-[#2b2d31] text-white outline-none"
+                disabled={loading}
               >
                 {microphones.map((mic) => (
                   <option key={mic.deviceId} value={mic.deviceId}>
@@ -123,13 +184,27 @@ export default function PreCallLobby() {
             </div>
           </div>
 
-          {/* Botón iniciar */}
+          {/* ✅ BOTÓN DE RULETA - IGUAL QUE CLIENTE */}
           <button
-            className="mt-6 w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-6 py-3 rounded-full text-lg font-semibold transition"
-            onClick={() => navigate("/videochat")}
+            className="mt-6 w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-6 py-3 rounded-full text-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={iniciarRuleta}
+            disabled={loading}
           >
-            Start Call
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                Buscando cliente...
+              </div>
+            ) : (
+              "🎰 Iniciar Ruleta"
+            )}
           </button>
+
+          {/* Info adicional para modelo */}
+          <div className="mt-4 text-center text-xs text-white/50">
+            <p>🎲 Te conectarás con un cliente aleatorio</p>
+            <p>💫 ¡Sistema Omegle para modelos!</p>
+          </div>
         </div>
       </div>
     </div>
