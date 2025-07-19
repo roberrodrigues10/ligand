@@ -22,7 +22,7 @@ export default function ProtectedRoute({ children }) {
             window.location.pathname.includes("/verificacion") ||
             window.location.pathname.includes("/genero") 
           ) {
-            navigate("/homellamadas");
+            navigate("/homecliente");
           }
         }
 
@@ -32,14 +32,14 @@ export default function ProtectedRoute({ children }) {
 
           if (!user.rol) {
             navigate("/genero");
-          } else if (!user.alias) {
-            navigate("/alias");
+          } else if (!user.name) {
+            navigate("/genero");
           } else if (!v.selfie || !v.documento || !v.selfie_doc || !v.video) {
             navigate("/verificacion");
           } else {
             // ya verificada y puede ir a home
             if (window.location.pathname === "/") {
-              navigate("/homemodelo");
+              navigate("/homellamadas");
             }
           }
         }

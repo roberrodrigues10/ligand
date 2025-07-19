@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "./header";
+import Header from "./headercliente";
 
 export default function PreCallLobby() {
   const [selectedCamera, setSelectedCamera] = useState("");
   const [selectedMic, setSelectedMic] = useState("");
   const [cameras, setCameras] = useState([]);
   const [microphones, setMicrophones] = useState([]);
+  const [roomName, setRoomName] = useState(""); // Nuevo: nombre de la sala
+  const [userName, setUserName] = useState(""); // Nuevo: nombre del usuario
   const videoRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const navigate = useNavigate();
@@ -28,7 +30,19 @@ export default function PreCallLobby() {
       }
     };
 
+    // Generar datos para la sesión
+    const generateSessionData = () => {
+      // Aquí puedes obtener estos datos de tu sistema de autenticación
+      // Por ejemplo, desde el localStorage, context, o props
+      const userId = localStorage.getItem('user_id') || 'user_' + Math.random().toString(36).substr(2, 9);
+      const room = 'room_' + Math.random().toString(36).substr(2, 9); // O desde tu backend
+      
+      setUserName(userId);
+      setRoomName(room);
+    };
+
     initDevices();
+    generateSessionData();
   }, []);
 
   useEffect(() => {
@@ -62,6 +76,23 @@ export default function PreCallLobby() {
       }
     };
   }, [selectedCamera, selectedMic]);
+
+  const handleStartCall = () => {
+    // Limpiar stream actual antes de navegar
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+    }
+
+    // Navegar pasando los parámetros necesarios para LiveKit
+    navigate("/videochatclient", {
+      state: {
+        roomName,
+        userName,
+        selectedCamera,
+        selectedMic
+      }
+    });
+  };
 
   return (
     <div className="min-h-screen bg-ligand-mix-dark from-[#0a0d10] to-[#131418] text-white">
@@ -121,12 +152,21 @@ export default function PreCallLobby() {
                 ))}
               </select>
             </div>
+
+            {/* Mostrar información de sesión (opcional, para debug) */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="text-xs text-white/50">
+                <p>Room: {roomName}</p>
+                <p>User: {userName}</p>
+              </div>
+            )}
           </div>
 
           {/* Botón iniciar */}
           <button
             className="mt-6 w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-6 py-3 rounded-full text-lg font-semibold transition"
-            onClick={() => navigate("/videochat")}
+            onClick={handleStartCall}
+            disabled={!roomName || !userName}
           >
             Start Call
           </button>

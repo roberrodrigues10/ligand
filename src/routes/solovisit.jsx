@@ -15,10 +15,14 @@ const RutaSoloVisitantes = () => {
         const rol = data?.user?.rol;
 
         if (rol === "cliente") {
+          setRedirect("/homecliente");
+        } else if (rol === "modelo" && data?.user?.verificacion.estado === "pendiente") {
+          setRedirect("/esperando");
+        }else if (rol === "modelo" && data?.user?.verificacion.estado === "aprobada") {
           setRedirect("/homellamadas");
-        } else if (rol === "modelo") {
-          setRedirect("/anteveri");
-        } else {
+        } else if (rol === "modelo" && data?.user?.verificacion.estado === "null") {
+            setRedirect("/anteveri");
+        }else {
           setRedirect("/"); // por si el rol no es válido
         }
       } catch (error) {

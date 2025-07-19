@@ -20,7 +20,7 @@ export default function RedirectSegunRol() {
             navigate("/esperando"); // o el dashboard de la modelo
           }
         } else if (user.rol === "cliente") {
-          navigate("/homellamadas");
+          navigate("/homecliente");
         } else {
           navigate("/home");
         }

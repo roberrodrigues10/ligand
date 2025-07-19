@@ -88,6 +88,7 @@ export const getUser = async () => {
     const response = await axios.get(`${API_BASE_URL}/api/profile`); // ← SIN skipInterceptor
     console.log("✅ Perfil obtenido exitosamente");
     console.log("👤 Usuario:", response.data);
+    
     return response.data;
   } catch (error) {
     console.error("❌ Error obteniendo usuario:", error.response?.data);

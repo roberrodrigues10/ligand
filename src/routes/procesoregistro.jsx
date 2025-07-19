@@ -40,10 +40,14 @@ const RutaProcesoRegistro = () => {
         // Si el género ya está completado, redirige según el tipo de usuario
         if (user.rol || user.genero) {
           if (user.rol === 'cliente') {
-            setRedirectTo('/homellamadas');
-          } else if (user.rol === 'modelo') {
+            setRedirectTo('/homecliente');
+          } else if (user.rol === 'modelo' && user.verificacion?.estado === 'null') {
             setRedirectTo('/anteveri');
-          } else {
+          } else if (user.rol === 'modelo' && user.verificacion?.estado === 'pendiente') {
+            setRedirectTo('/esperando');
+          } else if (user.rol === 'modelo' && user.verificacion?.estado === 'aprobada') {
+            setRedirectTo('/homellamadas');
+          }else {
             setRedirectTo('/home');
           }
           return;

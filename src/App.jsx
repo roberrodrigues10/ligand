@@ -15,7 +15,9 @@ import Mensajes from "./components/mensajes";
 import Favoritos from "./components/favorites";
 import HistorySub from "./components/historysu";
 import EsperancoCall from "./components/esperacall";
+import EsperandoCallCliente from "./components/client/esperacallclient";
 import Videochat from "./components/videochat";
+import VideochatClient from "./components/client/videochatclient";
 import ConfiPerfil from "./components/confiperfil";
 
 import RutaSoloVisitantes from "./routes/solovisit";
@@ -26,7 +28,9 @@ import RutaEmailNoVerificado from "./routes/emailnoverifiy";
 import RutaEmailVerificado from "./routes/emailverifiy";
 import RutaClienteYaVerificado from "./routes/routeclient";
 import RutaModeloNoVerificada from "./routes/routemodel";
+import RutaModelo from "./routes/routemodelverify";
 
+import Homecliente from "./components/client/homecliente";
 // Nueva ruta protegida para proceso de registro
 import RutaProcesoRegistro from "./routes/procesoregistro";
 
@@ -37,6 +41,9 @@ function App() {
       <Routes>
         {/* Ruta raíz - redirige a home */}
         <Route path="/" element={<Navigate to="/home" replace />} />
+
+        
+        
         
         {/* Rutas públicas */}
         <Route element={<RutaSoloVisitantes />}>
@@ -56,13 +63,9 @@ function App() {
         <Route element={<RutaEmailVerificado />}>
           {/* Rutas SOLO para clientes que ya pasaron por género y alias */}
           <Route element={<RutaClienteYaVerificado />}>
-            <Route path="/homellamadas" element={<HomeLlamadas />} />
-            <Route path="/mensajes" element={<Mensajes />} />
-            <Route path="/favorites" element={<Favoritos />} />
-            <Route path="/historysu" element={<HistorySub />} />
-            <Route path="/esperandocall" element={<EsperancoCall />} />
-            <Route path="/videochat" element={<Videochat />} />
-            <Route path="/configuracion" element={<ConfiPerfil />} />
+            <Route path="/homecliente" element={<Homecliente />} />
+            <Route path="/esperandocallcliente" element={<EsperandoCallCliente />} />
+            <Route path="/videochatclient" element={<VideochatClient />} />
           </Route>
 
           {/* Ruta de género protegida */}
@@ -74,9 +77,17 @@ function App() {
           <Route element={<RutaModeloNoVerificada />}>
             <Route path="/verificacion" element={<Verificacion />} />
             <Route path="/anteveri" element={<Anteveri />} />
+            <Route path="/homellamadas" element={<HomeLlamadas />} />
+            <Route path="/esperando" element={<Esperando />} />
+            <Route path="/mensajes" element={<Mensajes />} />
+            <Route path="/favorites" element={<Favoritos />} />
+            <Route path="/historysu" element={<HistorySub />} />
+            <Route path="/esperandocall" element={<EsperancoCall />} />
+            <Route path="/videochat" element={<Videochat />} />
+            <Route path="/configuracion" element={<ConfiPerfil />} />
           </Route>
-          <Route path="/esperando" element={<Esperando />} />
         </Route>
+        
 
         {/* Ruta catch-all para URLs no encontradas */}
         <Route path="*" element={<Navigate to="/home" replace />} />

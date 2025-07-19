@@ -30,29 +30,29 @@ export default function RutaProtegidaModelo() {
   if (cargando) return <div className="text-white">Cargando...</div>;
   if (!user) return <Navigate to="/home" replace />;
 
-  const pasosRestringidos = ["/verificar-email", "/genero", "/nombre"];
-
-  // 🚫 Redirección si ya completó ciertos pasos
-  if (
-    pasosRestringidos.includes(location.pathname) &&
+  const pasoFinalCompletado =
     user.email_verified_at &&
     user.rol &&
-    user.nombre &&
-    user.estado === "aprobada"
-  ) {
+    user.name &&
+    user.verificacion?.estado === "aprobada";
+
+  const estaEnRutasIniciales = ["/verificacion", "/anteveri"].includes(location.pathname);
+
+  // ✅ Ya completó todo → redirigir si está en rutas iniciales
+  if (pasoFinalCompletado && estaEnRutasIniciales) {
     return <Navigate to="/homellamadas" replace />;
   }
 
-  // ✅ REGLA: Si NO ha enviado nada de verificación (verificacion_estado == null)
-  if (!user.estado) {
-  const rutasPermitidas = ["/anteveri", "/verificacion"];
-  if (!rutasPermitidas.includes(location.pathname)) {
-    return <Navigate to="/anteveri" replace />;
+  // 🚫 No ha enviado nada de verificación
+  if (!user.verificacion?.estado) {
+    const rutasPermitidas = ["/anteveri", "/verificacion"];
+    if (!rutasPermitidas.includes(location.pathname)) {
+      return <Navigate to="/anteveri" replace />;
     }
-    }
+  }
 
-  // 🔒 REGLA: Si está en estado pendiente
-    if (user.verificacion?.estado === "pendiente") {
+  // ⏳ Está en revisión
+  if (user.verificacion?.estado === "pendiente") {
     if (location.pathname !== "/esperando") {
       return <Navigate to="/esperando" replace />;
     }
