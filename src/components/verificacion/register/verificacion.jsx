@@ -76,7 +76,8 @@
 
         setTimeout(() => {
           navigate("/esperando");
-        }, 3000);
+        }, 1000);
+        window.location.reload
       } catch (error) {
         console.error("❌ Error al enviar verificación:", error);
         if (error.response?.status === 422) {
