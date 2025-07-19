@@ -119,7 +119,8 @@ export default function VideoChat() {
       try {
         const authToken = localStorage.getItem('auth_token'); // Tu token de autenticación
         
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/livekit/token`, {
+          const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://ligand-backend-oz6a.onrender.com';
+          const response = await fetch(`${apiUrl}/api/livekit/token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
