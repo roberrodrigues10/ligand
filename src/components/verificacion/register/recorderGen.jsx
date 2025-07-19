@@ -26,7 +26,7 @@ const VideoRecorder = ({ onRecorded, onCancel }) => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [recording, intervalId]);
+  }, [recording]);
 
   // Efecto para manejar la previsualización automática
   useEffect(() => {
