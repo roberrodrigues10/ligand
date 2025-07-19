@@ -40,7 +40,6 @@ export default function RutaProtegidaModelo() {
 
   // ✅ Ya completó todo → redirigir si está en rutas iniciales
   if (pasoFinalCompletado && estaEnRutasIniciales) {
-    window.location.reload();
     return <Navigate to="/homellamadas" replace />;
   }
 
