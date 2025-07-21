@@ -21,10 +21,10 @@ import VideochatClient from "./components/client/videochatclient";
 import ConfiPerfil from "./components/confiperfil";
 
 import RutaSoloVisitantes from "./routes/solovisit";
+import RouteGuard from "./routes/blockchat";
 
 //Rutas admin
 import VerificacionesAdmin from "./components/admin/adminverification";
-
 
 // Rutas protegidas
 import RutaProtegida from "./routes/ss";
@@ -35,69 +35,62 @@ import RutaModeloNoVerificada from "./routes/routemodel";
 import RutaModelo from "./routes/routemodelverify";
 
 import Homecliente from "./components/client/homecliente";
-// Nueva ruta protegida para proceso de registro
 import RutaProcesoRegistro from "./routes/procesoregistro";
 
 function App() {
   return (
     <BrowserRouter>
       <VerificarSesionActiva />
-      <Routes>
-        {/* Ruta raíz - redirige a home */}
-        <Route path="/" element={<Navigate to="/home" replace />} />
+      
+      <RouteGuard>
+        <Routes>
+          <Route path="/" element={<Navigate to="/home" replace />} />
 
-        
-        
-        
-        {/* Rutas públicas */}
-        <Route element={<RutaSoloVisitantes />}>
-          <Route path="/home" element={<LigandHome />} />
-          <Route path="/login" element={<LoginLigand />} />
-        </Route>
-        <Route path="/logout" element={<Logout />} />
-
-        {/* Rutas para quienes NO han verificado el email */}
-        <Route element={<RutaEmailNoVerificado />}>
-          <Route element={<RutaProcesoRegistro />}>
-            <Route path="/verificaremail" element={<VerificarCodigo />} />
+          <Route element={<RutaSoloVisitantes />}>
+            <Route path="/home" element={<LigandHome />} />
+            <Route path="/login" element={<LoginLigand />} />
           </Route>
-        </Route>
+          <Route path="/logout" element={<Logout />} />
 
-        {/* Rutas para quienes SÍ han verificado el email */}
-        <Route element={<RutaEmailVerificado />}>
-          {/* Rutas SOLO para clientes que ya pasaron por género y alias */}
-          <Route element={<RutaClienteYaVerificado />}>
-            <Route path="/homecliente" element={<Homecliente />} />
-            <Route path="/esperandocallcliente" element={<EsperandoCallCliente />} />
-            <Route path="/videochatclient" element={<VideochatClient />} />
+          <Route element={<RutaEmailNoVerificado />}>
+            <Route element={<RutaProcesoRegistro />}>
+              <Route path="/verificaremail" element={<VerificarCodigo />} />
+            </Route>
           </Route>
 
-          {/* Ruta de género protegida */}
-          <Route element={<RutaProcesoRegistro />}>
-            <Route path="/genero" element={<Genero />} />
+          <Route element={<RutaEmailVerificado />}>
+            
+            <Route element={<RutaClienteYaVerificado />}>
+              <Route path="/homecliente" element={<Homecliente />} />
+              <Route path="/esperandocallcliente" element={<EsperandoCallCliente />} />
+              <Route path="/videochatclient" element={<VideochatClient />} />
+            </Route>
+
+            <Route element={<RutaProcesoRegistro />}>
+              <Route path="/genero" element={<Genero />} />
+            </Route>
+
+            <Route element={<RutaModeloNoVerificada />}>
+              <Route path="/verificacion" element={<Verificacion />} />
+              <Route path="/anteveri" element={<Anteveri />} />
+              <Route path="/homellamadas" element={<HomeLlamadas />} />
+              <Route path="/esperando" element={<Esperando />} />
+              <Route path="/mensajes" element={<Mensajes />} />
+              <Route path="/favorites" element={<Favoritos />} />
+              <Route path="/historysu" element={<HistorySub />} />
+              <Route path="/esperandocall" element={<EsperancoCall />} />
+              <Route path="/videochat" element={<Videochat />} />
+              <Route path="/configuracion" element={<ConfiPerfil />} />
+            </Route>
+            
           </Route>
 
-          {/* Rutas SOLO para modelos que aún no han terminado verificación */}
-          <Route element={<RutaModeloNoVerificada />}>
-            <Route path="/verificacion" element={<Verificacion />} />
-            <Route path="/anteveri" element={<Anteveri />} />
-            <Route path="/homellamadas" element={<HomeLlamadas />} />
-            <Route path="/esperando" element={<Esperando />} />
-            <Route path="/mensajes" element={<Mensajes />} />
-            <Route path="/favorites" element={<Favoritos />} />
-            <Route path="/historysu" element={<HistorySub />} />
-            <Route path="/esperandocall" element={<EsperancoCall />} />
-            <Route path="/videochat" element={<Videochat />} />
-            <Route path="/configuracion" element={<ConfiPerfil />} />
-          </Route>
-        </Route>
-        {/* Rutas protegidas para admin autenticados */}
           <Route path="/verificacionesadmin" element={<VerificacionesAdmin />} />
-        
-
-        {/* Ruta catch-all para URLs no encontradas */}
-        <Route path="*" element={<Navigate to="/home" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/home" replace />} />
+          
+        </Routes>
+      </RouteGuard>
+      
     </BrowserRouter>
   );
 }
