@@ -1,4 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react"; // ← Agregar esto
+import { initializeAuth } from "./utils/auth"; // ← Agregar esto (ajusta la ruta según dónde esté tu auth.js)
+
 import LigandHome from "./components/ligandHome";
 import LoginLigand from "./components/verificacion/login/loginligand";
 import Logout from "./components/verificacion/login/logout";
@@ -38,6 +41,11 @@ import Homecliente from "./components/client/homecliente";
 import RutaProcesoRegistro from "./routes/procesoregistro";
 
 function App() {
+  // ✅ INICIALIZAR SISTEMA DE AUTENTICACIÓN Y HEARTBEAT
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
   return (
     <BrowserRouter>
       <VerificarSesionActiva />

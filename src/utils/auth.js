@@ -1,6 +1,67 @@
 import axios from "../api/axios";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+// ========================
+// SISTEMA DE HEARTBEAT
+// ========================
+let heartbeatInterval = null;
+
+const sendHeartbeat = async () => {
+  try {
+    const token = sessionStorage.getItem("token");
+    if (!token) return;
+
+    await axios.post(`${API_BASE_URL}/api/heartbeat`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    console.log("💓 Heartbeat enviado");
+  } catch (error) {
+    console.error("❌ Error en heartbeat:", error);
+    
+    // Si el token expiró, limpiar todo
+    if (error.response?.status === 401) {
+      stopHeartbeat();
+      sessionStorage.removeItem("token");
+    }
+  }
+};
+
+const startHeartbeat = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+  }
+  
+  console.log("💓 Iniciando sistema de heartbeat");
+  heartbeatInterval = setInterval(sendHeartbeat, 30000); // 30 segundos
+};
+
+const stopHeartbeat = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+    console.log("💓 Sistema de heartbeat detenido");
+  }
+};
+
+// Función para marcar como offline
+const markUserOffline = async () => {
+  try {
+    const token = sessionStorage.getItem("token");
+    if (!token) return;
+
+    await axios.post(`${API_BASE_URL}/api/user/mark-offline`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    console.log("🔴 Usuario marcado como offline");
+  } catch (error) {
+    console.error("❌ Error marcando como offline:", error);
+  }
+};
+
+// ========================
+// FUNCIONES EXISTENTES MODIFICADAS
+// ========================
+
 // ✅ Registrar usuario
 export const register = async (email, password) => {
   try {
@@ -21,7 +82,7 @@ export const register = async (email, password) => {
   }
 };
 
-// ✅ Login
+// ✅ Login - MODIFICADO
 export const login = async (email, password, navigate) => {
   try {
     const response = await axios.post(`${API_BASE_URL}/api/login`, { email, password });
@@ -30,6 +91,19 @@ export const login = async (email, password, navigate) => {
     if (token) {
       sessionStorage.setItem("token", token);
       console.log("✅ Token guardado en login:", token.substring(0, 10) + "...");
+      
+      // 🟢 MARCAR COMO ONLINE INMEDIATAMENTE
+      try {
+        await axios.post(`${API_BASE_URL}/api/user/mark-online`, {}, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        console.log("🟢 Usuario marcado como online");
+        
+        // 💓 INICIAR SISTEMA DE HEARTBEAT
+        startHeartbeat();
+      } catch (error) {
+        console.error("❌ Error marcando como online:", error);
+      }
     }
 
     const { signup_step } = response.data;
@@ -67,14 +141,23 @@ export const login = async (email, password, navigate) => {
   }
 };
 
-// ✅ Logout
+// ✅ Logout - MODIFICADO
 export const logout = async () => {
   try {
+    // 🔴 MARCAR COMO OFFLINE Y DETENER HEARTBEAT
+    await markUserOffline();
+    stopHeartbeat();
+    
     await axios.post(`${API_BASE_URL}/api/logout`);
     sessionStorage.removeItem("token");
     return true;
   } catch (error) {
     console.error("❌ Error en logout:", error.response?.data || error);
+    
+    // Aunque falle el logout, limpiar local
+    stopHeartbeat();
+    sessionStorage.removeItem("token");
+    
     throw error;
   }
 };
@@ -96,6 +179,7 @@ export const getUser = async () => {
     // Si es 401, limpiar token inválido
     if (error.response?.status === 401) {
       console.log("🧹 Limpiando token inválido");
+      stopHeartbeat();
       sessionStorage.removeItem("token");
     }
     
@@ -125,7 +209,7 @@ export const asignarRol = async ({ rol, nombre }) => {
   });
 };
 
-// ✅ Reclamar sesión
+// ✅ Reclamar sesión - MODIFICADO
 export const reclamarSesion = async () => {
   try {
     const token = sessionStorage.getItem("token");
@@ -143,6 +227,10 @@ export const reclamarSesion = async () => {
     const nuevoToken = response.data.nuevo_token;
     if (nuevoToken) {
       sessionStorage.setItem("token", nuevoToken);
+      
+      // 💓 REINICIAR HEARTBEAT CON NUEVO TOKEN
+      startHeartbeat();
+      
       return nuevoToken;
     } else {
       console.warn("⚠️ No se recibió nuevo_token");
@@ -153,3 +241,38 @@ export const reclamarSesion = async () => {
     throw error;
   }
 };
+
+// ========================
+// FUNCIONES NUEVAS EXPORTADAS
+// ========================
+
+// Función para inicializar el sistema (llamar en App.js una vez)
+export const initializeAuth = () => {
+  const token = sessionStorage.getItem("token");
+  
+  if (token) {
+    console.log("🔄 Token encontrado, iniciando heartbeat automático");
+    startHeartbeat();
+  }
+};
+
+// Función para actualizar heartbeat cuando entre a videochat
+export const updateHeartbeatRoom = async (roomName) => {
+  try {
+    const token = sessionStorage.getItem("token");
+    if (!token) return;
+
+    await axios.post(`${API_BASE_URL}/api/heartbeat`, {
+      current_room: roomName,
+      activity_type: 'videochat'
+    }, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    console.log("💓 Heartbeat actualizado para videochat");
+  } catch (error) {
+    console.error("❌ Error actualizando heartbeat:", error);
+  }
+};
+
+// Exportar funciones de control del heartbeat
+export { startHeartbeat, stopHeartbeat };

@@ -21,7 +21,7 @@ const RutaClienteYaVerificado = () => {
             pasosRestringidos.includes(location.pathname) &&
             user.email_verified_at &&
             user.rol &&
-            user.nombre &&
+            user.w &&
             user.estado === "aprobada"
         ) {
             return <Navigate to="/homellamadas" replace />;
