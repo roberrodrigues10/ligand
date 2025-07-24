@@ -112,8 +112,11 @@ class UserCacheManager {
       });
 
       if (response.status === 200 && response.data) {
-        const userData = response.data.user || response.data;
-        
+          const userData = response.data?.user || response.data?.data?.user || response.data;
+
+          // Y agrega logging para verificar:
+          console.log('🔍 [CACHE] response.data:', response.data);
+          console.log('🔍 [CACHE] userData extraído:', userData);        
         // 🔥 GUARDAR EN CACHE
         this.cache.set(cacheKey, {
           data: userData,
