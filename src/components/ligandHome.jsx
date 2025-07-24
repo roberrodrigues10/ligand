@@ -1,44 +1,175 @@
+// En tu archivo ligandHome.jsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Heart } from 'lucide-react';
 import pruebahistorias from './imagenes/pruebahistorias.jpg';
 import logoproncipal from './imagenes/logoprincipal.png';
 import LoginLigand from "./verificacion/login/loginligand";
 import Register from "./verificacion/register/register";
-
 import { useSearchParams, useNavigate } from "react-router-dom";
+import api from '../api/axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function ParlandomChatApp() {
-  const [searchParams] = useSearchParams(); // ✅ DENTRO del componente
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const hasChecked = useRef(false); // 🔥 PREVENIR LOOPS
 
   const auth = searchParams.get("auth");
   const showLogin = auth === "login";
   const showRegister = auth === "register";
 
-    const todasLasChicas = [
-      "Ana", "Lucía", "Sofía", "Camila", "Valentina", "Isabela", "Mía", "Emilia"
-    ];
-    const [startIndex, setStartIndex] = useState(0);
+  // 🔍 VERIFICAR SI EL USUARIO YA ESTÁ LOGUEADO Y REDIRIGIR
+  useEffect(() => {
+    const checkUserAndRedirect = async () => {
+      // 🔥 PREVENIR MÚLTIPLES EJECUCIONES
+      if (hasChecked.current) {
+        console.log('🛑 ligandHome: Ya se verificó el usuario, saltando...');
+        return;
+      }
 
-    const chicasMostradas = [
-      todasLasChicas[startIndex % todasLasChicas.length],
-      todasLasChicas[(startIndex + 1) % todasLasChicas.length],
-      todasLasChicas[(startIndex + 2) % todasLasChicas.length],
-    ];
+      try {
+        console.log("👤 Usuario detectado en HOME, verificando...");
+        hasChecked.current = true; // 🔥 MARCAR INMEDIATAMENTE
 
-    useEffect(() => {
-      const interval = setInterval(() => {
-        setStartIndex((prev) => (prev + 1) % todasLasChicas.length);
-      }, 3000);
-      return () => clearInterval(interval);
-    }, []);
+        const res = await api.get(`${API_BASE_URL}/api/profile`);
+        const user = res.data.user;
 
+        console.log("👤 Usuario detectado en HOME, verificando...", user);
 
+        // Si hay un usuario logueado
+        if (user) {
+          // 🎮 VERIFICAR PRIMERO SI HAY TOKEN DE VIDEOCHAT ACTIVO
+          const sessionToken = sessionStorage.getItem('token');
+          const sessionRoomName = sessionStorage.getItem('roomName');
+          const sessionUserName = sessionStorage.getItem('userName');
 
+          console.log("🎮 Verificando token de videochat:", {
+            hasToken: !!sessionToken,
+            roomName: sessionRoomName,
+            userName: sessionUserName
+          });
+
+          // Si hay una sesión de videochat activa, forzar redirección
+          if (sessionToken && sessionRoomName && sessionRoomName !== 'null' && sessionRoomName !== 'undefined') {
+            console.log("🎥 Token de videochat activo detectado, forzando redirección...");
+            
+            if (user.rol === "cliente") {
+              console.log("🎥 Redirigiendo cliente a videochat activo");
+              navigate(`/videochatclient?roomName=${sessionRoomName}&userName=${sessionUserName}`, { replace: true });
+              return;
+            } else if (user.rol === "modelo") {
+              console.log("🎥 Redirigiendo modelo a videochat activo");
+              navigate(`/videochat?roomName=${sessionRoomName}&userName=${sessionUserName}`, { replace: true });
+              return;
+            }
+          }
+
+          // 📧 Email no verificado
+          if (!user.email_verified_at) {
+            console.log("📧 Redirigiendo a verificar email");
+            navigate("/verificaremail", { replace: true });
+            return;
+          }
+
+          // 👤 Perfil incompleto
+          if (!user.rol || !user.name) {
+            console.log("👤 Redirigiendo a completar perfil");
+            navigate("/genero", { replace: true });
+            return;
+          }
+
+          // 👨‍💼 Cliente
+          if (user.rol === "cliente") {
+            console.log("👨‍💼 Redirigiendo cliente a su home");
+            navigate("/homecliente", { replace: true });
+            return;
+          }
+
+          // 👩‍🎤 Modelo
+          if (user.rol === "modelo") {
+            const estado = user.verificacion?.estado;
+            console.log("👩‍🎤 Modelo detectada, estado:", estado);
+
+            switch (estado) {
+              case null:
+              case undefined:
+              case "rechazada":
+                navigate("/anteveri", { replace: true });
+                break;
+              case "pendiente":
+                navigate("/esperando", { replace: true });
+                break;
+              case "aprobada":
+                navigate("/homellamadas", { replace: true });
+                break;
+              default:
+                navigate("/anteveri", { replace: true });
+            }
+            return;
+          }
+        }
+
+        // Si no hay usuario logueado, mostrar la página HOME
+        console.log("🔓 Usuario no logueado, mostrando HOME");
+        setLoading(false);
+
+      } catch (error) {
+        // Si hay error (401, etc.), significa que no está logueado
+        console.log("🔓 Usuario no autenticado, mostrando HOME");
+        
+        // 🔥 MANEJAR 429 SIN LOGOUT
+        if (error.response?.status === 429) {
+          console.warn('⚠️ Rate limited en ligandHome - manteniendo estado');
+          setLoading(false);
+          return;
+        }
+        
+        setLoading(false);
+      }
+    };
+
+    // 🔥 SOLO EJECUTAR UNA VEZ
+    if (!hasChecked.current) {
+      checkUserAndRedirect();
+    }
+  }, []); // Sin dependencias
+
+  const todasLasChicas = [
+    "Ana", "Lucía", "Sofía", "Camila", "Valentina", "Isabela", "Mía", "Emilia"
+  ];
+  const [startIndex, setStartIndex] = useState(0);
+
+  const chicasMostradas = [
+    todasLasChicas[startIndex % todasLasChicas.length],
+    todasLasChicas[(startIndex + 1) % todasLasChicas.length],
+    todasLasChicas[(startIndex + 2) % todasLasChicas.length],
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStartIndex((prev) => (prev + 1) % todasLasChicas.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 🔄 Mostrar loading mientras verifica
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500 mx-auto mb-4"></div>
+          <p className="text-white/80 mt-4">Verificando estado...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Solo mostrar HOME si NO está logueado
   return (
     <div className="bg-ligand-mix-dark min-h-screen px-4">
-      
       {/* Header para escritorio */}
       <header className="hidden sm:flex justify-between items-center p-3 gap-0">
         {/* Lado izquierdo */}
@@ -89,7 +220,7 @@ export default function ParlandomChatApp() {
           <div className="flex items-center space-x-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff007a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
-              <line x1="2" y1="12" x2="22" y2="12" />
+              <line x1="2" y1="12" x2="22" y2="22" />
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
             </svg>
             <span className="text-base font-bold text-fucsia">Idioma</span>
@@ -154,37 +285,32 @@ export default function ParlandomChatApp() {
         </div>
 
         {/* Lado derecho */}
-    <div className="w-full lg:w-auto lg:ml-16">
-      <div className="text-center text-white italic text-xl sm:text-3xl mb-6 font-semibold">
-        ¡Chicas Relevantes!
-      </div>
+        <div className="w-full lg:w-auto lg:ml-16">
+          <div className="text-center text-white italic text-xl sm:text-3xl mb-6 font-semibold">
+            ¡Chicas Relevantes!
+          </div>
 
-      {/* Carrusel con flechas */}
-      
-        <div className="flex justify-center items-end space-x-4 sm:space-x-8 mt-16">
-          {chicasMostradas.map((name, index) => (
-            <div
-              key={name}
-              className={`relative w-24 h-36 sm:w-40 sm:h-60 md:w-48 md:h-72 rounded-2xl overflow-hidden shadow-lg ${
-                index === 1 ? "translate-y-6 sm:translate-y-20" : ""
-              }`}
-            >
-              <img
-                alt={name}
-                className="object-cover w-full h-full"
-              />
-              <div className="absolute bottom-0 w-full bg-black bg-opacity-50 text-white px-2 py-1 text-xs sm:text-sm">
-                <div className="font-semibold">{name}</div>
-                <div className={index % 2 === 0 ? "text-green-400" : "text-gray-400"}>
-                  {index % 2 === 0 ? "🟢 Activa" : "⚫ Inactiva"}
+          {/* Carrusel */}
+          <div className="flex justify-center items-end space-x-4 sm:space-x-8 mt-16">
+            {chicasMostradas.map((name, index) => (
+              <div
+                key={name}
+                className={`relative w-24 h-36 sm:w-40 sm:h-60 md:w-48 md:h-72 rounded-2xl overflow-hidden shadow-lg ${index === 1 ? "translate-y-6 sm:translate-y-20" : ""}`}
+              >
+                <img
+                  src={pruebahistorias}
+                  alt={name}
+                  className="object-cover w-full h-full" />
+                <div className="absolute bottom-0 w-full bg-black bg-opacity-50 text-white px-2 py-1 text-xs sm:text-sm">
+                  <div className="font-semibold">{name}</div>
+                  <div className={index % 2 === 0 ? "text-green-400" : "text-gray-400"}>
+                    {index % 2 === 0 ? "🟢 Activa" : "⚫ Inactiva"}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-
-      </div>
-
       </div>
 
       {/* Modales */}

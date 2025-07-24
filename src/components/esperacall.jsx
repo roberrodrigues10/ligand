@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import Header from "./header";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+import { useSearching } from '../contexts/SearchingContext.jsx';
+
 export default function PreCallLobbyModelo() {
   const [selectedCamera, setSelectedCamera] = useState("");
   const [selectedMic, setSelectedMic] = useState("");
@@ -11,6 +13,9 @@ export default function PreCallLobbyModelo() {
   const [loading, setLoading] = useState(false);
   const videoRef = useRef(null);
   const mediaStreamRef = useRef(null);
+  const isNavigatingRef = useRef(false); // 🔥 NUEVO: Flag para saber si está navegando
+  
+  const { startSearching, stopSearching } = useSearching();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -65,62 +70,66 @@ export default function PreCallLobbyModelo() {
     };
   }, [selectedCamera, selectedMic]);
 
-  // ✅ FUNCIÓN PRINCIPAL: Iniciar ruleta (IGUAL QUE CLIENTE)
+  useEffect(() => {
+    const requestMediaPermissions = async () => {
+      try {
+        console.log('🎥 Solicitando permisos de cámara y micrófono...');
+        
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+
+        console.log('✅ Permisos concedidos');
+        
+        stream.getTracks().forEach(track => track.stop());
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setCameras(devices.filter(d => d.kind === "videoinput"));
+        setMicrophones(devices.filter(d => d.kind === "audioinput"));
+        
+      } catch (err) {
+        console.error('❌ Error solicitando permisos:', err);
+        
+        if (err.name === 'NotAllowedError') {
+          alert('Necesitas permitir el acceso a cámara y micrófono para continuar.');
+        }
+      }
+    };
+
+    requestMediaPermissions();
+  }, []);
+
   const iniciarRuleta = async () => {
-    setLoading(true);
-    
-    try {
-      const authToken = sessionStorage.getItem('token');
-      if (!authToken) {
-        throw new Error('No hay token de autenticación');
-      }
-
-      console.log("👩‍💻 Modelo iniciando ruleta...");
-
-      // Llamar al MISMO endpoint de ruleta
-      const response = await fetch(`${API_BASE_URL}/api/ruleta/iniciar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Error ${response.status}: ${errorData}`);
-      }
-
-      const data = await response.json();
-      
-      console.log("✅ Ruleta exitosa:", data);
-
-      // Detener el stream actual
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
-      }
-
-      // Navegar al videochat del modelo
-      navigate("/videochat", {
-        state: {
-          roomName: data.roomName,
-          userName: data.userName,
-          selectedCamera,
-          selectedMic,
-          ruletaData: data, // Toda la info de la ruleta
-          // Si hay match, info del otro usuario
-          matchedWith: data.matched_with || null,
-          type: data.type // 'match_found' o 'waiting'
-        }
-      });
-
-    } catch (error) {
-      console.error('❌ Error en ruleta:', error);
-      alert(`Error: ${error.message}`);
-    } finally {
-      setLoading(false);
+  console.log('🎰 [PRECALL] Botón clickeado - iniciando ruleta...');
+  setLoading(true);
+  
+  try {
+    // 🔥 DETENER STREAM DE CÁMARA
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
     }
+    
+    // 🔥 NAVEGAR A PÁGINA DE BÚSQUEDA CON PARÁMETROS
+    console.log('🧭 [PRECALL] Navegando a /usersearch...');
+    navigate(`/usersearch?role=modelo&selectedCamera=${selectedCamera}&selectedMic=${selectedMic}`);
+    
+  } catch (error) {
+    console.error('❌ [PRECALL] Error:', error);
+    setLoading(false);
+  }
   };
+
+  // 🔥 CLEANUP MODIFICADO - Solo si NO está navegando
+  useEffect(() => {
+    return () => {
+      if (!isNavigatingRef.current) {
+        console.log('🧹 [PRECALL] Componente desmontándose SIN navegación - limpiando...');
+        stopSearching();
+      } else {
+        console.log('🧭 [PRECALL] Componente desmontándose por NAVEGACIÓN - manteniendo loading...');
+      }
+    };
+  }, [stopSearching]);
 
   return (
     <div className="min-h-screen bg-ligand-mix-dark from-[#0a0d10] to-[#131418] text-white">
@@ -130,7 +139,6 @@ export default function PreCallLobbyModelo() {
 
       <div className="flex justify-center items-center px-6 mt-[-20px]">
         <div className="bg-[#1f2125] rounded-2xl p-8 shadow-2xl flex flex-col items-center max-w-md w-full mt-6">
-          {/* Vista previa real */}
           <div className="w-full h-60 rounded-xl overflow-hidden mb-4 bg-black">
             <video
               ref={videoRef}
@@ -149,7 +157,6 @@ export default function PreCallLobbyModelo() {
             </p>
           </div>
 
-          {/* Selector dinámico */}
           <div className="w-full space-y-4">
             <div>
               <label className="text-sm text-white/70">Camera</label>
@@ -184,7 +191,6 @@ export default function PreCallLobbyModelo() {
             </div>
           </div>
 
-          {/* ✅ BOTÓN DE RULETA - IGUAL QUE CLIENTE */}
           <button
             className="mt-6 w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-6 py-3 rounded-full text-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={iniciarRuleta}
@@ -200,7 +206,6 @@ export default function PreCallLobbyModelo() {
             )}
           </button>
 
-          {/* Info adicional para modelo */}
           <div className="mt-4 text-center text-xs text-white/50">
             <p>🎲 Te conectarás con un cliente aleatorio</p>
             <p>💫 ¡Sistema Omegle para modelos!</p>

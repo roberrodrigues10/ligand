@@ -144,16 +144,22 @@ const VerificarSesionActiva = () => {
       console.log("❌ Error al verificar usuario:", error);
       
       const status = error?.response?.status;
+      const codigo = error?.response?.data?.code;
       const mensaje = error?.response?.data?.message || "";
 
-      // Si es error de autenticación Y tenemos token, es muy probable sesión duplicada
-      if ((status === 401 || status === 403) && token) {
-        console.log("🔥 Detectado problema de sesión - Mostrando popup");
+      // 🔥 DETECCIÓN ESPECÍFICA DE SESIÓN DUPLICADA
+      if (status === 401 && codigo === 'SESSION_DUPLICATED') {
+        console.log("🔥 SESIÓN DUPLICADA CONFIRMADA - Mostrando popup");
         
         // Mostrar popup INMEDIATAMENTE
         setTimeout(() => {
           mostrarPopupSesionDuplicada();
         }, 100);
+      } 
+      // Si es otro tipo de error 401/403, cerrar sesión
+      else if (status === 401 || status === 403) {
+        console.log("❌ Error de autenticación general - Cerrando sesión");
+        cerrarSesionCompleta();
       }
     }
   };

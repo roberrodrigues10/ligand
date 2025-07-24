@@ -4,6 +4,7 @@ import api from "../../../api/axios";
 import { User, Heart, X } from "lucide-react";
 import logoproncipal from "../../imagenes/logoprincipal.png";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { ProtectedPage } from '../../usePageAccess'; // Asegúrate de que esta ruta sea correcta
 
 export default function SeleccionGenero() {
   const [genero, setGenero] = useState("");
@@ -118,6 +119,10 @@ export default function SeleccionGenero() {
 
 
   return (
+    <ProtectedPage requiredConditions={{
+      emailVerified: true,       // Email debe estar verificado
+      profileComplete: false     // Perfil debe estar INCOMPLETO (sin rol o nombre)
+    }}>
     <div className="min-h-screen flex flex-col items-center justify-center bg-ligand-mix-dark text-white px-4 py-10">
       {/* Logo */}
       <div className="flex items-center justify-center mb-6">
@@ -226,5 +231,6 @@ export default function SeleccionGenero() {
         </div>
       )}
     </div>
+    </ProtectedPage>
   );
 }

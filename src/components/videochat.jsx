@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import {
   LiveKitRoom,
@@ -30,7 +30,19 @@ import {
 } from "lucide-react";
 import Header from "./header";
 import SimpleChat from "./messages";
-import { getUser } from "../utils/auth"; // 🔥 IMPORT AGREGADO
+import { getUser } from "../utils/auth";
+import { useSessionCleanup } from './closesession';
+import { updateHeartbeatRoom } from '../utils/auth';
+import { useVideoChatHeartbeat } from '../utils/heartbeat'; // 🔥 AGREGAR ESTE IMPORT
+
+
+
+
+// 🔥 AGREGAR ESTE IMPORT
+import { useSearching } from '../contexts/SearchingContext.jsx'; // Asegúrate de que esta ruta sea correcta
+
+// ❌ ELIMINAR ESTE IMPORT:
+// import SearchingUserLoading from './search';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -205,6 +217,10 @@ export default function VideoChat() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+
+  // 🔥 AGREGAR EL HOOK DE SEARCHING
+const { startSearching, stopSearching, forceStopSearching } = useSearching();
+
   // 🔥 PRIMERO: Declarar roomName y userName
   const modelo = location.state?.modelo;
   const getParam = (key) => {
@@ -216,6 +232,8 @@ export default function VideoChat() {
 
   const roomName = getParam("roomName");
   const userName = getParam("userName");
+  const selectedCamera = location.state?.selectedCamera;
+  const selectedMic = location.state?.selectedMic;
 
   // 🔥 ESTADOS BÁSICOS
   const [token, setToken] = useState('');
@@ -223,7 +241,12 @@ export default function VideoChat() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [connected, setConnected] = useState(false);
-  
+  const [room, setRoom] = useState(null);
+  const [modeloStoppedWorking, setModeloStoppedWorking] = useState(false);
+
+  // ❌ ELIMINAR ESTA LÍNEA:
+  // const [isSearchingUser, setIsSearchingUser] = useState(false);
+
   // Estados para controles
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
@@ -234,6 +257,7 @@ export default function VideoChat() {
   const [mensaje, setMensaje] = useState("");
   const [mostrarRegalos, setMostrarRegalos] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(false);
+  const { finalizarSesion, limpiarDatosSession } = useSessionCleanup(roomName, connected);
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -273,12 +297,54 @@ export default function VideoChat() {
     console.log('🔍 Estado inicial de detección:', !hasCache);
     return !hasCache;
   });
+  
+  useVideoChatHeartbeat(roomName, 'modelo');
 
-  // 🔥 UNA SOLA DECLARACIÓN DE chatFunctions
   const [chatFunctions, setChatFunctions] = useState(null);
-
-  // Referencias
   const messagesContainerRef = useRef(null);
+  const sendHeartbeat = async (activityType = 'videochat') => {
+  try {
+    const authToken = sessionStorage.getItem('token');
+    if (!authToken) return;
+
+    const response = await fetch(`${API_BASE_URL}/api/heartbeat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        activity_type: activityType, // 🔥 'videochat' = NO disponible para emparejamiento
+        room: roomName
+      })
+    });
+
+    if (response.ok) {
+      console.log(`💓 [VIDEOCHAT] Heartbeat enviado: ${activityType}`);
+    }
+  } catch (error) {
+    console.log('⚠️ [VIDEOCHAT] Error enviando heartbeat:', error);
+  }
+};
+
+  // Agregar useEffect para heartbeat periódico
+  useEffect(() => {
+    if (!roomName) return;
+
+    // Heartbeat inicial
+    sendHeartbeat('videochat');
+
+    // Heartbeat cada 15 segundos durante videochat
+    const heartbeatInterval = setInterval(() => {
+      sendHeartbeat('videochat');
+    }, 15000);
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      // Heartbeat final al salir
+      sendHeartbeat('browsing'); // Volver a estado disponible
+    };
+  }, [roomName]);
 
   // 🔥 FUNCIONES DE CACHE MEJORADAS
   const updateOtherUser = (user) => {
@@ -290,10 +356,7 @@ export default function VideoChat() {
     const cacheKey = getRoomCacheKey(roomName, userName);
     console.log('💾 Guardando usuario en cache:', { user, cacheKey });
     
-    // Guardar en cache global
     USER_CACHE.set(cacheKey, user);
-    
-    // Actualizar estado local
     setOtherUser(user);
     setIsDetectingUser(false);
     
@@ -308,6 +371,30 @@ export default function VideoChat() {
     setOtherUser(null);
     setIsDetectingUser(true);
   };
+
+  // 🔥 FUNCIÓN DE RATE LIMITING
+  const handleRateLimit = useCallback((error, context = 'general') => {
+    if (error?.response?.status === 429) {
+      console.warn(`⚠️ Rate limit detectado en VideoChat MODELO (${context})`);
+      
+      navigate('/rate-limit-wait', {
+        state: {
+          message: `Servidor ocupado en videochat modelo, reintentando...`,
+          waitTime: 12000,
+          fallbackRoute: "/homellamadas",
+          onRetry: (userRole) => {
+            console.log('🔄 Reintentando videochat con rol:', userRole);
+            if (userRole === 'cliente') return '/homecliente';
+            if (userRole === 'modelo') return '/homellamadas';
+            return '/home';
+          }
+        },
+        replace: true
+      });
+      return true;
+    }
+    return false;
+  }, [navigate]);
 
   // 🔥 FUNCIONES DE DISPLAY MEJORADAS
   const getDisplayName = () => {
@@ -473,30 +560,75 @@ export default function VideoChat() {
     }
   };
 
-  // Funciones de navegación (simplificadas para el ejemplo)
-  const siguientePersona = async () => {
-    console.log('🔄 Siguiente persona...');
-    // Tu lógica existente aquí
-  };
+  // 🔥 FUNCIONES DE NAVEGACIÓN MODIFICADAS
+ const siguientePersona = async () => {
+  console.log('🔄 Siguiente persona...');
+  
+  // 🔥 AGREGAR INFORMACIÓN DEL USUARIO ACTUAL PARA EXCLUIRLO
+  const urlParams = new URLSearchParams({
+    role: 'modelo',
+    currentRoom: roomName,
+    userName: userName,
+    selectedCamera: selectedCamera || '',
+    selectedMic: selectedMic || '',
+    excludeUser: otherUser?.id || '', // 🔥 NUEVO: ID del usuario a excluir
+    excludeUserName: otherUser?.name || '' // 🔥 NUEVO: Nombre del usuario a excluir
+  });
+  
+  navigate(`/usersearch?${urlParams}`);
+};
 
-  const finalizarChat = async () => {
-    console.log('🛑 Finalizando chat...');
+
+    
+
+
+  // En tu VideoChat.js (MODELO), la función finalizarChat debe hacer esto:
+
+  const finalizarChat = useCallback(async () => {
+  console.log('🛑 [MODELO] Stop presionado - MODELO deja de trabajar...');
+  
+  // 🔥 MARCAR QUE LA MODELO NO QUIERE TRABAJAR MÁS
+  setModeloStoppedWorking(true);
+  
+  try {
+    // 🔥 FINALIZAR SESIÓN ACTUAL
+    if (finalizarSesion) {
+      console.log('🚪 [MODELO] Finalizando sesión...');
+      await finalizarSesion('modelo_stop_working');
+    }
+    
+    // Limpiar cache
     clearUserCache();
-    navigate('/esperarcall');
-  };
+    
+    console.log('🏠 [MODELO] Modelo deja de trabajar - va a espera...');
+    forceStopSearching();
+    
+    // 🔥 MODELO VA A SU PÁGINA DE ESPERA (no trabaja más)
+    navigate('/esperandocall', { replace: true });
+    
+  } catch (error) {
+    console.error('❌ [MODELO] Error al dejar de trabajar:', error);
+    forceStopSearching();
+    navigate('/esperandocall', { replace: true });
+  }
+}, [
+  setModeloStoppedWorking,
+  forceStopSearching, 
+  finalizarSesion, 
+  clearUserCache,
+  navigate
+  ]);
 
-  // 🔥 USEEFFECTS CORREGIDOS
-
-  // Cargar usuario inicial
+  // 🔥 CARGAR USUARIO CON RATE LIMITING
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        console.log('👤 Cargando datos del usuario...');
-        const user = await getUser();
+        console.log('👤 [MODELO] Cargando datos del usuario...');
+        const user = await getUser(false);
         const name = user.alias || user.name || user.username || "";
         const role = user.rol || user.role || "modelo";
 
-        console.log('✅ Usuario cargado:', { name, role, id: user.id });
+        console.log('✅ [MODELO] Usuario cargado:', { name, role, id: user.id });
 
         setUserData({
           name,
@@ -504,14 +636,60 @@ export default function VideoChat() {
           id: user.id,
         });
       } catch (err) {
-        console.error("❌ Error al obtener usuario en VideoChat:", err);
+        console.error("❌ [MODELO] Error al obtener usuario en VideoChat:", err);
+        
+        const wasRateLimited = handleRateLimit(err, 'getUser');
+        if (wasRateLimited) {
+          return;
+        }
+        
+        if (err.response?.status === 429) {
+          console.warn('⚠️ Rate limited en VideoChat - continuando con datos básicos');
+          setUserData({
+            name: userName || "Usuario",
+            role: "modelo",
+            id: null,
+          });
+        }
       }
     };
 
     fetchUser();
-  }, []);
+  }, [handleRateLimit, userName]);
 
-  // Configurar chatFunctions
+  // 🔥 NUEVO: Detener búsqueda cuando se conecta
+  useEffect(() => {
+    // 🔥 CONDICIONES PARA QUITAR EL LOADING:
+    const shouldStopLoading = 
+      connected && 
+      token && 
+      chatFunctions && 
+      (
+        chatFunctions.participantsCount > 1 || // Hay más de 1 participante (tú + cliente)
+        chatFunctions.hasOtherParticipant ||   // Detectó otro participante
+        !chatFunctions.isDetecting             // Ya no está detectando
+      );
+
+    if (shouldStopLoading) {
+      console.log('🎉 [VIDEOCHAT] ¡Usuario encontrado! Quitando loading...', {
+        connected,
+        hasToken: !!token,
+        participantsCount: chatFunctions?.participantsCount,
+        hasOtherParticipant: chatFunctions?.hasOtherParticipant,
+        isDetecting: chatFunctions?.isDetecting
+      });
+      
+      forceStopSearching();
+    } else if (connected && token && chatFunctions) {
+      console.log('⏳ [VIDEOCHAT] Conectado pero sin usuarios - manteniendo loading...', {
+        participantsCount: chatFunctions?.participantsCount,
+        hasOtherParticipant: chatFunctions?.hasOtherParticipant,
+        isDetecting: chatFunctions?.isDetecting
+      });
+    }
+  }, [connected, token, chatFunctions, forceStopSearching]);
+  // 🔥 TAMBIÉN AGREGAR UN TIMEOUT DE SEGURIDAD (por si no encuentra usuarios):
+
   useEffect(() => {
     console.log('🔧 Configurando chatFunctions para:', { roomName, userName });
     
@@ -524,13 +702,11 @@ export default function VideoChat() {
       
       setChatFunctions(functions);
       
-      // Si hay otherParticipant y no tenemos cache, guardarlo
       if (functions.otherParticipant && !otherUser) {
         console.log('👥 Recibiendo participante desde chatFunctions:', functions.otherParticipant);
         updateOtherUser(functions.otherParticipant);
       }
       
-      // Actualizar estado de detección
       if (functions.isDetecting !== undefined) {
         setIsDetectingUser(functions.isDetecting);
       }
@@ -539,7 +715,7 @@ export default function VideoChat() {
     return () => {
       delete window.livekitChatFunctions;
     };
-  }, [roomName, userName]); // Sin otherUser en dependencias
+  }, [roomName, userName]);
 
   // Limpiar cache al cambiar sala
   useEffect(() => {
@@ -562,15 +738,84 @@ export default function VideoChat() {
     }
   }, [roomName, userName]);
 
-  // Obtener token
+  // ⏳ Heartbeat cada 30 segundos mientras estás en la sala
   useEffect(() => {
-    const getToken = async () => {
+    let interval = null;
+
+    if (room && roomName) {
+      updateHeartbeatRoom(roomName);
+
+      interval = setInterval(() => {
+        updateHeartbeatRoom(roomName);
+      }, 30000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [room, roomName]);
+
+  // Memmo
+  const memoizedRoomName = useMemo(() => {
+    const room = getParam("roomName");
+    return room && room !== 'null' && room !== 'undefined' ? room : null;
+  }, [location.state, searchParams]);
+
+  const memoizedUserName = useMemo(() => {
+    const user = getParam("userName");
+    return user && user !== 'null' && user !== 'undefined' ? user : null;
+  }, [location.state, searchParams]);
+
+  const handleChatFunctions = useCallback((functions) => {
+    console.log('📡 Recibiendo chatFunctions:', {
+      hasOtherParticipant: !!functions.otherParticipant,
+      isDetecting: functions.isDetecting,
+      participantsCount: functions.participants?.length || 0
+    });
+    
+    setChatFunctions(functions);
+    
+    if (functions.otherParticipant && !otherUser) {
+      console.log('👥 Recibiendo participante desde chatFunctions:', functions.otherParticipant);
+      updateOtherUser(functions.otherParticipant);
+    }
+    
+    if (functions.isDetecting !== undefined) {
+      setIsDetectingUser(functions.isDetecting);
+    }
+  }, [otherUser]);
+
+  useEffect(() => {
+    if (!memoizedRoomName || !memoizedUserName) return;
+    
+    console.log('🔧 Configurando chatFunctions para:', { 
+      roomName: memoizedRoomName, 
+      userName: memoizedUserName 
+    });
+    
+    window.livekitChatFunctions = handleChatFunctions;
+    
+    return () => {
+      delete window.livekitChatFunctions;
+    };
+  }, [memoizedRoomName, memoizedUserName, handleChatFunctions]);
+
+  // 🔥 FIX 4: Obtener token con rate limiting protection
+  useEffect(() => {
+    let isMounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    const getTokenWithRetry = async () => {
       try {
-        if (!roomName || !userName || roomName.trim() === '' || userName.trim() === '') {
-          throw new Error(`Parámetros inválidos - roomName: "${roomName}", userName: "${userName}"`);
+        if (!memoizedRoomName || !memoizedUserName) {
+          throw new Error(`Parámetros inválidos - roomName: "${memoizedRoomName}", userName: "${memoizedUserName}"`);
         }
 
-        console.log("🎥 MODELO - Obteniendo token para:", { roomName, userName });
+        console.log("🎥 MODELO - Obteniendo token para:", { 
+          roomName: memoizedRoomName, 
+          userName: memoizedUserName 
+        });
 
         const authToken = sessionStorage.getItem('token');
         if (!authToken) {
@@ -584,49 +829,194 @@ export default function VideoChat() {
             'Authorization': `Bearer ${authToken}`,
           },
           body: JSON.stringify({ 
-            room: roomName.trim(), 
-            identity: userName.trim() 
+            room: memoizedRoomName.trim(), 
+            identity: memoizedUserName.trim(),
+            preferredCamera: selectedCamera,
+            preferredMic: selectedMic
           }),
         });
 
         if (!response.ok) {
           const errorData = await response.text();
-          throw new Error(`Error ${response.status}: ${errorData}`);
+          const error = new Error(`Error ${response.status}: ${errorData}`);
+          error.response = { status: response.status };
+          
+          if (response.status === 429) {
+            const wasRateLimited = handleRateLimit(error, 'livekit-token');
+            if (wasRateLimited) {
+              return;
+            }
+            
+            if (retryCount < maxRetries) {
+              retryCount++;
+              const delay = 3000 * retryCount;
+              console.warn(`⚠️ Rate limited token, reintentando en ${delay}ms...`);
+              setTimeout(() => {
+                if (isMounted) getTokenWithRetry();
+              }, delay);
+              return;
+            }
+          }
+          
+          throw error;
         }
         
         const data = await response.json();
         console.log("✅ MODELO - Token obtenido exitosamente");
 
-        setToken(data.token);
-        setServerUrl(data.serverUrl);
-        setLoading(false);
+        if (isMounted) {
+          setToken(data.token);
+          setServerUrl(data.serverUrl);
+          setLoading(false);
+        }
       } catch (err) {
         console.error('❌ MODELO - Error al obtener token:', err);
-        setError(err.message);
-        setLoading(false);
+        
+        const wasRateLimited = handleRateLimit(err, 'token-error');
+        if (!wasRateLimited && isMounted) {
+          setError(err.message);
+          setLoading(false);
+        }
       }
     };
 
-    if (!roomName || !userName || 
-        roomName === 'null' || userName === 'null' ||
-        roomName === 'undefined' || userName === 'undefined' ||
-        roomName.trim() === '' || userName.trim() === '') {
-      
-      console.error("Parámetros faltantes o inválidos:", { roomName, userName });
-      setError(`Faltan parámetros de la sala. roomName: "${roomName}", userName: "${userName}"`);
-      setLoading(false);
+    if (memoizedRoomName && memoizedUserName) {
+      getTokenWithRetry();
     } else {
-      getToken();
+      console.error("Parámetros faltantes:", { 
+        roomName: memoizedRoomName, 
+        userName: memoizedUserName 
+      });
+      setError(`Faltan parámetros de la sala.`);
+      setLoading(false);
     }
-  }, [roomName, userName]);
 
+    return () => {
+      isMounted = false;
+    };
+  }, [memoizedRoomName, memoizedUserName, handleRateLimit]);
+
+// 🔥 REEMPLAZAR TODOS LOS useEffect DE DESCONEXIÓN CON ESTE ÚNICO useEffect CONSOLIDADO
+
+  useEffect(() => {
+  let reconnectionTimer = null;
+  let isReconnecting = false;
+  
+  console.log('🔍 [MODELO] Estado de conexión:', { 
+    connected, 
+    hasToken: !!token, 
+    hasChatFunctions: !!chatFunctions,
+    participantsCount: chatFunctions?.participantsCount || 0,
+    modeloStoppedWorking
+  });
+
+  // ❌ SI LA MODELO YA NO QUIERE TRABAJAR, NO HACER NADA
+  if (modeloStoppedWorking) {
+    console.log('🛑 [MODELO] Modelo dejó de trabajar - no buscar más usuarios');
+    return;
+  }
+
+  // 🔥 DETECCIÓN: Cliente se desconectó (buscar automáticamente como "Siguiente")
+  const clienteSeDesconecto = 
+    connected && 
+    token && 
+    chatFunctions && 
+    !isReconnecting && 
+    (chatFunctions.participantsCount <= 1); // Solo la modelo queda
+
+  if (clienteSeDesconecto) {
+    console.log('👤 [MODELO] Cliente se desconectó - buscando automáticamente nuevo usuario...');
+    isReconnecting = true;
+    
+    reconnectionTimer = setTimeout(async () => {
+      console.log('🔄 [MODELO] Ejecutando búsqueda automática (cliente se fue)...');
+      
+      // 🔥 ACTIVAR LOADING DE BÚSQUEDA (cliente se fue = modelo busca nuevo)
+      startSearching('modelo');
+      
+      try {
+        const authToken = sessionStorage.getItem('token');
+        
+        // 🔥 BUSCAR NUEVO CLIENTE
+        const response = await fetch(`${API_BASE_URL}/api/livekit/next-room`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ 
+            currentRoom: roomName,
+            userName: userName,
+            reason: 'cliente_desconectado' // 🔥 RAZÓN: cliente se fue
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('🎉 [MODELO] Nuevo cliente encontrado:', data);
+          
+          clearUserCache();
+          
+          // 🔥 NAVEGAR A NUEVA SALA CON CLIENTE
+          navigate("/videochat", {
+            state: {
+              roomName: data.newRoomName,
+              userName: userName,
+              selectedCamera: selectedCamera,
+              selectedMic: selectedMic,
+            },
+            replace: true
+          });
+        } else {
+          console.log('😔 [MODELO] No hay clientes disponibles - manteniendo búsqueda...');
+          // 🔥 MANTENER LOADING hasta que llegue un cliente
+        }
+      } catch (error) {
+        console.error('❌ [MODELO] Error en búsqueda automática:', error);
+        forceStopSearching();
+        navigate('/esperandocall', { replace: true });
+      } finally {
+        isReconnecting = false;
+      }
+    }, 3000); // 3 segundos de delay
+    
+  } else if (connected && chatFunctions?.participantsCount > 1) {
+    // 🔥 CLIENTE CONECTADO - QUITAR LOADING
+    console.log('👥 [MODELO] Cliente conectado - quitando loading');
+    forceStopSearching();
+    isReconnecting = false;
+  }
+
+  return () => {
+    if (reconnectionTimer) {
+      clearTimeout(reconnectionTimer);
+      isReconnecting = false;
+    }
+  };
+}, [
+  connected, 
+  token, 
+  chatFunctions, 
+  modeloStoppedWorking, // 🔥 DEPENDENCIA IMPORTANTE
+  startSearching, 
+  forceStopSearching, 
+  navigate, 
+  selectedCamera, 
+  selectedMic,
+  roomName,
+  userName
+  ]);
+
+  // 🔥 RESETEAR FLAG AL CAMBIAR DE SALA (para permitir trabajo en nueva sala)
+  useEffect(() => {
+    setModeloStoppedWorking(false);
+  }, [roomName]);
   // Timer
   useEffect(() => {
     const intervalo = setInterval(() => setTiempo((prev) => prev + 1), 1000);
     return () => clearInterval(intervalo);
   }, []);
-
-  // Scroll de mensajes
+ 
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTo({
@@ -644,6 +1034,32 @@ export default function VideoChat() {
 
     return () => clearTimeout(timer);
   }, [messages]);
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    if (!token || !roomName) return;
+
+    const interval = setInterval(() => {
+      fetch(`${API_BASE_URL}/api/heartbeat`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_room: roomName,
+          activity_type: 'videochat_model',
+        }),
+      })
+        .then(res => {
+          if (!res.ok) console.warn("⚠️ Heartbeat falló", res.status);
+        })
+        .catch(err => console.error("❌ Heartbeat error:", err));
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [roomName]);
+
 
   // Estados de carga y error
   if (loading) {
@@ -698,23 +1114,28 @@ export default function VideoChat() {
       onConnected={handleRoomConnected}
       onDisconnected={handleRoomDisconnected}
       className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white lg:block flex flex-col"
+      options={{
+        videoCaptureDefaults: selectedCamera ? { deviceId: selectedCamera } : undefined,
+        audioCaptureDefaults: selectedMic ? { deviceId: selectedMic } : undefined,
+      }}
     >
       <RoomAudioRenderer />
       
-      {/* 🔥 SIMPLECHAT CORREGIDO */}
-      <SimpleChat
-        userName={userData.name}
-        userRole={userData.role}
-        roomName={roomName}
-        onMessageReceived={handleMessageReceived}
-        onGiftReceived={handleGiftReceived}
-        onUserLoaded={handleUserLoadedFromChat}
-        onParticipantsUpdated={(participants) => {
-          console.log('👥 Todos los participantes:', participants);
-        }}
-      />
+      {memoizedRoomName && memoizedUserName && (
+        <SimpleChat
+          key={`${memoizedRoomName}-${memoizedUserName}`}
+          userName={userData.name}
+          userRole={userData.role}
+          roomName={memoizedRoomName}
+          onMessageReceived={handleMessageReceived}
+          onGiftReceived={handleGiftReceived}
+          onUserLoaded={handleUserLoadedFromChat}
+          onParticipantsUpdated={(participants) => {
+            console.log('👥 Todos los participantes:', participants);
+          }}
+        />
+      )}
 
-      {/* COMPONENTE PARA CONTROLES */}
       <MediaControls 
         micEnabled={micEnabled}
         cameraEnabled={cameraEnabled}
@@ -729,7 +1150,6 @@ export default function VideoChat() {
         <div className="lg:hidden bg-[#1f2125] rounded-2xl overflow-hidden relative mt-4 h-[80vh]">
           <VideoDisplay onCameraSwitch={cambiarCamara} mainCamera={camaraPrincipal} />
           
-          {/* Mensajes flotantes */}
           <FloatingMessages messages={messages} />
           
           {/* Input de chat móvil */}
@@ -786,7 +1206,6 @@ export default function VideoChat() {
 
           {/* PANEL DERECHO - Desktop */}
           <div className="w-[340px] bg-[#1f2125] rounded-2xl flex flex-col justify-between relative">
-            {/* 🔥 USUARIO CON FUNCIONES CORREGIDAS */}
             <div className="flex justify-between items-center p-4 border-b border-[#ff007a]/20">
               <div>
                 <div className="flex items-center gap-2">
@@ -817,7 +1236,6 @@ export default function VideoChat() {
               ref={messagesContainerRef}
               className="max-h-[360px] p-4 space-y-3 overflow-y-auto custom-scroll"
             >
-              {/* Mensajes dinámicos */}
               {messages.filter(msg => msg.id > 2).reverse().map((msg, index) => (
                 <div key={msg.id} className={msg.type === 'local' ? 'text-right' : 'text-xs sm:text-sm'}>
                   {msg.type === 'local' ? (
@@ -912,7 +1330,6 @@ export default function VideoChat() {
 
         {/* CONTROLES RESPONSIVOS */}
         <div className="flex justify-center items-center gap-4 sm:gap-6 lg:gap-10 mt-4 lg:mt-6 px-4">
-          {/* Botón Micrófono */}
           <button 
             className={`p-3 sm:p-4 rounded-full transition ${
               micEnabled 
@@ -926,7 +1343,6 @@ export default function VideoChat() {
             {micEnabled ? <Mic size={22} className="hidden lg:block" /> : <MicOff size={22} className="hidden lg:block" />}
           </button>
 
-          {/* Botón Cámara */}
           <button 
             className={`p-3 sm:p-4 rounded-full transition ${
               cameraEnabled 
@@ -940,7 +1356,6 @@ export default function VideoChat() {
             {cameraEnabled ? <Video size={22} className="hidden lg:block" /> : <VideoOff size={22} className="hidden lg:block" />}
           </button>
 
-          {/* Botón Siguiente */}
           <button
             className="bg-blue-500 hover:bg-blue-600 p-3 sm:p-4 rounded-full transition"
             onClick={siguientePersona}
@@ -951,7 +1366,6 @@ export default function VideoChat() {
             <SkipForward size={22} className="hidden lg:block" />
           </button>
 
-          {/* Botón Finalizar */}
           <button 
             className="bg-red-500 hover:bg-red-600 px-4 sm:px-6 py-2 sm:py-3 rounded-full text-white text-sm sm:text-base lg:text-lg font-semibold transition flex items-center gap-2"
             onClick={finalizarChat}
@@ -964,11 +1378,14 @@ export default function VideoChat() {
           </button>
         </div>
       </div>
+
+      {/* ❌ ELIMINAR ESTA LÍNEA: */}
+      {/* <SearchingUserLoading userRole={userData.role} isVisible={isSearchingUser} /> */}
     </LiveKitRoom>
   );
 }
 
-// ✅ COMPONENTE PARA CONTROLAR MEDIA
+// ✅ COMPONENTE PARA CONTROLAR MEDIA - CONTINUACIÓN
 const MediaControls = ({ micEnabled, cameraEnabled, setMicEnabled, setCameraEnabled }) => {
   const { localParticipant } = useLocalParticipant();
 

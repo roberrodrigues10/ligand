@@ -23,49 +23,41 @@ instance.interceptors.response.use(
   (response) => response,
   (error) => {
     const config = error.config || {};
-    
-    // Saltar interceptor si está marcado
+
+    // Saltar si está marcado para omitir
     if (config.skipInterceptor) {
       return Promise.reject(error);
     }
 
     const status = error.response?.status;
     const mensaje = error.response?.data?.message || "";
+    const codigo = error.response?.data?.code || "";
 
-    // Solo manejar errores 401/403
+    const mensajesEspeciales = [
+      "Correo no verificado.",
+      "Ya tienes un rol asignado."
+    ];
+
+    // Si es un mensaje especial, no eliminar token
+    if (mensajesEspeciales.includes(mensaje)) {
+      return Promise.reject(error);
+    }
+
+    const estamosReclamando = sessionStorage.getItem("reclamando_sesion") === "true";
+
+    if (estamosReclamando) {
+      console.log("🔍 Interceptor: No eliminar token - Reclamando sesión");
+      return Promise.reject(error);
+    }
+
+    const esSesionDuplicada = codigo === "SESSION_DUPLICATED";
+
+    if (esSesionDuplicada) {
+      console.log("🔍 Interceptor: No eliminar token - Sesión duplicada detectada");
+      return Promise.reject(error);
+    }
+
     if (status === 401 || status === 403) {
-      
-      // Mensajes específicos que NO deben cerrar sesión
-      const mensajesEspeciales = [
-        "Correo no verificado.",
-        "Ya tienes un rol asignado."
-      ];
-
-      // Si es un mensaje especial, no hacer nada
-      if (mensajesEspeciales.includes(mensaje)) {
-        return Promise.reject(error);
-      }
-
-      // Si estamos reclamando sesión, NO eliminar token
-      const estamosReclamando = sessionStorage.getItem("reclamando_sesion") === "true";
-      
-      if (estamosReclamando) {
-        console.log("🔍 Interceptor: No eliminar token - Reclamando sesión");
-        return Promise.reject(error);
-      }
-
-      // Verificar si es un error de sesión duplicada común
-      const esSesionDuplicada = 
-        mensaje.includes("sesión cerrada en otro dispositivo") ||
-        mensaje.includes("Token inválido") ||
-        mensaje.includes("sesión duplicada");
-
-      if (esSesionDuplicada) {
-        console.log("🔍 Interceptor: No eliminar token - Posible sesión duplicada");
-        return Promise.reject(error);
-      }
-
-      // Para cualquier otro error 401/403, eliminar token
       console.log("🧹 Interceptor: Eliminando token por error de autenticación");
       sessionStorage.removeItem("token");
     }
@@ -73,5 +65,6 @@ instance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
 
 export default instance;

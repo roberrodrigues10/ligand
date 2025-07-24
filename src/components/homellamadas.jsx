@@ -2,6 +2,8 @@ import React from "react";
 import { MessageSquare, Star, Home, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "./header";
+import { ProtectedPage } from './usePageAccess'; // Asegúrate de que esta ruta sea correcta
+
 export default function InterfazCliente() {
   const usuarios = [
     { nombre: "SofiSweet", estado: "Online", inicial: "S" },
@@ -19,6 +21,13 @@ export default function InterfazCliente() {
 
 
   return (
+    <ProtectedPage requiredConditions={{
+      emailVerified: true,           // Solo usuarios con email verificado
+      profileComplete: true,         // Solo usuarios con perfil completo (rol + nombre)
+      role: "modelo",               // Solo modelos (no clientes)
+      verificationStatus: "aprobada", // Solo modelos con verificación aprobada
+      blockIfInCall: true           // Bloquear si está en una videollamada activa
+    }}>
     <div className="min-h-screen bg-ligand-mix-dark from-[#1a1c20] to-[#2b2d31] text-white p-6">
       {/* Header */}
         <Header />
@@ -128,5 +137,6 @@ export default function InterfazCliente() {
         </aside>
       </div>
     </div>
+    </ProtectedPage>
   );
 }

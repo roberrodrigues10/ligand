@@ -2,6 +2,7 @@ import React from "react";
 import { MessageSquare, Star, Home, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "./headercliente";
+import { ProtectedPage } from '../usePageAccess'; // Asegúrate de que esta ruta sea correcta
 
 export default function InterfazCliente() {
   const usuarios = [
@@ -19,6 +20,12 @@ export default function InterfazCliente() {
   const navigate = useNavigate();
 
   return (
+    <ProtectedPage requiredConditions={{
+      emailVerified: true,      // Solo usuarios con email verificado
+      profileComplete: true,    // Solo usuarios con perfil completo
+      role: "cliente",         // Solo clientes (no modelos)
+      blockIfInCall: true      // Bloquear si está en videollamada
+    }}>
     <div className="min-h-screen bg-ligand-mix-dark from-[#1a1c20] to-[#2b2d31] text-white p-6">
       {/* Header con contador de minutos y botón comprar */}
       <Header />
@@ -131,5 +138,6 @@ export default function InterfazCliente() {
         </aside>
       </div>
     </div>
+    </ProtectedPage>
   );
 }

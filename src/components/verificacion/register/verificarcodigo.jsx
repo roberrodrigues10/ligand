@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import logoproncipal from "../../imagenes/logoprincipal.png";
 import { verificarCodigo, reenviarCodigo } from "../../../utils/auth"; // asegúrate de que esto apunte al backend correctamente
+import { ProtectedPage } from '../../usePageAccess'; // Asegúrate de que esta ruta sea correcta
 
 const RECAPTCHA_SITE_KEY = "6LfNonwrAAAAAIgJSmx1LpsprNhNct1VVWMWp2rz"; // reemplaza esto
 
@@ -105,6 +106,9 @@ export default function EmailVerification() {
     }
   };
   return (
+    <ProtectedPage requiredConditions={{
+      emailVerified: false      // Solo usuarios SIN email verificado
+    }}>
     <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-[#1f2228] p-6 sm:p-8 rounded-2xl shadow-xl">
         {/* Logo + Nombre */}
@@ -169,5 +173,6 @@ export default function EmailVerification() {
         )}
       </div>
     </div>
+    </ProtectedPage>
   );
 }

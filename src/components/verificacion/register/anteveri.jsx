@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import logoproncipal from "../../imagenes/logoprincipal.png";
+import { ProtectedPage } from '../../usePageAccess'; // Asegúrate de que esta ruta sea correcta
 
 export default function InicioVerificacion() {
   const [mostrarModal, setMostrarModal] = useState(false);
@@ -12,6 +13,13 @@ export default function InicioVerificacion() {
   };
 
   return (
+    <ProtectedPage requiredConditions={{
+      emailVerified: true,         // Email verificado
+      profileComplete: true,       // Perfil completo
+      role: "modelo",             // Solo modelos
+      blockIfInCall: true         // Bloquear si está en videollamada
+      // Sin verificationStatus específico - pueden estar en null, undefined o "rechazada"
+    }}>
     <div className="min-h-screen bg-ligand-mix-dark flex flex-col items-center justify-center px-4 py-10">
       {/* Logo y título */}
       <div className="flex items-center justify-center gap-1 mb- mt-[-25px]">
@@ -71,5 +79,6 @@ export default function InicioVerificacion() {
         </div>
       )}
     </div>
+    </ProtectedPage>
   );
 }

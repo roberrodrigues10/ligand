@@ -3,6 +3,8 @@ import { Lock, CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "../../header";
 import api from "../../../api/axios";
+import { ProtectedPage } from '../../usePageAccess'; // Asegúrate de que esta ruta sea correcta
+
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -226,6 +228,13 @@ export default function EsperandoVerificacion() {
   };
 
   return (
+    <ProtectedPage requiredConditions={{
+      emailVerified: true,           // Email verificado
+      profileComplete: true,         // Perfil completo
+      role: "modelo",               // Solo modelos
+      verificationStatus: "pendiente", // Solo modelos con verificación pendiente
+      blockIfInCall: true           // Bloquear si está en videollamada
+    }}>
     <div className="min-h-screen bg-ligand-mix-dark flex flex-col">
       
       {/* Header fijo arriba */}
@@ -299,5 +308,6 @@ export default function EsperandoVerificacion() {
         )}
       </div>
     </div>
+    </ProtectedPage>
   );
 }

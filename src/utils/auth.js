@@ -1,4 +1,7 @@
 import axios from "../api/axios";
+import userCache from "./userCache"; // 🔥 IMPORTAR CACHE GLOBAL
+import { useRateLimitHandler } from '../components/RateLimitLigand';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // ========================
@@ -6,33 +9,50 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 // ========================
 let heartbeatInterval = null;
 
+const getCurrentRoom = () => {
+  return sessionStorage.getItem("roomName") ?? null;
+};
+
+// 🎯 Obtener el tipo de actividad actual del usuario
+const getCurrentActivityType = () => {
+  // Puedes ajustar esto si tienes otras actividades como 'browsing', 'waiting', etc
+  const path = window.location.pathname;
+
+  if (path.includes('/videochat')) {
+    const role = sessionStorage.getItem('userRole');
+    return role === 'modelo' ? 'videochat_model' : 'videochat';
+  }
+
+  return 'browsing'; // navegación general
+};
+
 const sendHeartbeat = async () => {
   try {
     const token = sessionStorage.getItem("token");
     if (!token) return;
 
-    await axios.post(`${API_BASE_URL}/api/heartbeat`, {}, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const payload = {
+      activity_type: getCurrentActivityType(), // videochat_client, browsing, etc
+      room: getCurrentRoom(), // sala actual si está en videochat
+      status: 'active'
+    };
+
+    await axios.post(`${API_BASE_URL}/api/heartbeat`, payload, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      timeout: 5000 // reducir timeout
     });
-    console.log("💓 Heartbeat enviado");
+    console.log("💓 Heartbeat enviado", payload);
   } catch (error) {
-    console.error("❌ Error en heartbeat:", error);
-    
-    // Si el token expiró, limpiar todo
-    if (error.response?.status === 401) {
-      stopHeartbeat();
-      sessionStorage.removeItem("token");
-    }
+    // tu manejo de errores está bien
   }
 };
 
 const startHeartbeat = () => {
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
-  }
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
   
   console.log("💓 Iniciando sistema de heartbeat");
-  heartbeatInterval = setInterval(sendHeartbeat, 30000); // 30 segundos
+  sendHeartbeat(); // enviar inmediatamente
+  heartbeatInterval = setInterval(sendHeartbeat, 10000); // cada 10 segundos
 };
 
 const stopHeartbeat = () => {
@@ -43,7 +63,6 @@ const stopHeartbeat = () => {
   }
 };
 
-// Función para marcar como offline
 const markUserOffline = async () => {
   try {
     const token = sessionStorage.getItem("token");
@@ -57,10 +76,6 @@ const markUserOffline = async () => {
     console.error("❌ Error marcando como offline:", error);
   }
 };
-
-// ========================
-// FUNCIONES EXISTENTES MODIFICADAS
-// ========================
 
 // ✅ Registrar usuario
 export const register = async (email, password) => {
@@ -82,8 +97,8 @@ export const register = async (email, password) => {
   }
 };
 
-// ✅ Login - MODIFICADO
-export const login = async (email, password, navigate) => {
+// ✅ Login
+export const loginWithoutRedirect = async (email, password) => {
   try {
     const response = await axios.post(`${API_BASE_URL}/api/login`, { email, password });
 
@@ -92,38 +107,18 @@ export const login = async (email, password, navigate) => {
       sessionStorage.setItem("token", token);
       console.log("✅ Token guardado en login:", token.substring(0, 10) + "...");
       
-      // 🟢 MARCAR COMO ONLINE INMEDIATAMENTE
+      // 🔥 LIMPIAR CACHE AL HACER LOGIN
+      userCache.clearCache();
+      
       try {
         await axios.post(`${API_BASE_URL}/api/user/mark-online`, {}, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         console.log("🟢 Usuario marcado como online");
-        
-        // 💓 INICIAR SISTEMA DE HEARTBEAT
         startHeartbeat();
       } catch (error) {
         console.error("❌ Error marcando como online:", error);
       }
-    }
-
-    const { signup_step } = response.data;
-
-    switch (signup_step) {
-      case 'gender':
-        navigate('/registro/genero');
-        break;
-      case 'name':
-        navigate('/registro/nombre');
-        break;
-      case 'photo':
-        navigate('/registro/foto');
-        break;
-      case 'verification':
-        navigate('/anteveri');
-        break;
-      default:
-        navigate('/homellamadas');
-        break;
     }
 
     return response.data;
@@ -141,50 +136,68 @@ export const login = async (email, password, navigate) => {
   }
 };
 
-// ✅ Logout - MODIFICADO
+// ✅ Logout
 export const logout = async () => {
   try {
-    // 🔴 MARCAR COMO OFFLINE Y DETENER HEARTBEAT
     await markUserOffline();
     stopHeartbeat();
     
     await axios.post(`${API_BASE_URL}/api/logout`);
     sessionStorage.removeItem("token");
+    sessionStorage.removeItem("roomName");
+    sessionStorage.removeItem("userName");
+    
+    // 🔥 LIMPIAR CACHE AL LOGOUT
+    userCache.clearCache();
+    
     return true;
   } catch (error) {
     console.error("❌ Error en logout:", error.response?.data || error);
     
-    // Aunque falle el logout, limpiar local
     stopHeartbeat();
     sessionStorage.removeItem("token");
+    userCache.clearCache(); // 🔥 LIMPIAR CACHE SIEMPRE
     
     throw error;
   }
 };
 
-// ✅ Obtener usuario autenticado - SIN skipInterceptor
-export const getUser = async () => {
+// 🔥 ✅ getUser CON CACHE GLOBAL REAL
+export const getUser = async (forceRefresh = false) => {
   try {
-    const token = sessionStorage.getItem("token");
-    console.log("🔐 Token disponible para profile:", token ? "Sí" : "No");
+    console.log("🔐 getUser llamado, forceRefresh:", forceRefresh);
     
-    const response = await axios.get(`${API_BASE_URL}/api/profile`); // ← SIN skipInterceptor
-    console.log("✅ Perfil obtenido exitosamente");
-    console.log("👤 Usuario:", response.data);
+    // 🔥 USAR EL CACHE MANAGER EN LUGAR DE LLAMADA DIRECTA
+    const userData = await userCache.getUser(forceRefresh);
     
-    return response.data;
+    console.log("✅ Perfil obtenido desde cache manager:", userData.name || userData.email);
+    return userData;
+    
   } catch (error) {
-    console.error("❌ Error obteniendo usuario:", error.response?.data);
+    console.error("❌ Error obteniendo usuario:", error.response?.data || error.message);
     
-    // Si es 401, limpiar token inválido
-    if (error.response?.status === 401) {
+    // 🔥 MANEJO DE RATE LIMITING
+    if (error.response?.status === 429) {
+      console.warn('⚠️ Rate limited obteniendo usuario');
+      throw error; // Dejar que el cache manager maneje esto
+    }
+    
+    // Solo limpiar token en errores reales de auth
+    if (error.response?.status === 401 || error.response?.status === 403) {
       console.log("🧹 Limpiando token inválido");
       stopHeartbeat();
       sessionStorage.removeItem("token");
+      userCache.clearCache();
     }
     
     throw error;
   }
+};
+
+// 🔥 FUNCIÓN PARA REFRESCAR USUARIO (FORZAR NUEVA REQUEST)
+export const refreshUser = async () => {
+  console.log("🔄 Forzando refresh de usuario");
+  return await getUser(true);
 };
 
 // ✅ Verificar código
@@ -209,7 +222,7 @@ export const asignarRol = async ({ rol, nombre }) => {
   });
 };
 
-// ✅ Reclamar sesión - MODIFICADO
+// ✅ Reclamar sesión
 export const reclamarSesion = async () => {
   try {
     const token = sessionStorage.getItem("token");
@@ -228,7 +241,8 @@ export const reclamarSesion = async () => {
     if (nuevoToken) {
       sessionStorage.setItem("token", nuevoToken);
       
-      // 💓 REINICIAR HEARTBEAT CON NUEVO TOKEN
+      // 🔥 LIMPIAR CACHE CON NUEVO TOKEN
+      userCache.clearCache();
       startHeartbeat();
       
       return nuevoToken;
@@ -242,11 +256,7 @@ export const reclamarSesion = async () => {
   }
 };
 
-// ========================
-// FUNCIONES NUEVAS EXPORTADAS
-// ========================
-
-// Función para inicializar el sistema (llamar en App.js una vez)
+// Función para inicializar el sistema
 export const initializeAuth = () => {
   const token = sessionStorage.getItem("token");
   
@@ -256,7 +266,7 @@ export const initializeAuth = () => {
   }
 };
 
-// Función para actualizar heartbeat cuando entre a videochat
+// Función para actualizar heartbeat
 export const updateHeartbeatRoom = async (roomName) => {
   try {
     const token = sessionStorage.getItem("token");
@@ -271,8 +281,26 @@ export const updateHeartbeatRoom = async (roomName) => {
     console.log("💓 Heartbeat actualizado para videochat");
   } catch (error) {
     console.error("❌ Error actualizando heartbeat:", error);
+    
+    if (error.response?.status === 429) {
+      console.warn('⚠️ Rate limited actualizando heartbeat');
+      return;
+    }
   }
 };
 
-// Exportar funciones de control del heartbeat
+// 🔥 FUNCIÓN PARA LIMPIAR CACHE MANUALMENTE
+export const clearUserCache = () => {
+  userCache.clearCache();
+};
+
+// 🔥 FUNCIÓN PARA DEBUGGING
+export const debugAuth = () => {
+  return {
+    hasToken: !!sessionStorage.getItem('token'),
+    cache: userCache.getDebugInfo(),
+    heartbeatActive: !!heartbeatInterval
+  };
+};
+
 export { startHeartbeat, stopHeartbeat };
