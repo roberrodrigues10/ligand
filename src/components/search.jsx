@@ -1,402 +1,198 @@
-// 🔥 UserSearch.jsx - VERSIÓN OPTIMIZADA COMPLETA
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-// 🚀 RATE LIMITER INTELIGENTE
-class SmartRateLimiter {
-  constructor() {
-    this.lastRequests = new Map();
-    this.isRateLimited = false;
-    this.rateLimitUntil = 0;
-    this.failureCount = 0;
-    this.adaptiveInterval = 8000; // Interval adaptativo inicial
-  }
-
-  canMakeRequest(type) {
-    const now = Date.now();
-    
-    if (this.isRateLimited && now < this.rateLimitUntil) {
-      return false;
-    }
-    
-    if (this.isRateLimited && now >= this.rateLimitUntil) {
-      this.isRateLimited = false;
-      this.failureCount = 0;
-      console.log('✅ Rate limit liberado');
-    }
-
-    const lastRequest = this.lastRequests.get(type) || 0;
-    const minInterval = type === 'heartbeat' ? 12000 : this.adaptiveInterval;
-    
-    return (now - lastRequest) >= minInterval;
-  }
-
-  async fetchSafe(url, options, type) {
-    if (!this.canMakeRequest(type)) {
-      return { success: false, rateLimited: true };
-    }
-
-    try {
-      const response = await fetch(url, options);
-      
-      if (response.status === 429) {
-        this.handleRateLimit();
-        return { success: false, rateLimited: true };
-      }
-
-      if (response.ok) {
-        this.lastRequests.set(type, Date.now());
-        this.failureCount = 0;
-        this.adaptiveInterval = Math.max(6000, this.adaptiveInterval - 500); // Reducir interval si todo va bien
-        const data = await response.json();
-        return { success: true, data, rateLimited: false };
-      }
-
-      return { success: false, error: `HTTP ${response.status}`, rateLimited: false };
-      
-    } catch (error) {
-      this.failureCount++;
-      this.adaptiveInterval = Math.min(20000, this.adaptiveInterval + 1000); // Aumentar interval si hay errores
-      return { success: false, error: error.message, rateLimited: false };
-    }
-  }
-
-  handleRateLimit() {
-    this.isRateLimited = true;
-    this.rateLimitUntil = Date.now() + 65000; // 65 segundos
-    this.adaptiveInterval = Math.min(25000, this.adaptiveInterval * 1.5); // Aumentar interval agresivamente
-    console.log(`🚫 Rate limited por 65s. Nuevo interval: ${this.adaptiveInterval}ms`);
-  }
-
-  getAdaptiveInterval() {
-    return this.adaptiveInterval;
-  }
-}
-
-const rateLimiter = new SmartRateLimiter();
 
 const UserSearch = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [searchStatus, setSearchStatus] = useState('Iniciando...');
-  const [roomData, setRoomData] = useState(null);
-  const [waitTime, setWaitTime] = useState(0);
-  const [connectionCount, setConnectionCount] = useState(0);
-  
+  const [roomData, setRoomData] = useState(null); // Datos de la sala creada
+  const [waitTime, setWaitTime] = useState(0); // Tiempo esperando
   const checkIntervalRef = useRef(null);
   const waitTimerRef = useRef(null);
   const isMountedRef = useRef(true);
-  const instanceIdRef = useRef(`instance_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   
-  // Estados de protección
+  // 🔥 NUEVOS ESTADOS PARA PREVENIR DOBLE EJECUCIÓN
   const [isSearchingRooms, setIsSearchingRooms] = useState(false);
   const [isJoiningRoom, setIsJoiningRoom] = useState(false);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  
+  // 🔥 NUEVO: ESTADO PARA EVITAR MÚLTIPLES REDIRECCIONES
   const [isRedirecting, setIsRedirecting] = useState(false);
   
-  // Parámetros
-  const role = searchParams.get('role');
+  // Obtener parámetros de la URL
+  const role = searchParams.get('role'); // 'modelo' o 'cliente'
   const selectedCamera = searchParams.get('selectedCamera');
   const selectedMic = searchParams.get('selectedMic');
-  const currentRoom = searchParams.get('currentRoom');
-  const userName = searchParams.get('userName');
+  const currentRoom = searchParams.get('currentRoom'); // Para función "Siguiente"
+  const userName = searchParams.get('userName'); // Para función "Siguiente"
   
-  console.log(`🔍 [${instanceIdRef.current}] Parámetros:`, { role, currentRoom, userName });
+  console.log('🔍 [USERSEARCH] Parámetros recibidos:', { 
+    role, 
+    currentRoom, 
+    userName 
+  });
 
-  // 🚀 HEARTBEAT OPTIMIZADO (Menos crítico, puede fallar)
-  const sendOptimizedHeartbeat = async (activityType, room = null) => {
-    const authToken = sessionStorage.getItem('token');
-    if (!authToken) return false;
+  // 🔥 FUNCIÓN PARA ENVIAR HEARTBEAT
+  const sendHeartbeatDirect = async (activityType, room = null) => {
+    try {
+      const authToken = sessionStorage.getItem('token');
+      if (!authToken) return;
 
-    const result = await rateLimiter.fetchSafe(
-      `${API_BASE_URL}/api/heartbeat`,
-      {
+      await fetch(`${API_BASE_URL}/api/heartbeat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ activity_type: activityType, room })
-      },
-      'heartbeat'
-    );
+        body: JSON.stringify({
+          activity_type: activityType,
+          room: room
+        })
+      });
 
-    if (result.success) {
-      console.log(`💓 Heartbeat: ${activityType} en ${room || 'ninguna sala'}`);
-    } else if (result.rateLimited) {
-      console.log('⏸️ Heartbeat omitido (rate limited)');
-    }
-
-    return result.success;
-  };
-
-  // 🚀 NUEVO ENDPOINT LIGERO PARA VERIFICAR SOLO LA SALA
-  const checkRoomStatus = async (roomName) => {
-    const authToken = sessionStorage.getItem('token');
-    if (!authToken) return null;
-
-    // 🎯 USAR ENDPOINT ESPECÍFICO PARA VERIFICAR SALA (MÁS LIGERO)
-    const result = await rateLimiter.fetchSafe(
-      `${API_BASE_URL}/api/room/quick-status/${roomName}`, // 🚀 NUEVO ENDPOINT
-      {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      },
-      'room_check'
-    );
-
-    if (result.success) {
-      return result.data;
-    } else if (result.rateLimited) {
-      console.log('⏸️ Verificación de sala omitida (rate limited)');
-      return 'rate_limited';
-    } else {
-      // Fallback al endpoint original si el nuevo no existe
-      console.log('📡 Fallback al endpoint original...');
-      const fallbackResult = await rateLimiter.fetchSafe(
-        `${API_BASE_URL}/api/room/quick-status/${roomName}`,
-        {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        },
-        'room_check'
-      );
-      
-      return fallbackResult.success ? fallbackResult.data : null;
+      console.log(`💓 [USERSEARCH] Heartbeat enviado: ${activityType} en ${room || 'ninguna sala'}`);
+    } catch (error) {
+      console.log('⚠️ [USERSEARCH] Error enviando heartbeat:', error);
     }
   };
 
-  // 🚀 FUNCIÓN DE BÚSQUEDA EXISTENTE (OPTIMIZADA)
+  // 🔥 NUEVO: BUSCAR SALAS EXISTENTES ANTES DE CREAR UNA NUEVA (CON PROTECCIÓN)
   const searchExistingRooms = async () => {
-    if (isSearchingRooms) return null;
+    // 🔥 PREVENIR DOBLE EJECUCIÓN
+    if (isSearchingRooms) {
+      console.log('⚠️ [USERSEARCH] Ya se está buscando salas, ignorando...');
+      return null;
+    }
+
     setIsSearchingRooms(true);
 
     try {
       setSearchStatus('Buscando salas disponibles...');
+      console.log('🔍 [USERSEARCH] Buscando salas existentes...');
+      
       const authToken = sessionStorage.getItem('token');
-      if (!authToken) throw new Error('No hay token de autenticación');
-
-      const result = await rateLimiter.fetchSafe(
-        `${API_BASE_URL}/api/livekit/find-available-rooms`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({ 
-            userRole: role,
-            lookingFor: role === 'modelo' ? 'cliente' : 'modelo'
-          }),
-        },
-        'search_rooms'
-      );
-
-      if (result.success && result.data.success && result.data.availableRoom) {
-        return await joinExistingRoom(result.data.availableRoom);
+      if (!authToken) {
+        throw new Error('No hay token de autenticación');
       }
 
-      return null;
+      // 🔥 ENDPOINT PARA BUSCAR SALAS EXISTENTES
+      const response = await fetch(`${API_BASE_URL}/api/livekit/find-available-rooms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ 
+          userRole: role, // 'modelo' o 'cliente'
+          lookingFor: role === 'modelo' ? 'cliente' : 'modelo'
+        }),
+      });
+
+      if (!response.ok) {
+        console.log('⚠️ [USERSEARCH] No hay salas disponibles, creando nueva...');
+        return null; // No hay salas, crear una nueva
+      }
+
+      const data = await response.json();
+      console.log('✅ [USERSEARCH] Salas encontradas:', data);
+
+      if (data.success && data.availableRoom) {
+        // 🔥 UNIRSE A SALA EXISTENTE
+        return await joinExistingRoom(data.availableRoom);
+      } else {
+        console.log('⚠️ [USERSEARCH] No hay salas compatibles, creando nueva...');
+        return null; // Crear nueva sala
+      }
+
     } catch (error) {
-      console.log('⚠️ Error buscando salas:', error);
-      return null;
+      console.log('⚠️ [USERSEARCH] Error buscando salas existentes:', error);
+      return null; // En caso de error, crear nueva sala
     } finally {
       setIsSearchingRooms(false);
     }
   };
 
-  // 🚀 UNIRSE A SALA EXISTENTE (OPTIMIZADA)
+  // 🔥 NUEVO: UNIRSE A SALA EXISTENTE (CON PROTECCIÓN)
   const joinExistingRoom = async (roomInfo) => {
-    if (isJoiningRoom) return true;
+    // 🔥 PREVENIR DOBLE EJECUCIÓN
+    if (isJoiningRoom) {
+      console.log('⚠️ [USERSEARCH] Ya se está uniendo a una sala, ignorando...');
+      return true; // Considerar como éxito para no crear nueva sala
+    }
+
     setIsJoiningRoom(true);
 
     try {
       setSearchStatus('Uniéndose a sala existente...');
+      console.log('🏃‍♀️ [USERSEARCH] Uniéndose a sala:', roomInfo.roomName);
+      
       const authToken = sessionStorage.getItem('token');
       
-      const result = await rateLimiter.fetchSafe(
-        `${API_BASE_URL}/api/livekit/join-room`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({ 
-            roomName: roomInfo.roomName,
-            userRole: role
-          }),
+      const response = await fetch(`${API_BASE_URL}/api/livekit/join-room`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
         },
-        'join_room'
-      );
+        body: JSON.stringify({ 
+          roomName: roomInfo.roomName,
+          userRole: role
+        }),
+      });
 
-      if (result.success && result.data.success) {
-        await redirectToVideoChat(result.data.roomName, result.data.userName, result.data, true);
-        return true;
+      if (!response.ok) {
+        console.log('❌ [USERSEARCH] Error uniéndose a sala, creando nueva...');
+        return null; // Error uniéndose, crear nueva
       }
 
-      return null;
+      const data = await response.json();
+      console.log('✅ [USERSEARCH] Unido a sala existente:', data);
+
+      if (data.success) {
+        // 🎉 ÉXITO - NAVEGAR INMEDIATAMENTE
+        await redirectToVideoChat(data.roomName, data.userName, data, true);
+        return true; // Éxito, no crear nueva sala
+      }
+
+      return null; // Error, crear nueva sala
+
     } catch (error) {
-      console.error('❌ Error uniéndose a sala:', error);
-      return null;
+      console.error('❌ [USERSEARCH] Error uniéndose a sala:', error);
+      return null; // Error, crear nueva sala
     } finally {
       setIsJoiningRoom(false);
     }
   };
 
-  // 🚀 CREAR SALA (OPTIMIZADA)
-  const createRoom = async () => {
-    if (isCreatingRoom) return;
-    setIsCreatingRoom(true);
-
-    try {
-      setSearchStatus('Creando sala...');
-      const authToken = sessionStorage.getItem('token');
-      if (!authToken) throw new Error('No hay token de autenticación');
-
-      let endpoint = '';
-      let body = {};
-
-      if (currentRoom && userName) {
-        endpoint = '/api/livekit/next-room';
-        body = { 
-          currentRoom,
-          userName,
-          reason: `${role}_siguiente`,
-          excludeUserId: searchParams.get('excludeUser'),
-          excludeUserName: searchParams.get('excludeUserName')
-        };
-      } else {
-        endpoint = '/api/ruleta/iniciar';
-        body = {};
-      }
-
-      const result = await rateLimiter.fetchSafe(
-        `${API_BASE_URL}${endpoint}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify(body),
-        },
-        'create_room'
-      );
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error creando sala');
-      }
-
-      const data = result.data;
-      const roomName = data.roomName || data.newRoomName;
-      const finalUserName = data.userName;
-
-      if (!roomName || !finalUserName) {
-        throw new Error('Datos de sala incompletos');
-      }
-
-      const newRoomData = {
-        roomName,
-        userName: finalUserName,
-        ruletaData: data
-      };
-      
-      setRoomData(newRoomData);
-      setSearchStatus('Sala creada. Esperando usuarios...');
-      
-      // Heartbeat inicial
-      await sendOptimizedHeartbeat('searching', roomName);
-      
-      // Iniciar verificación
-      startOptimizedWaiting(roomName, finalUserName, newRoomData);
-
-    } catch (error) {
-      console.error('❌ Error creando sala:', error);
-      setError(error.message);
-      setSearchStatus('Error creando sala');
-    } finally {
-      setIsCreatingRoom(false);
-    }
-  };
-
-  // 🚀 ESPERA OPTIMIZADA CON INTERVAL ADAPTATIVO
-  const startOptimizedWaiting = (roomName, finalUserName, currentRoomData) => {
-    console.log(`⏳ [${instanceIdRef.current}] Esperando usuarios en: ${roomName}`);
-    
-    // Timer para tiempo de espera
-    waitTimerRef.current = setInterval(() => {
-      setWaitTime(prev => prev + 1);
-    }, 1000);
-
-    // Función recursiva para verificar con interval adaptativo
-    const scheduleNextCheck = (nextInterval = null) => {
-      const interval = nextInterval || rateLimiter.getAdaptiveInterval();
-      
-      checkIntervalRef.current = setTimeout(async () => {
-        if (!isMountedRef.current || isRedirecting) return;
-        
-        try {
-          // Heartbeat opcional (no crítico)
-          sendOptimizedHeartbeat('searching', roomName);
-          
-          // Verificación crítica de la sala
-          const roomStatus = await checkRoomStatus(roomName);
-          
-          if (roomStatus === 'rate_limited') {
-            console.log('⏸️ Verificación pausada por rate limit');
-            setSearchStatus('Pausado temporalmente (rate limit)');
-            scheduleNextCheck(rateLimiter.getAdaptiveInterval() * 2); // Doble intervalo
-            return;
-          }
-          
-          if (!roomStatus) {
-            console.log('⚠️ Error verificando sala, reintentando...');
-            scheduleNextCheck(interval * 1.5); // Aumentar interval en error
-            return;
-          }
-
-          const participantCount = roomStatus.total_count || 0;
-          setConnectionCount(participantCount);
-          
-          console.log(`📊 [${instanceIdRef.current}] Sala ${roomName}: ${participantCount}/2 usuarios`);
-
-          if (participantCount >= 2) {
-            console.log('🎉 ¡Usuario encontrado! Redirigiendo...');
-            await redirectToVideoChat(roomName, finalUserName, currentRoomData?.ruletaData, false);
-          } else {
-            setSearchStatus(`Esperando usuarios... (${participantCount}/2 conectados)`);
-            scheduleNextCheck(); // Continuar con interval normal
-          }
-
-        } catch (error) {
-          console.error('⚠️ Error en verificación:', error);
-          scheduleNextCheck(interval * 1.5); // Aumentar interval en error
-        }
-      }, interval);
-    };
-
-    // Iniciar primera verificación
-    scheduleNextCheck(3000); // Primera verificación rápida a los 3s
-  };
-
-  // 🚀 REDIRECCIÓN (SIN CAMBIOS MAYORES)
+  // 🔥 NUEVA FUNCIÓN: REDIRECCIÓN CENTRALIZADA
   const redirectToVideoChat = async (roomName, finalUserName, ruletaData = null, joinedExisting = false) => {
-    if (isRedirecting) return;
+    // 🔥 PREVENIR MÚLTIPLES REDIRECCIONES
+    if (isRedirecting) {
+      console.log('⚠️ [USERSEARCH] Ya se está redirigiendo, ignorando...');
+      return;
+    }
+
     setIsRedirecting(true);
 
     try {
-      console.log(`🎯 [${instanceIdRef.current}] Redirigiendo...`, { roomName, finalUserName });
+      console.log('🎯 [USERSEARCH] Iniciando redirección...', {
+        roomName,
+        finalUserName,
+        joinedExisting
+      });
+
       setSearchStatus('¡Conectado! Redirigiendo...');
       
-      await sendOptimizedHeartbeat('videochat', roomName);
+      // 🔥 HEARTBEAT FINAL ANTES DE REDIRECCIONAR
+      await sendHeartbeatDirect('videochat', roomName);
       
-      // Limpiar intervals
+      // Detener verificaciones
       if (checkIntervalRef.current) {
-        clearTimeout(checkIntervalRef.current);
+        clearInterval(checkIntervalRef.current);
         checkIntervalRef.current = null;
       }
       
@@ -413,6 +209,9 @@ const UserSearch = () => {
         ...(selectedMic && { selectedMic }),
       });
 
+      console.log(`🧭 [USERSEARCH] Redirigiendo a: ${targetRoute}?${urlParams}`);
+
+      // 🔥 DELAY MÍNIMO PARA EVITAR RACE CONDITIONS
       setTimeout(() => {
         navigate(`${targetRoute}?${urlParams}`, {
           state: {
@@ -428,94 +227,250 @@ const UserSearch = () => {
       }, 500);
 
     } catch (error) {
-      console.error('❌ Error en redirección:', error);
+      console.error('❌ [USERSEARCH] Error en redirección:', error);
       setError('Error al conectar al videochat');
       setIsRedirecting(false);
     }
   };
 
-  // 🚀 INICIALIZACIÓN PRINCIPAL
+  // 🔥 MODIFICADO: FUNCIÓN PRINCIPAL DE INICIALIZACIÓN (CON PROTECCIÓN)
   const initializeSearch = async () => {
-    if (isSearchingRooms || isJoiningRoom || isCreatingRoom) return;
+    // 🔥 PREVENIR MÚLTIPLES EJECUCIONES
+    if (isSearchingRooms || isJoiningRoom || isCreatingRoom) {
+      console.log('⚠️ [USERSEARCH] Proceso ya en ejecución, ignorando...');
+      return;
+    }
 
     try {
-      console.log(`🚀 [${instanceIdRef.current}] Iniciando proceso...`);
+      console.log('🚀 [USERSEARCH] Iniciando proceso de búsqueda...');
       
       if (currentRoom && userName) {
-        console.log('🔄 Modo siguiente - creando nueva sala...');
+        // 🔥 FUNCIÓN "SIGUIENTE" - CREAR NUEVA SALA DIRECTAMENTE
+        console.log('🔄 [USERSEARCH] Modo siguiente - creando nueva sala...');
         await createRoom();
         return;
       }
 
-      console.log('🎰 Ruleta inicial - buscando salas existentes...');
+      // 🔥 RULETA INICIAL - BUSCAR PRIMERO, CREAR DESPUÉS
+      console.log('🎰 [USERSEARCH] Ruleta inicial - buscando salas existentes...');
+      
       const joinedExisting = await searchExistingRooms();
       
       if (!joinedExisting && !isJoiningRoom) {
-        console.log('🏗️ Creando nueva sala...');
+        // No se unió a sala existente y no está en proceso de unirse, crear nueva
+        console.log('🏗️ [USERSEARCH] Creando nueva sala...');
         await createRoom();
       }
+      // Si se unió a sala existente, ya se redirigió
 
     } catch (error) {
-      console.error('❌ Error in proceso de búsqueda:', error);
+      console.error('❌ [USERSEARCH] Error en proceso de búsqueda:', error);
       setError(error.message);
       setSearchStatus('Error en la búsqueda');
     }
   };
 
-  // 🚀 useEffect MEJORADO
-  useEffect(() => {
-    const instanceId = instanceIdRef.current;
-    
-    // Protección contra múltiples instancias
-    if (!window.__USERSEARCH_INSTANCES) window.__USERSEARCH_INSTANCES = [];
-    window.__USERSEARCH_INSTANCES.push(instanceId);
-    
-    // Si hay más de una instancia, cancelar las anteriores
-    if (window.__USERSEARCH_INSTANCES.length > 1) {
-      const myIndex = window.__USERSEARCH_INSTANCES.indexOf(instanceId);
-      if (myIndex !== window.__USERSEARCH_INSTANCES.length - 1) {
-        console.log(`🛑 [${instanceId}] No es la instancia más reciente, cancelando`);
-        return;
-      }
+  // 🔥 PASO 1: CREAR SALA UNA SOLA VEZ (CON PROTECCIÓN)
+  const createRoom = async () => {
+    // 🔥 PREVENIR DOBLE EJECUCIÓN
+    if (isCreatingRoom) {
+      console.log('⚠️ [USERSEARCH] Ya se está creando una sala, ignorando...');
+      return;
     }
 
+    setIsCreatingRoom(true);
+
+    try {
+      setSearchStatus('Creando sala...');
+      console.log('🏗️ [USERSEARCH] Creando nueva sala...');
+      
+      const authToken = sessionStorage.getItem('token');
+      if (!authToken) {
+        throw new Error('No hay token de autenticación');
+      }
+
+      let endpoint = '';
+      let body = {};
+
+      if (currentRoom && userName) {
+        // Función "Siguiente"
+        endpoint = '/api/livekit/next-room';
+        body = { 
+            currentRoom,
+            userName,
+            reason: `${role}_siguiente`,
+            excludeUserId: searchParams.get('excludeUser'),
+            excludeUserName: searchParams.get('excludeUserName')
+        };
+
+      } else {
+        // Ruleta inicial
+        if (role === 'modelo') {
+          endpoint = '/api/ruleta/iniciar';
+          body = {};
+        } else if (role === 'cliente') {
+          endpoint = '/api/ruleta/iniciar';
+          body = {};
+        }
+      }
+
+      console.log(`📡 [USERSEARCH] Creando sala en ${endpoint}`);
+
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ [USERSEARCH] Sala creada:', data);
+
+      const roomName = data.roomName || data.newRoomName;
+      const finalUserName = data.userName;
+
+      if (!roomName || !finalUserName) {
+        throw new Error('Datos de sala incompletos');
+      }
+
+      // 🔥 ACTUALIZAR ESTADO DE LA SALA
+      const newRoomData = {
+        roomName,
+        userName: finalUserName,
+        ruletaData: data
+      };
+      
+      setRoomData(newRoomData);
+      setSearchStatus('Sala creada. Esperando usuarios...');
+      
+      // 🔥 HEARTBEAT INICIAL CON ESTADO SEARCHING
+      await sendHeartbeatDirect('searching', roomName);
+      
+      // 🔥 INICIAR VERIFICACIÓN PERIÓDICA
+      startWaitingForUsers(roomName, finalUserName, newRoomData);
+
+    } catch (error) {
+      console.error('❌ [USERSEARCH] Error creando sala:', error);
+      setError(error.message);
+      setSearchStatus('Error creando sala');
+    } finally {
+      setIsCreatingRoom(false);
+    }
+  };
+
+  // 🔥 MODIFICADO: VERIFICAR PERIÓDICAMENTE SI HAY USUARIOS - CORRECCIÓN PRINCIPAL
+  const startWaitingForUsers = (roomName, finalUserName, currentRoomData) => {
+    console.log(`⏳ [USERSEARCH] Esperando usuarios en sala: ${roomName}`);
+    
+    // 🔥 ENVIAR HEARTBEAT INICIAL
+    sendHeartbeatDirect('searching', roomName);
+    
+    // Timer para contar tiempo de espera
+    waitTimerRef.current = setInterval(() => {
+      setWaitTime(prev => prev + 1);
+    }, 1000);
+
+    // Verificar cada 6 segundos si hay usuarios
+    checkIntervalRef.current = setInterval(async () => {
+      if (!isMountedRef.current || isRedirecting) return;
+      
+      try {
+        // 🔥 ENVIAR HEARTBEAT CADA VERIFICACIÓN
+        await sendHeartbeatDirect('searching', roomName);
+        
+        console.log('🔍 [USERSEARCH] Verificando participantes en sala...');
+        
+        const authToken = sessionStorage.getItem('token');
+        console.log('🔍 [USERSEARCH] Consultando sala:', roomName);
+
+        const response = await fetch(`${API_BASE_URL}/api/chat/participants/${roomName}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+            },
+        });
+
+        if (!response.ok) {
+          console.log('⚠️ [USERSEARCH] Error verificando participantes:', response.status, response.statusText);
+          return; // Continuar verificando
+        }
+
+        const data = await response.json();
+        console.log('📊 [USERSEARCH] Estado de la sala:', {
+          roomName,
+          participantCount: data.total_count,
+          participants: data.participants,
+          timestamp: new Date().toISOString()
+        });
+
+        // 🔥 VERIFICAR SI HAY 2 O MÁS PARTICIPANTES
+        if (data.total_count >= 2) {
+          console.log('🎉 [USERSEARCH] ¡Usuario encontrado! Ambos usuarios serán redirigidos...');
+          
+          // 🔥 REDIRECCIÓN INMEDIATA USANDO LA FUNCIÓN CENTRALIZADA
+          await redirectToVideoChat(roomName, finalUserName, currentRoomData?.ruletaData, false);
+          
+        } else {
+          // Continuar esperando
+          const participantCount = data.total_count || 0;
+          setSearchStatus(`Esperando usuarios... (${participantCount}/2 conectados)`);
+          console.log(`⏳ [USERSEARCH] Esperando más usuarios: ${participantCount}/2`);
+        }
+
+      } catch (error) {
+        console.error('⚠️ [USERSEARCH] Error verificando sala:', error);
+        // Continuar verificando aunque haya error
+      }
+    }, 6000); // Verificar cada 6 segundos
+  };
+
+  // 🔥 MODIFICADO: USEEFFECT CON NUEVA FUNCIÓN PRINCIPAL Y PROTECCIÓN MEJORADA
+  useEffect(() => {
+    // 🔥 PREVENIR DOBLE MONTAJE EN DESARROLLO
+    if (window.__USERSEARCH_ACTIVE) {
+      console.log('🛑 [USERSEARCH] Ya hay una búsqueda activa, ignorando montaje duplicado');
+      return;
+    }
+    window.__USERSEARCH_ACTIVE = true;
+
     if (!role) {
-      console.error('❌ Falta parámetro role');
+      console.error('❌ [USERSEARCH] Falta parámetro role');
       navigate('/home');
       return;
     }
 
+    console.log('🚀 [USERSEARCH] Iniciando proceso...');
     isMountedRef.current = true;
     
+    // 🔥 DELAY MÍNIMO PARA EVITAR RACE CONDITIONS
     const initTimeout = setTimeout(() => {
       if (isMountedRef.current) {
         initializeSearch();
       }
-    }, 150);
+    }, 100);
 
+    // Cleanup
     return () => {
-      console.log(`🧹 [${instanceId}] Limpiando...`);
+      console.log('🧹 [USERSEARCH] Limpiando...');
       clearTimeout(initTimeout);
-      
-      // Remover de instancias activas
-      if (window.__USERSEARCH_INSTANCES) {
-        const index = window.__USERSEARCH_INSTANCES.indexOf(instanceId);
-        if (index > -1) {
-          window.__USERSEARCH_INSTANCES.splice(index, 1);
-        }
-      }
-      
+      window.__USERSEARCH_ACTIVE = false;
       isMountedRef.current = false;
       
-      // Resetear estados
+      // Resetear estados de protección
       setIsSearchingRooms(false);
       setIsJoiningRoom(false);
       setIsCreatingRoom(false);
       setIsRedirecting(false);
       
-      // Limpiar timeouts/intervals
       if (checkIntervalRef.current) {
-        clearTimeout(checkIntervalRef.current);
+        clearInterval(checkIntervalRef.current);
         checkIntervalRef.current = null;
       }
       
@@ -526,13 +481,13 @@ const UserSearch = () => {
     };
   }, [role]);
 
-  // Timeout de seguridad
+  // 🔥 TIMEOUT DE SEGURIDAD (120 segundos) - SIN CAMBIOS
   useEffect(() => {
     const timeout = setTimeout(() => {
-      console.log(`⏰ [${instanceIdRef.current}] Timeout alcanzado (120s)`);
+      console.log('⏰ [USERSEARCH] Timeout alcanzado (120s)');
       
       if (checkIntervalRef.current) {
-        clearTimeout(checkIntervalRef.current);
+        clearInterval(checkIntervalRef.current);
         checkIntervalRef.current = null;
       }
       
@@ -543,16 +498,18 @@ const UserSearch = () => {
       
       setError('No se conectó ningún usuario después de 2 minutos. Intenta más tarde.');
       setSearchStatus('Tiempo de espera agotado');
-    }, 120000);
+    }, 120000); // 2 minutos
 
     return () => clearTimeout(timeout);
   }, []);
 
+  // 🔥 FUNCIÓN PARA VOLVER - SIN CAMBIOS
   const handleGoBack = () => {
-    console.log(`↩️ [${instanceIdRef.current}] Usuario canceló`);
+    console.log('↩️ [USERSEARCH] Usuario canceló');
     
+    // Detener verificaciones
     if (checkIntervalRef.current) {
-      clearTimeout(checkIntervalRef.current);
+      clearInterval(checkIntervalRef.current);
       checkIntervalRef.current = null;
     }
     
@@ -563,6 +520,7 @@ const UserSearch = () => {
     
     isMountedRef.current = false;
     
+    // Redirigir según rol
     if (role === 'modelo') {
       navigate('/precallmodel');
     } else if (role === 'cliente') {
@@ -572,16 +530,15 @@ const UserSearch = () => {
     }
   };
 
+  // 🔥 FORMATEAR TIEMPO DE ESPERA - SIN CAMBIOS
   const formatWaitTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 🚀 ESTADO VISUAL MEJORADO
+  // 🔥 NUEVO: FUNCIÓN PARA MOSTRAR DIFERENTES ESTADOS
   const getStatusMessage = () => {
-    const adaptiveInterval = Math.round(rateLimiter.getAdaptiveInterval() / 1000);
-    
     if (searchStatus.includes('Buscando salas')) {
       return (
         <div className="space-y-2">
@@ -594,18 +551,18 @@ const UserSearch = () => {
       );
     }
     
-    if (searchStatus.includes('Pausado')) {
+    if (searchStatus.includes('Uniéndose')) {
       return (
         <div className="space-y-2">
-          <p className="text-yellow-400 text-sm">{searchStatus}</p>
-          <div className="flex items-center justify-center gap-2 text-xs text-yellow-400">
-            <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-            <span>Reintentando en {adaptiveInterval}s...</span>
+          <p className="text-gray-400 text-sm">{searchStatus}</p>
+          <div className="flex items-center justify-center gap-2 text-xs text-green-400">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
+            <span>Conectando a sala existente...</span>
           </div>
         </div>
       );
     }
-    
+
     if (searchStatus.includes('Conectado') || searchStatus.includes('Redirigiendo')) {
       return (
         <div className="space-y-2">
@@ -618,17 +575,10 @@ const UserSearch = () => {
       );
     }
     
-    return (
-      <div className="space-y-2">
-        <p className="text-gray-400 mb-6 text-sm leading-relaxed">{searchStatus}</p>
-        <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
-          <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-          <span>Próxima verificación en {adaptiveInterval}s</span>
-        </div>
-      </div>
-    );
+    return <p className="text-gray-400 mb-6 text-sm leading-relaxed">{searchStatus}</p>;
   };
 
+  // 🔥 RENDER - MODIFICADO SOLO EN ESTADO
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex items-center justify-center p-4">
       <div className="text-center max-w-md mx-auto">
@@ -652,7 +602,7 @@ const UserSearch = () => {
           }
         </h2>
 
-        {/* Estado actual */}
+        {/* Estado actual - MODIFICADO */}
         {getStatusMessage()}
 
         {/* Información de la sala */}
@@ -662,46 +612,51 @@ const UserSearch = () => {
             <p className="text-[#ff007a] font-mono text-sm break-all">
               {roomData.roomName}
             </p>
-            <div className="flex justify-between items-center mt-2 text-xs">
-              <span className="text-gray-500">
-                Tiempo: <span className="text-white font-bold">{formatWaitTime(waitTime)}</span>
-              </span>
-              <span className="text-gray-500">
-                Usuarios: <span className="text-white font-bold">{connectionCount}/2</span>
-              </span>
-            </div>
-            <div className="mt-2 text-xs text-blue-400">
-              Verificación cada {Math.round(rateLimiter.getAdaptiveInterval() / 1000)}s
-            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Tiempo esperando: <span className="text-white font-bold">{formatWaitTime(waitTime)}</span>
+            </p>
           </div>
         )}
 
-        {/* Barra de progreso optimizada */}
+        {/* Barra de progreso */}
         {!error && !isRedirecting && (
           <div className="space-y-4 mb-8">
             <div className="w-full bg-[#1e1f24] rounded-full h-2 overflow-hidden">
               <div 
                 className="bg-gradient-to-r from-[#ff007a] to-pink-500 h-2 rounded-full animate-pulse"
                 style={{
-                  animation: 'loading-bar 3s ease-in-out infinite',
+                  animation: 'loading-bar 2s ease-in-out infinite',
                   width: '60%'
                 }}
               />
             </div>
 
+            {/* Estados de espera */}
             <div className="text-xs text-gray-500 space-y-2">
               <div className="flex items-center justify-center gap-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
-                <span>Conexión optimizada activa</span>
+                <span>Sala activa y esperando...</span>
               </div>
               <div className="flex items-center justify-center gap-2">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                <span>Rate limiting inteligente</span>
+                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                <span>Verificando nuevos usuarios...</span>
               </div>
               <div className="flex items-center justify-center gap-2">
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                <span>Interval adaptativo: {Math.round(rateLimiter.getAdaptiveInterval() / 1000)}s</span>
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                <span>Listo para conectar...</span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Indicador de redirección */}
+        {isRedirecting && (
+          <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-lg">
+            <div className="flex items-center justify-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-400 border-t-transparent"></div>
+              <p className="text-green-400 text-sm font-medium">
+                ¡Usuario encontrado! Iniciando videochat...
+              </p>
             </div>
           </div>
         )}
@@ -729,16 +684,32 @@ const UserSearch = () => {
         {/* Información adicional */}
         {!isRedirecting && (
           <div className="mt-6 text-xs text-gray-500">
-            <p>🚀 Conexión optimizada con rate limiting</p>
-            <p>⚡ Verificación inteligente cada {Math.round(rateLimiter.getAdaptiveInterval() / 1000)}s</p>
-            <p>📡 Endpoint ligero para mejor rendimiento</p>
+            <p>🏠 Sala propia creada y activa</p>
+            <p>⚡ Verificación automática cada 6 segundos</p>
             {currentRoom && (
               <p className="text-[#ff007a]">🔄 Modo: Nueva sala (siguiente)</p>
             )}
+            {role === 'modelo' && (
+              <p>👩‍💼 Esperando que se conecte un cliente</p>
+            )}
+            {role === 'cliente' && (
+              <p>👤 Esperando que se conecte una modelo</p>
+            )}
+          </div>
+        )}
+
+        {/* 🔥 NUEVO: INDICADORES DE DEBUG (SOLO EN DESARROLLO) */}
+        {process.env.NODE_ENV === 'development' && !isRedirecting && (
+          <div className="mt-4 text-xs text-yellow-400 space-y-1">
+            {isSearchingRooms && <p>🔍 Buscando salas...</p>}
+            {isJoiningRoom && <p>🏃‍♀️ Uniéndose a sala...</p>}
+            {isCreatingRoom && <p>🏗️ Creando sala...</p>}
+            {isRedirecting && <p>🎯 Redirigiendo...</p>}
           </div>
         )}
       </div>
 
+      {/* CSS para animaciones */}
       <style jsx>{`
         @keyframes loading-bar {
           0% { width: 20%; }
