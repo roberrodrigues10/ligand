@@ -1,21 +1,35 @@
-// src/utils/userCache.js - VERSIÓN CORREGIDA
+// src/utils/userCache.js - FIX PARA DETECCIÓN DE HTML
 import axios from '../api/axios';
 
-// 🔥 VALIDADOR DE RESPUESTAS DEL BACKEND
+// 🔥 VALIDADOR MEJORADO QUE DETECTA HTML
 const isValidUserData = (data) => {
   console.log('🔍 [CACHE] Validando datos:', { 
     type: typeof data, 
-    value: data, 
+    value: typeof data === 'string' ? data.substring(0, 100) + '...' : data,
     hasId: !!data?.id, 
     hasEmail: !!data?.email,
     isUndefined: data === undefined,
     isNull: data === null,
+    isHTML: typeof data === 'string' && data.includes('<!DOCTYPE html>'),
     isEmpty: Object.keys(data || {}).length === 0
   });
 
   // Verificar que no sea undefined, null, o string "undefined"
   if (data === undefined || data === null || data === 'undefined' || data === 'null') {
     console.log('❌ [CACHE] Datos inválidos: undefined/null');
+    return false;
+  }
+
+  // 🚨 DETECTAR HTML (PROBLEMA PRINCIPAL)
+  if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
+    console.log('💥 [CACHE] ¡BACKEND DEVOLVIENDO HTML EN LUGAR DE JSON!');
+    console.log('🔧 [CACHE] Esto indica un problema de configuración del servidor');
+    return false;
+  }
+
+  // Si es un string que no es HTML, también es inválido para datos de usuario
+  if (typeof data === 'string') {
+    console.log('❌ [CACHE] Datos en formato string inválido (no HTML pero tampoco JSON)');
     return false;
   }
 
@@ -44,11 +58,12 @@ class UserCacheManager {
     this.cache = new Map();
     this.pendingRequests = new Map();
     this.lastFetchTime = 0;
-    this.CACHE_DURATION = 60000; // 60 segundos (aumentado)
+    this.CACHE_DURATION = 60000;
     this.MIN_REQUEST_INTERVAL = 2000;
     this.MAX_RETRIES = 3;
     this.RATE_LIMIT_RETRY_DELAY = 5000;
-    this.failedAttempts = new Map(); // Track de intentos fallidos
+    this.failedAttempts = new Map();
+    this.htmlResponseCount = 0; // 🔥 Contador de respuestas HTML
   }
 
   getCacheKey(token) {
@@ -101,6 +116,18 @@ class UserCacheManager {
 
     const cacheKey = this.getCacheKey(token);
     
+    // 🚨 VERIFICAR SI HAY DEMASIADAS RESPUESTAS HTML
+    if (this.htmlResponseCount >= 3) {
+      console.log('🚨 [CACHE] ¡ALERTA! Backend devuelve HTML consistentemente');
+      console.log('🔧 [CACHE] Problema de configuración del servidor detectado');
+      console.log('⚠️ [CACHE] Verifica que las rutas de API estén configuradas correctamente');
+      
+      // Limpiar token y cache
+      sessionStorage.removeItem('token');
+      this.clearCache();
+      throw new Error('Server configuration error: API returning HTML instead of JSON');
+    }
+    
     // 🔥 VERIFICAR FALLOS PREVIOS
     const failedCount = this.failedAttempts.get(cacheKey) || 0;
     if (failedCount >= 5) {
@@ -152,6 +179,7 @@ class UserCacheManager {
       
       // 🎉 ÉXITO - Reset failed attempts
       this.failedAttempts.delete(cacheKey);
+      this.htmlResponseCount = 0; // Reset contador HTML
       return result;
       
     } catch (error) {
@@ -166,7 +194,7 @@ class UserCacheManager {
     }
   }
 
-  // 🔥 REQUEST MEJORADA CON VALIDACIÓN ESTRICTA
+  // 🔥 REQUEST MEJORADA CON DETECCIÓN DE HTML
   async makeRequestWithRetry(token, cacheKey, retryCount = 0) {
     try {
       this.lastFetchTime = Date.now();
@@ -176,17 +204,19 @@ class UserCacheManager {
       const response = await axios.get('/api/profile', {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' // 🔥 Especificar que esperamos JSON
         },
-        timeout: 15000 // 15 segundos timeout (aumentado)
+        timeout: 15000
       });
 
       console.log('📡 [CACHE] Respuesta cruda del backend:', {
         status: response.status,
         hasData: !!response.data,
         dataType: typeof response.data,
-        dataValue: response.data,
-        dataKeys: response.data ? Object.keys(response.data) : []
+        contentType: response.headers['content-type'],
+        isHTML: typeof response.data === 'string' && response.data.includes('<!DOCTYPE html>'),
+        dataPreview: typeof response.data === 'string' ? response.data.substring(0, 100) + '...' : response.data
       });
 
       // 🔥 VALIDACIÓN ESTRICTA DE LA RESPUESTA
@@ -197,6 +227,20 @@ class UserCacheManager {
       if (!response.data) {
         console.log('💥 [CACHE] Backend devolvió response.data vacío');
         throw new Error('Backend returned empty response.data');
+      }
+
+      // 🚨 DETECTAR HTML EN LA RESPUESTA
+      if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html>')) {
+        this.htmlResponseCount++;
+        console.log('🚨 [CACHE] ¡BACKEND DEVOLVIENDO HTML EN LUGAR DE JSON!');
+        console.log(`🔢 [CACHE] Respuestas HTML consecutivas: ${this.htmlResponseCount}/3`);
+        console.log('🔧 [CACHE] Indica problema de configuración del servidor');
+        
+        if (this.htmlResponseCount >= 3) {
+          throw new Error('Server consistently returning HTML instead of JSON - configuration error');
+        }
+        
+        throw new Error('Backend returned HTML instead of JSON');
       }
 
       // Extraer datos del usuario
@@ -229,6 +273,14 @@ class UserCacheManager {
     } catch (error) {
       console.error(`❌ Error obteniendo usuario (intento ${retryCount + 1}):`, error.message);
       
+      // 🚨 MANEJO ESPECIAL PARA HTML
+      if (error.message.includes('HTML instead of JSON')) {
+        console.log('🚨 [CACHE] Error de configuración del servidor detectado');
+        
+        // No reintentar en este caso, es un problema del servidor
+        throw new Error('Server configuration error: Check API routes configuration');
+      }
+      
       // 🔥 MANEJO DE 429 (Rate Limit)
       if (error.response?.status === 429) {
         console.warn('⚠️ Rate limited (429) detectado');
@@ -259,7 +311,6 @@ class UserCacheManager {
       if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
         console.log('⏱️ [CACHE] Timeout detectado');
         
-        // Usar cache como fallback en timeout
         const fallbackCache = this.cache.get(cacheKey);
         if (fallbackCache && isValidUserData(fallbackCache.data)) {
           console.log('🔄 Usando cache como fallback para timeout');
@@ -269,7 +320,7 @@ class UserCacheManager {
       
       // 🔄 REINTENTOS PARA OTROS ERRORES
       if (retryCount < this.MAX_RETRIES) {
-        const delay = 2000 * (retryCount + 1); // 2s, 4s, 6s
+        const delay = 2000 * (retryCount + 1);
         console.log(`⏳ Reintentando en ${delay}ms por error ${error.response?.status || 'network'}`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.makeRequestWithRetry(token, cacheKey, retryCount + 1);
@@ -286,6 +337,7 @@ class UserCacheManager {
     this.cache.clear();
     this.pendingRequests.clear();
     this.failedAttempts.clear();
+    this.htmlResponseCount = 0; // Reset contador HTML
   }
 
   clearCacheForToken(token) {
@@ -301,6 +353,7 @@ class UserCacheManager {
       cacheSize: this.cache.size,
       pendingRequests: this.pendingRequests.size,
       failedAttempts: this.failedAttempts.size,
+      htmlResponseCount: this.htmlResponseCount,
       lastFetchTime: this.lastFetchTime,
       cacheEntries: Array.from(this.cache.keys()),
       cacheData: Array.from(this.cache.entries()).map(([key, value]) => ({
@@ -313,17 +366,16 @@ class UserCacheManager {
   }
 }
 
-// 🔥 INSTANCIA GLOBAL ÚNICA
+// Resto del código igual...
 const userCacheManager = new UserCacheManager();
 
-// 🔥 AUTO-LIMPIEZA MEJORADA
 setInterval(() => {
   const now = Date.now();
   let cleaned = 0;
   
   for (const [key, cached] of userCacheManager.cache.entries()) {
     const age = now - cached.timestamp;
-    const isOld = age > 600000; // 10 minutos
+    const isOld = age > 600000;
     const isInvalid = !isValidUserData(cached.data);
     
     if (isOld || isInvalid) {
@@ -336,14 +388,12 @@ setInterval(() => {
   if (cleaned > 0) {
     console.log(`🧹 Auto-limpieza completada: ${cleaned} entradas eliminadas`);
   }
-}, 300000); // Cada 5 minutos (más frecuente)
+}, 300000);
 
-// 🔥 FUNCIÓN EXPORTADA PRINCIPAL
 export const getUser = async (forceRefresh = false) => {
   return await userCacheManager.getUser(forceRefresh);
 };
 
-// Funciones auxiliares
 export const clearUserCache = () => userCacheManager.clearCache();
 export const getUserCacheDebug = () => userCacheManager.getDebugInfo();
 
