@@ -43,20 +43,6 @@ instance.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const estamosReclamando = sessionStorage.getItem("reclamando_sesion") === "true";
-
-    if (estamosReclamando) {
-      console.log("🔍 Interceptor: No eliminar token - Reclamando sesión");
-      return Promise.reject(error);
-    }
-
-    const esSesionDuplicada = codigo === "SESSION_DUPLICATED";
-
-    if (esSesionDuplicada) {
-      console.log("🔍 Interceptor: No eliminar token - Sesión duplicada detectada");
-      return Promise.reject(error);
-    }
-
     if (status === 401 || status === 403) {
       console.log("🧹 Interceptor: Eliminando token por error de autenticación");
       sessionStorage.removeItem("token");
