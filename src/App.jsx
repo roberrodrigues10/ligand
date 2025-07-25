@@ -5,7 +5,6 @@ import { initializeAuth } from "./utils/auth";
 import LigandHome from "./components/ligandHome";
 import LoginLigand from "./components/verificacion/login/loginligand";
 import Logout from "./components/verificacion/login/logout";
-import VerificarSesionActiva from "./components/verificacion/login/verifysession";
 
 import VerificarCodigo from "./components/verificacion/register/verificarcodigo";
 import Genero from "./components/verificacion/register/genero";
@@ -47,7 +46,6 @@ function App() {
       <RateLimitProvider>
         {/* 🔥 ENVOLVER EN SearchingProvider */}
         <SearchingProvider>
-          <VerificarSesionActiva />
           
           {/* 🔥 AGREGAR EL COMPONENTE GLOBAL */}
           <GlobalSearching />
