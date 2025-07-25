@@ -1,0 +1,213 @@
+{
+  "home": "Início",
+  "messages": "Mensagens",
+  "favoritesHome": "Favoritos",
+  "settingsHome": "Configurações",
+  "logout": "Sair",
+  "accountMenu": "Menu da conta",
+  "idioma": "Idioma",
+  "iniciarSesion": "Entrar",
+  "ayuda": "Ajuda",
+  "comenzar": "Começar a conversar",
+  "subtitulo": "Vídeo chat com pessoas aleatórias instantaneamente",
+  "genero": {
+    "femenino": "Feminino",
+    "masculino": "Masculino"
+  },
+  "chicasRelevantes": "Garotas Relevantes!",
+  "activa": "🟢 Ativa",
+  "inactiva": "⚫ Inativa",
+  "frasePrincipal": "Converse com estranhos!",
+  "login": {
+    "titulo": "Bem-vindo de volta!",
+    "subtitulo": "Faça login para continuar conectado",
+    "placeholder_email": "E-mail ou usuário",
+    "placeholder_contrasena": "Senha",
+    "boton_iniciar": "Entrar",
+    "loading": "Entrando...",
+    "boton_google": "Entrar com Google",
+    "olvidaste_contrasena": "Esqueceu sua senha?",
+    "recuerdame": "Lembrar-me",
+    "o": "ou",
+    "no_tienes_cuenta": "Ainda não tem uma conta?",
+    "registrate": "Cadastre-se aqui",
+    "titulo_recuperar": "Recuperar senha",
+    "descripcion_recuperar": "Digite seu e-mail cadastrado para receber um link de recuperação.",
+    "boton_enviar_recuperacion": "Enviar link de recuperação",
+    "msg_recuperacion_enviada": "Um e-mail com instruções foi enviado.",
+    "error_recuperacion_invalido": "E-mail inválido ou não cadastrado.",
+    "error_generico": "Ocorreu um erro ao enviar o e-mail.",
+    "error_credenciales": "E-mail ou senha incorretos."
+  },
+  "register": {
+    "title": "Crie sua conta!",
+    "subtitle": "Cadastre-se para começar a se conectar",
+    "emailPlaceholder": "E-mail",
+    "passwordPlaceholder": "Senha",
+    "errorFields": "Por favor, preencha todos os campos.",
+    "errorGeneric": "Ocorreu um erro. Tente novamente.",
+    "loading": "Registrando...",
+    "button": "Cadastrar",
+    "haveAccount": "Já tem uma conta?",
+    "loginLink": "Entrar"
+  },
+  "verification": {
+    "title": "Verificação de Email",
+    "instructions": "Digite o código que enviamos para seu e-mail.",
+    "buttonVerify": "Verificar Código",
+    "resend": "Não recebeu o código? Reenviar",
+    "resendingShort": "Reenviando...",
+    "enter6digits": "Por favor, digite os 6 dígitos.",
+    "emailNotFound": "E-mail não encontrado na memória.",
+    "verifying": "Verificando...",
+    "success": "E-mail verificado com sucesso.",
+    "codeResent": "Código reenviado para seu e-mail.",
+    "error": "Erro ao verificar o código."
+  },
+  "gender": {
+    "title": "Qual é o seu gênero?",
+    "female": "Mulher",
+    "male": "Homem",
+    "continue": "Continuar",
+    "saving": "Salvando...",
+    "selectRoleError": "Por favor, selecione um papel",
+    "saveError": "Erro ao salvar o papel. Tente novamente.",
+    "defaultClientName": "Cliente",
+    "enterName": "Digite seu nome",
+    "namePlaceholder": "Seu nome",
+    "nameRequired": "O nome é obrigatório.",
+    "onlyLetters": "Apenas letras são permitidas.",
+    "cancel": "Cancelar"
+  },
+  "client": {
+    "greeting": "Oi {{name}}! Pronta para fazer história?",
+    "instructions": "Clique abaixo para iniciar uma videochamada aleatória e se conectar com alguém novo.",
+    "startCall": "Iniciar Videochamada",
+    "uploadStory": "Enviar História",
+    "tipTitle": "Dica do dia:",
+    "tipText": "Sorria, relaxe e deixe as conexões fluírem. Alguém incrível pode estar a um clique de distância!",
+    "activeUsers": "Usuários ativos",
+    "estado": {
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "yourHistory": "Seu Histórico"
+  },
+  "history": {
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "accion": {
+      "callEnded": "Chamada finalizada",
+      "messageSent": "Mensagem enviada",
+      "addedToFavorites": "Adicionou você aos favoritos"
+    }
+  },
+  "interfazMensajes": {
+    "searchPlaceholder": "🔍 Buscar",
+    "previewMessage": "Olá 👋",
+    "yesterday": "Ontem",
+    "rename": "Alterar apelido",
+    "block": "Bloquear usuário",
+    "translate": "Traduzir mensagens",
+    "writeMessage": "Escreva uma mensagem",
+    "send": "Enviar",
+    "inputPlaceholder": "Escreva uma mensage"
+  },
+  "favorites": {
+    "title": "Seus Favoritos",
+    "status": {
+      "online": "Online",
+      "offline": "Desconectado"
+    },
+    "block": "Bloquear",
+    "remove": "Remover dos favoritos",
+    "blockedUser": "Usuário {{name}} bloqueado.",
+    "chat": "Conversar",
+    "call": "Ligar",
+    "description": {
+      "niceConnection": "Nos demos muito bem ✨",
+      "interestingChat": "Conversa interessante",
+      "veryFunny": "Muito divertida"
+    }
+  },
+  "settings": {
+    "title": "Configuração da conta",
+    "accountSecurity": "Conta e Segurança",
+    "changePassword": "Alterar senha",
+    "logoutAll": "Sair de todos os dispositivos",
+    "deleteAccount": "Excluir conta",
+    "enable2FA": "Ativar autenticação em dois fatores (2FA)",
+    "profile": "Perfil",
+    "uploadPhoto": "Enviar foto de perfil",
+    "takePhoto": "Tirar foto",
+    "deletePhoto": "Excluir foto de perfil",
+    "editAlias": "Editar apelido ou nome visível",
+    "language": "Idioma preferido",
+    "payments": "Assinatura e Pagamentos",
+    "managePaymentMethod": "Adicionar ou remover método de pagamento",
+    "country": "País de residência (fiscal)",
+    "minimumPayout": "Definir pagamento mínimo",
+    "others": "Outros",
+    "support": "Suporte ou Ajuda",
+    "terms": "Termos e Condições",
+    "report": "Reportar um problema",
+    "modalInstruction": "Aqui você pode implementar o formulário ou conteúdo correspondente para {{item}}."
+  },
+  "subirHistoria": {
+    "titulo": "Envie ou grave sua história",
+    "grabar": "Gravar história",
+    "subir": "Enviar do seu dispositivo",
+    "publicar": "Publicar história",
+    "alerta_grabacion": "Função de gravação em desenvolvimento ou integre getUserMedia para capturar vídeo."
+  },
+  "esperandoVerificacion": {
+    "titulo": "Aguardando verificação",
+    "mensajeLinea1": "Obrigado por se registrar.",
+    "mensajeLinea2": "Notificaremos você quando estiver verificada.",
+    "boton": "Em processo de verificação"
+  },
+  "videoChat": {
+    "tiempoLlamada": "Tempo de chamada:",
+    "minutosRestantes": "12 min restantes",
+    "verificado": "Verificado",
+    "favorito": "Favorito",
+    "bloquear": "Bloquear",
+    "eligeRegalo": "🎁 Escolha um presente para pedir",
+    "escribeMensaje": "Escreva uma mensagem",
+    "intercambiarCamara": "Trocar câmera",
+    "siguiente": "Próximo"
+  },
+  "roulette": {
+    "titulo": "✨ Pronta para começar",
+    "estado": "👩‍💻 Garota conectada",
+    "camera_label": "Câmera",
+    "mic_label": "Microfone",
+    "start_button": "Iniciar",
+    "searching_user": "Procurando usuário...",
+    "random_user_notice": "🔗 Você se conectará com um usuário aleatório"
+  },
+  "userSearch": {
+    "waiting_users": "Esperando usuários",
+    "waiting_guy": "Esperando cara",
+    "waiting_girl": "Esperando garota",
+    "rouletting": "Girando roleta",
+    "connecting": "Conectando!",
+    "searching_new_guy": "Procurando novo cara...",
+    "searching_new_girl": "Procurando nova garota...",
+    "reconnecting": "Reconectando...",
+    "starting_roulette": "Iniciando roleta...",
+    "user_found_connecting": "Usuário encontrado! Conectando...",
+    "preparing_connection": "Preparando conexão segura...",
+    "time": "Tempo:",
+    "checks": "Checks:",
+    "automatic_verification": "⚡ Verificação automática a cada 7 segundos",
+    "cancel_search": "← Cancelar busca",
+    "cancel_wait": "← Cancelar espera",
+    "back": "← Voltar",
+    "error_connecting": "Erro ao conectar",
+    "try_again": "Tente criar uma nova sala",
+    "try_another_user": "Tente procurar outro usuário",
+    "timeout_message": "Nenhum usuário se conectou após 3 minutos. Tente mais tarde.",
+    "timeout_status": "Tempo limite esgotado"
+  }
+}

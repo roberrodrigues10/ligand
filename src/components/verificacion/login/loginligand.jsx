@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithoutRedirect } from "../../../utils/auth";
+import { useTranslation } from 'react-i18next'; // idioma
 
 export default function LoginLigand({ onClose, onShowRegister }) {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ export default function LoginLigand({ onClose, onShowRegister }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation(); // idioma
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,10 +51,10 @@ export default function LoginLigand({ onClose, onShowRegister }) {
         </button>
 
         <h2 className="text-2xl text-[#ff007a] font-dancing-script text-center">
-          ¡Bienvenida de nuevo!
+          {t('login.titulo')}
         </h2>
         <p className="text-center text-white/80 mb-6">
-          Inicia sesión para seguir conectando
+          {t('login.subtitulo')}
         </p>
 
         {error && (
@@ -62,7 +64,7 @@ export default function LoginLigand({ onClose, onShowRegister }) {
         <form onSubmit={handleSubmit}>
           <input
             type="email"
-            placeholder="Correo electrónico o usuario"
+            placeholder={t('login.placeholder_email')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full p-3 mb-4 bg-[#1a1c20] border border-[#2c2e33] text-white rounded-xl placeholder-white/60"
@@ -70,15 +72,16 @@ export default function LoginLigand({ onClose, onShowRegister }) {
           />
           <input
             type="password"
-            placeholder="Contraseña"
+            placeholder={t('login.placeholder_contrasena')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full p-3 mb-4 bg-[#1a1c20] border border-[#2c2e33] text-white rounded-xl placeholder-white/60"
             disabled={loading}
           />
+          
 
           <label className="text-white/80 flex items-center gap-2 mb-4">
-            <input type="checkbox" disabled={loading} /> Recuérdame
+            <input type="checkbox" disabled={loading} /> {t('login.recuerdame')}
           </label>
 
           <button
@@ -86,18 +89,18 @@ export default function LoginLigand({ onClose, onShowRegister }) {
             disabled={loading}
             className="w-full py-3 bg-[#ff007a] text-white font-bold rounded-xl hover:bg-[#e6006e] transition disabled:opacity-50"
           >
-            {loading ? "Iniciando..." : "Iniciar sesión"}
+            {loading ? t("login.loading") : t("login.boton_iniciar")}
           </button>
 
           <div className="text-center text-white/80 mt-6">
-            ¿Aún no tienes cuenta?{" "}
+            {t('login.no_tienes_cuenta')}{" "}
             <button
               type="button"
               className="text-[#ff007a] underline"
               onClick={() => navigate("/home?auth=register")}
               disabled={loading}
             >
-              Regístrate aquí
+              {t('login.registrate')}
             </button>
           </div>
         </form>

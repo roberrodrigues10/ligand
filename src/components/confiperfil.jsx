@@ -16,9 +16,11 @@ import {
   FileText,
   AlertTriangle,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function ModeloConfiguracion() {
   const [modalActivo, setModalActivo] = useState(null);
+  const { t } = useTranslation();
 
   const abrirModal = (id) => setModalActivo(id);
   const cerrarModal = () => setModalActivo(null);
@@ -29,118 +31,42 @@ export default function ModeloConfiguracion() {
 
       <div className="max-w-4xl mx-auto px-6 py-10">
         <h1 className="text-2xl font-semibold mb-8 border-b border-[#ff007a] pb-2">
-          ⚙️ Configuración de cuenta
+          ⚙️ {t("settings.title")}
         </h1>
 
-        {/* SECCIÓN 1: CUENTA Y SEGURIDAD */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-[#ff007a] mb-4">
-            Cuenta y Seguridad
-          </h2>
-          <div className="grid gap-3">
-            <ConfigBoton
-              icon={<Lock size={18} />}
-              texto="Cambiar contraseña"
-              onClick={() => abrirModal("password")}
-            />
-            <ConfigBoton
-              icon={<LogOut size={18} />}
-              texto="Cerrar sesión en todos los dispositivos"
-              onClick={() => abrirModal("cerrar-sesion")}
-            />
-            <ConfigBoton
-              icon={<Trash2 size={18} />}
-              texto="Eliminar cuenta"
-              onClick={() => abrirModal("eliminar-cuenta")}
-            />
-            <ConfigBoton
-              icon={<ShieldCheck size={18} />}
-              texto="Activar verificación en dos pasos (2FA)"
-              onClick={() => abrirModal("2fa")}
-            />
-          </div>
-        </div>
+        {/* Cuenta y seguridad */}
+        <Seccion titulo={t("settings.accountSecurity")}>
+          <ConfigBoton icon={<Lock size={18} />} texto={t("settings.changePassword")} onClick={() => abrirModal("changePassword")} />
+          <ConfigBoton icon={<LogOut size={18} />} texto={t("settings.logoutAll")} onClick={() => abrirModal("logoutAll")} />
+          <ConfigBoton icon={<Trash2 size={18} />} texto={t("settings.deleteAccount")} onClick={() => abrirModal("deleteAccount")} />
+          <ConfigBoton icon={<ShieldCheck size={18} />} texto={t("settings.enable2FA")} onClick={() => abrirModal("enable2FA")} />
+        </Seccion>
 
-        {/* SECCIÓN 2: PERFIL */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-[#ff007a] mb-4">Perfil</h2>
-          <div className="grid gap-3">
-            <ConfigBoton
-              icon={<Upload size={18} />}
-              texto="Subir foto de perfil"
-              onClick={() => abrirModal("subir-foto")}
-            />
-            <ConfigBoton
-              icon={<Camera size={18} />}
-              texto="Tomar foto"
-              onClick={() => abrirModal("tomar-foto")}
-            />
-            <ConfigBoton
-              icon={<Trash2 size={18} />}
-              texto="Eliminar foto de perfil"
-              onClick={() => abrirModal("eliminar-foto")}
-            />
-            <ConfigBoton
-              icon={<User size={18} />}
-              texto="Editar alias o nombre visible"
-              onClick={() => abrirModal("alias")}
-            />
-            <ConfigBoton
-              icon={<Globe size={18} />}
-              texto="Idioma preferido"
-              onClick={() => abrirModal("idioma")}
-            />
-          </div>
-        </div>
+        {/* Perfil */}
+        <Seccion titulo={t("settings.profile")}>
+          <ConfigBoton icon={<Upload size={18} />} texto={t("settings.uploadPhoto")} onClick={() => abrirModal("uploadPhoto")} />
+          <ConfigBoton icon={<Camera size={18} />} texto={t("settings.takePhoto")} onClick={() => abrirModal("takePhoto")} />
+          <ConfigBoton icon={<Trash2 size={18} />} texto={t("settings.deletePhoto")} onClick={() => abrirModal("deletePhoto")} />
+          <ConfigBoton icon={<User size={18} />} texto={t("settings.editAlias")} onClick={() => abrirModal("editAlias")} />
+          <ConfigBoton icon={<Globe size={18} />} texto={t("settings.language")} onClick={() => abrirModal("language")} />
+        </Seccion>
 
-        {/* SECCIÓN 3: SUSCRIPCIÓN Y PAGOS */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-[#ff007a] mb-4">
-            Suscripción y Pagos
-          </h2>
-          <div className="grid gap-3">
-            <ConfigBoton
-              icon={<CreditCard size={18} />}
-              texto="Agregar o eliminar método de pago"
-              onClick={() => abrirModal("pago")}
-            />
-            <ConfigBoton
-              icon={<Globe size={18} />}
-              texto="País de residencia (fiscal)"
-              onClick={() => abrirModal("pais")}
-            />
-            <ConfigBoton
-              icon={<Banknote size={18} />}
-              texto="Definir pago mínimo"
-              onClick={() => abrirModal("pago-minimo")}
-            />
-          </div>
-        </div>
+        {/* Pagos */}
+        <Seccion titulo={t("settings.payments")}>
+          <ConfigBoton icon={<CreditCard size={18} />} texto={t("settings.managePaymentMethod")} onClick={() => abrirModal("managePaymentMethod")} />
+          <ConfigBoton icon={<Globe size={18} />} texto={t("settings.country")} onClick={() => abrirModal("country")} />
+          <ConfigBoton icon={<Banknote size={18} />} texto={t("settings.minimumPayout")} onClick={() => abrirModal("minimumPayout")} />
+        </Seccion>
 
-        {/* SECCIÓN 4: OTROS */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-[#ff007a] mb-4">Otros</h2>
-          <div className="grid gap-3">
-            <ConfigBoton
-              icon={<HelpCircle size={18} />}
-              texto="Soporte o ayuda"
-              onClick={() => abrirModal("soporte")}
-            />
-            <ConfigBoton
-              icon={<FileText size={18} />}
-              texto="Términos y condiciones"
-              onClick={() => abrirModal("terminos")}
-            />
-            <ConfigBoton
-              icon={<AlertTriangle size={18} />}
-              texto="Reportar un problema"
-              onClick={() => abrirModal("reportar")}
-            />
-          </div>
-        </div>
+        {/* Otros */}
+        <Seccion titulo={t("settings.others")}>
+          <ConfigBoton icon={<HelpCircle size={18} />} texto={t("settings.support")} onClick={() => abrirModal("support")} />
+          <ConfigBoton icon={<FileText size={18} />} texto={t("settings.terms")} onClick={() => abrirModal("terms")} />
+          <ConfigBoton icon={<AlertTriangle size={18} />} texto={t("settings.report")} onClick={() => abrirModal("report")} />
+        </Seccion>
       </div>
 
-      {/* MODAL */}
+      {/* Modal */}
       {modalActivo && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4"
@@ -150,7 +76,6 @@ export default function ModeloConfiguracion() {
             className="bg-[#1f2125] rounded-xl p-6 w-full max-w-sm border border-[#ff007a] relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Botón cerrar dentro */}
             <button
               onClick={cerrarModal}
               className="absolute top-3 right-3 text-white/50 hover:text-white"
@@ -160,15 +85,23 @@ export default function ModeloConfiguracion() {
             </button>
 
             <h3 className="text-lg font-bold text-[#ff007a] mb-4">
-              {modalActivo.replace(/-/g, " ").toUpperCase()}
+              {t(`settings.${modalActivo}`)?.toUpperCase() || modalActivo}
             </h3>
             <p className="text-sm text-white/80">
-              Aquí puedes implementar el formulario o contenido correspondiente
-              para <strong>{modalActivo}</strong>.
+              {t("settings.modalInstruction", { item: t(`settings.${modalActivo}`) || modalActivo })}
             </p>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function Seccion({ titulo, children }) {
+  return (
+    <div className="mb-8">
+      <h2 className="text-lg font-semibold text-[#ff007a] mb-4">{titulo}</h2>
+      <div className="grid gap-3">{children}</div>
     </div>
   );
 }

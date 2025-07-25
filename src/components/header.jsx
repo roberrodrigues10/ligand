@@ -2,11 +2,15 @@ import { useState, useRef, useEffect } from "react";
 import { Home, Star, MessageSquare, LogOut, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logoproncipal from "./imagenes/logoprincipal.png";
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from "../components/languageSelector";
+
 
 export default function Header() {
   const navigate = useNavigate();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const menuRef = useRef(null);
+  const { t, i18n } = useTranslation();
 
   const toggleMenu = () => setMenuAbierto(!menuAbierto);
 
@@ -36,6 +40,8 @@ export default function Header() {
 
       {/* Navegación */}
       <nav className="flex items-center gap-6 text-lg relative">
+        
+      <LanguageSelector />
         <button
           className="hover:scale-110 transition"
           onClick={() => navigate("/homellamadas")}

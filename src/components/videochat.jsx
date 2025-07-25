@@ -249,6 +249,7 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
   const [room, setRoom] = useState(null);
   const [modeloStoppedWorking, setModeloStoppedWorking] = useState(false);
   const [receivedNotification, setReceivedNotification] = useState(false);
+  const [isProcessingLeave, setIsProcessingLeave] = useState(false); // ← ESTA LÍNEA
 
 
   // ❌ ELIMINAR ESTA LÍNEA:
@@ -305,53 +306,69 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
     return !hasCache;
   });
   
-  useVideoChatHeartbeat(roomName, 'modelo');
+  useEffect(() => {
+  if (!roomName || modeloStoppedWorking) {
+    console.log('🛑 [HOOK] useVideoChatHeartbeat detenido por modeloStoppedWorking');
+    return;
+  }
+
+  console.log('🚀 [HOOK] Iniciando useVideoChatHeartbeat personalizado');
+  
+  // Heartbeat inicial
+  sendHeartbeat('videochat');
+
+  const interval = setInterval(() => {
+    if (modeloStoppedWorking) {
+      console.log('🛑 [HOOK] Deteniendo interval por modeloStoppedWorking');
+      clearInterval(interval);
+      return;
+    }
+    sendHeartbeat('videochat');
+  }, 15000);
+
+  return () => {
+    console.log('🧹 [HOOK] Cleanup useVideoChatHeartbeat');
+    clearInterval(interval);
+    if (!modeloStoppedWorking) {
+      sendHeartbeat('browsing');
+    }
+  };
+}, [roomName, modeloStoppedWorking]);
 
   const [chatFunctions, setChatFunctions] = useState(null);
   const messagesContainerRef = useRef(null);
+  // 🔧 REEMPLAZAR la función sendHeartbeat existente con esta versión:
+
   const sendHeartbeat = async (activityType = 'videochat') => {
-  try {
-    const authToken = sessionStorage.getItem('token');
-    if (!authToken) return;
+    try {
+      // 🔥 VERIFICAR FLAG ANTES DE ENVIAR
+      if (modeloStoppedWorking && activityType === 'videochat') {
+        console.log('🛑 [MODELO] Heartbeat videochat bloqueado por flag de stop');
+        return;
+      }
 
-    const response = await fetch(`${API_BASE_URL}/api/heartbeat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({
-        activity_type: activityType, // 🔥 'videochat' = NO disponible para emparejamiento
-        room: roomName
-      })
-    });
+      const authToken = sessionStorage.getItem('token');
+      if (!authToken) return;
 
-    if (response.ok) {
-      console.log(`💓 [VIDEOCHAT] Heartbeat enviado: ${activityType}`);
+      const response = await fetch(`${API_BASE_URL}/api/heartbeat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          activity_type: activityType,
+          room: activityType === 'browsing' ? null : roomName // 🔥 Si es browsing, room = null
+        })
+      });
+
+      if (response.ok) {
+        console.log(`💓 [VIDEOCHAT] Heartbeat enviado: ${activityType}`);
+      }
+    } catch (error) {
+      console.log('⚠️ [VIDEOCHAT] Error enviando heartbeat:', error);
     }
-  } catch (error) {
-    console.log('⚠️ [VIDEOCHAT] Error enviando heartbeat:', error);
-  }
-};
-
-  // Agregar useEffect para heartbeat periódico
-  useEffect(() => {
-    if (!roomName) return;
-
-    // Heartbeat inicial
-    sendHeartbeat('videochat');
-
-    // Heartbeat cada 15 segundos durante videochat
-    const heartbeatInterval = setInterval(() => {
-      sendHeartbeat('videochat');
-    }, 15000);
-
-    return () => {
-      clearInterval(heartbeatInterval);
-      // Heartbeat final al salir
-      sendHeartbeat('browsing'); // Volver a estado disponible
-    };
-  }, [roomName]);
+  };
 
   // 🔥 FUNCIONES DE CACHE MEJORADAS
   const updateOtherUser = (user) => {
@@ -568,83 +585,262 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
   };
 
 
-  const siguientePersona = async () => {
-    console.log('🔄 [MODELO] Siguiente persona solicitado...');
+
+const siguientePersona = async () => {
+  console.log('🔄 [MODELO] Siguiente persona solicitado...');
+  
+  try {
+    const authToken = sessionStorage.getItem('token');
     
-    try {
-      const authToken = sessionStorage.getItem('token');
-      
-      // 🔥 SOLO NOTIFICAR AL SERVIDOR - NO NAVEGAR
-      await fetch(`${API_BASE_URL}/api/livekit/client-action`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ 
+    // 🔥 LLAMAR A /nextRoom EN LUGAR DE /client-action
+    console.log('📡 [MODELO] Llamando a /nextRoom...');
+    const response = await fetch(`${API_BASE_URL}/api/nextRoom`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ 
+        action: 'siguiente',
+        reason: 'cliente_se_fue',
+        from: 'videochat_siguiente'
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ [MODELO] Respuesta de nextRoom:', data);
+    
+    if (data.success) {
+      if (data.type === 'match_found' || data.type === 'direct_match') {
+        // 🎉 MATCH ENCONTRADO - NAVEGAR A VIDEOCHAT DIRECTAMENTE
+        console.log('🎉 [MODELO] Match encontrado inmediatamente, navegando a videochat...');
+        
+        // 🔥 LIMPIAR CACHE ANTES DE NAVEGAR
+        clearUserCache();
+        
+        // 🔥 NAVEGAR DIRECTAMENTE A VIDEOCHAT SIN PASAR POR SEARCH
+        navigate("/videochat", {
+          state: {
+            roomName: data.roomName,
+            userName: data.userName,
+            selectedCamera: selectedCamera,
+            selectedMic: selectedMic,
+            matched_with: data.matched_with,
+            fromNextRoom: true // 🔥 FLAG PARA IDENTIFICAR QUE VIENE DE NEXT
+          },
+          replace: true
+        });
+        
+      } else if (data.type === 'waiting') {
+        // ⏳ SIN MATCH INMEDIATO - IR A BÚSQUEDA
+        console.log('⏳ [MODELO] Sin match inmediato, navegando a búsqueda...');
+        
+        // 🔥 LIMPIAR CACHE ANTES DE BUSCAR
+        clearUserCache();
+        
+        // 🔥 ACTIVAR SEARCHING CONTEXT ANTES DE NAVEGAR
+        startSearching();
+        
+        const urlParams = new URLSearchParams({
+          role: 'modelo',
+          action: 'siguiente',
           currentRoom: roomName,
           userName: userName,
-          action: 'siguiente',
-          userRole: 'modelo',
-          partnerId: otherUser?.id,
-          timestamp: Date.now()
-        }),
-      });
+          selectedCamera: selectedCamera || '',
+          selectedMic: selectedMic || '',
+          from: 'videochat_siguiente',
+          waitingRoom: data.roomName // 🔥 PASAR LA SALA DE ESPERA
+        });
+        
+        navigate(`/usersearch?${urlParams}`);
+      }
+    } else {
+      throw new Error(data.error || 'Error desconocido en nextRoom');
+    }
+    
+  } catch (error) {
+    console.error('❌ [MODELO] Error en siguiente:', error);
+    
+    // 🔥 MANEJAR RATE LIMITING
+    if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+      console.warn('⚠️ [MODELO] Rate limited, esperando antes de reintentar...');
+      
+      // Mostrar mensaje temporal al usuario
+      setError('Servidor ocupado, reintentando...');
+      
+      setTimeout(() => {
+        setError(null);
+        // 🔥 FALLBACK: IR A BÚSQUEDA DESPUÉS DEL DELAY
+        const urlParams = new URLSearchParams({
+          role: 'modelo',
+          currentRoom: roomName,
+          userName: userName,
+          selectedCamera: selectedCamera || '',
+          selectedMic: selectedMic || '',
+          from: 'videochat_siguiente_retry'
+        });
+        
+        navigate(`/usersearch?${urlParams}`);
+      }, 3000);
+      
+      return;
+    }
+    
+    // 🔥 OTROS ERRORES: IR A BÚSQUEDA INMEDIATAMENTE
+    clearUserCache();
+    startSearching();
+    
+    const urlParams = new URLSearchParams({
+      role: 'modelo',
+      currentRoom: roomName,
+      userName: userName,
+      selectedCamera: selectedCamera || '',
+      selectedMic: selectedMic || '',
+      from: 'videochat_siguiente_error',
+      error: 'connection_error'
+    });
+    
+    navigate(`/usersearch?${urlParams}`);
+  }
+};
 
-      // 🔥 NAVEGAR A USERSEARCH CON PARÁMETROS ESPECÍFICOS
-      const urlParams = new URLSearchParams({
-        role: 'modelo',
-        action: 'siguiente',
+
+  const finalizarChat = useCallback(async () => {
+  console.log('🛑 [MODELO] Stop presionado...');
+  
+  if (isProcessingLeave) {
+    console.log('⚠️ [MODELO] Ya se está procesando salida, ignorando...');
+    return;
+  }
+  
+  setIsProcessingLeave(true);
+  
+  try {
+    // 🔥 1. DETENER TODOS LOS HEARTBEATS INMEDIATAMENTE
+    console.log('🛑 [MODELO] Deteniendo heartbeats...');
+    
+    // 🔥 2. CAMBIAR ESTADO ANTES DE LA PETICIÓN
+    setModeloStoppedWorking(true);
+    setReceivedNotification(true);
+    
+    // 🔥 3. LIMPIAR DATOS DE SESIÓN INMEDIATAMENTE
+    console.log('🧹 [MODELO] Limpiando datos de sesión...');
+    clearUserCache();
+    
+    // 🔥 4. LIMPIAR SESSIONSTORAGE PARA EVITAR GUARDS
+    console.log('🧹 [MODELO] Limpiando sessionStorage...');
+    sessionStorage.removeItem('roomName');
+    sessionStorage.removeItem('userName');
+    sessionStorage.removeItem('currentRoom'); // Por si existe
+    sessionStorage.removeItem('inCall'); // Por si existe
+    
+    // 🔥 5. ENVIAR HEARTBEAT DE BROWSING INMEDIATAMENTE
+    await sendHeartbeat('browsing');
+    console.log('✅ [MODELO] Estado cambiado a browsing');
+    
+    const authToken = sessionStorage.getItem('token');
+    
+    // 🔥 6. NOTIFICAR AL SERVIDOR (pero no esperar respuesta)
+    console.log('📡 [MODELO] Notificando salida al servidor...');
+    fetch(`${API_BASE_URL}/api/livekit/model-leaving`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ 
         currentRoom: roomName,
         userName: userName,
-        selectedCamera: selectedCamera || '',
-        selectedMic: selectedMic || '',
-        excludeUser: otherUser?.id || '',
-        from: 'videochat_siguiente'
-      });
+        action: 'stop',
+        partnerId: otherUser?.id,
+        timestamp: Date.now()
+      }),
+    }).then(response => {
+      if (response.ok) {
+        console.log('✅ [MODELO] Servidor notificado exitosamente');
+      } else {
+        console.warn('⚠️ [MODELO] Error notificando servidor:', response.status);
+      }
+    }).catch(error => {
+      console.error('❌ [MODELO] Error notificando servidor:', error);
+    });
+
+    // 🔥 7. PEQUEÑO DELAY PARA QUE SE PROCESEN LOS CAMBIOS
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // 🔥 8. NAVEGAR INMEDIATAMENTE
+    console.log('🧭 [MODELO] Navegando a /homellamadas...');
+    navigate('/homellamadas', { replace: true });
+    
+  } catch (error) {
+    console.error('❌ [MODELO] Error finalizando chat:', error);
+    
+    // 🔥 FALLBACK: Limpiar y navegar aunque haya error
+    setModeloStoppedWorking(true);
+    clearUserCache();
+    sessionStorage.removeItem('roomName');
+    sessionStorage.removeItem('userName');
+    await sendHeartbeat('browsing');
+    navigate('/homellamadas', { replace: true });
+    
+  } finally {
+    setIsProcessingLeave(false);
+  }
+  }, [roomName, userName, otherUser, navigate, isProcessingLeave]);
+
+  // 🔥 TAMBIÉN AGREGAR este useEffect para DETENER heartbeats cuando modelo para de trabajar
+  useEffect(() => {
+    if (modeloStoppedWorking) {
+      console.log('🛑 [MODELO] Modelo paró - deteniendo todos los heartbeats');
       
-      navigate(`/usersearch?${urlParams}`);
+      // Enviar heartbeat final de "browsing" y luego detener
+      const finalHeartbeat = async () => {
+        try {
+          await sendHeartbeat('browsing');
+          console.log('✅ [MODELO] Heartbeat final enviado');
+        } catch (error) {
+          console.log('⚠️ [MODELO] Error en heartbeat final:', error);
+        }
+      };
       
-    } catch (error) {
-      console.error('❌ [MODELO] Error en siguiente:', error);
-      // Fallback: navegar a UserSearch sin notificación
-      navigate(`/usersearch?role=modelo&currentRoom=${roomName}&userName=${userName}`);
+      finalHeartbeat();
+      
+      // No más heartbeats después de esto
+      return;
+    }
+  }, [modeloStoppedWorking]);
+
+
+  useEffect(() => {
+  if (!roomName || modeloStoppedWorking) {
+    console.log('🛑 [MODELO] Heartbeat detenido por flag de stop');
+    return;
+  }
+
+  sendHeartbeat('videochat');
+
+  const heartbeatInterval = setInterval(() => {
+    if (modeloStoppedWorking) {
+      console.log('🛑 [MODELO] Deteniendo heartbeat interval por flag');
+      clearInterval(heartbeatInterval);
+      return;
+    }
+    sendHeartbeat('videochat');
+  }, 15000);
+
+  return () => {
+    clearInterval(heartbeatInterval);
+    if (!modeloStoppedWorking) {
+      sendHeartbeat('browsing');
     }
   };
+}, [roomName, modeloStoppedWorking]);
 
-  const finalizarChat = async () => {
-    console.log('🛑 [MODELO] Finalizando chat...');
-    
-    try {
-      const authToken = sessionStorage.getItem('token');
-      
-      // 🔥 NOTIFICAR FINALIZACIÓN
-      await fetch(`${API_BASE_URL}/api/livekit/client-action`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ 
-          currentRoom: roomName,
-          userName: userName,
-          action: 'stop',
-          userRole: 'modelo',
-          partnerId: otherUser?.id,
-          timestamp: Date.now()
-        }),
-      });
 
-      // 🔥 NAVEGAR A PÁGINA DE ESPERA (NO A USERSEARCH)
-      navigate('/esperandocall', { replace: true });
-      
-    } catch (error) {
-      console.error('❌ [MODELO] Error finalizando:', error);
-      navigate('/esperandocall', { replace: true });
-    }
-  };
-    
-  // En videochat.js (MODELO)
   useEffect(() => {
     if (!userData.id || !roomName) return;
 
@@ -695,7 +891,112 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
       eventSource.close();
     };
   }, [userData.id, roomName, navigate]);
+  useEffect(() => {
+    if (!userData.id || !roomName) return;
 
+    let eventSource = null;
+    let reconnectTimer = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+
+    const connectSSE = () => {
+    console.log(`📡 [MODELO] Conectando SSE a Redis Cloud (intento ${reconnectAttempts + 1})`);
+    
+    // 🔥 OBTENER TOKEN DE SESSIONSTORAGE
+    const authToken = sessionStorage.getItem('token');
+    if (!authToken) {
+        console.error('❌ [MODELO] No se encontró token de autenticación');
+        return;
+    }
+    
+    // 🔥 USAR QUERY PARAMETER EN LUGAR DE PATH
+    eventSource = new EventSource(
+        `${API_BASE_URL}/api/notifications/${userData.id}?token=${encodeURIComponent(authToken)}`,
+        { withCredentials: false }
+    );
+    
+    eventSource.onopen = () => {
+        console.log('✅ [MODELO] SSE conectado exitosamente a Redis Cloud');
+        reconnectAttempts = 0;
+    };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📨 [MODELO] Notificación SSE recibida desde Redis Cloud:', data);
+          
+          if (data.type === 'connected') {
+            console.log('🔗 [MODELO] Confirmación de conexión SSE a Redis Cloud');
+            return;
+          }
+          
+          if (data.type === 'client_left') {
+            console.log(`👤 [MODELO] Cliente se fue (${data.data.action}) - redirigiendo via SSE desde Redis Cloud...`);
+            
+            // 🔥 CERRAR SSE ANTES DE NAVEGAR
+            if (eventSource) {
+              eventSource.close();
+              eventSource = null;
+            }
+            
+            // Construir URL con parámetros de la notificación
+            const urlParams = new URLSearchParams({
+              role: 'modelo',
+              currentRoom: roomName,
+              userName: userName,
+              selectedCamera: selectedCamera || '',
+              selectedMic: selectedMic || '',
+              ...data.data.redirect_params
+            });
+            
+            console.log('🧭 [MODELO] Navegando via SSE a:', `/usersearch?${urlParams}`);
+            navigate(`/usersearch?${urlParams}`);
+          }
+        } catch (error) {
+          console.error('❌ [MODELO] Error procesando notificación SSE:', error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('❌ [MODELO] Error SSE con Redis Cloud:', error);
+        
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+        
+        // 🔥 RECONEXIÓN AUTOMÁTICA
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+          console.log(`🔄 [MODELO] Reconectando SSE en ${delay}ms... (${reconnectAttempts}/${maxReconnectAttempts})`);
+          
+          reconnectTimer = setTimeout(() => {
+            connectSSE();
+          }, delay);
+        } else {
+          console.error('❌ [MODELO] Max intentos de reconexión SSE alcanzados');
+        }
+      };
+    };
+
+    // Iniciar conexión SSE
+    connectSSE();
+
+    // Cleanup
+    return () => {
+      console.log('🔌 [MODELO] Cerrando SSE con Redis Cloud');
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+    };
+  }, [userData.id, roomName, navigate, userName, selectedCamera, selectedMic]);
+      
   // 🔥 CARGAR USUARIO CON RATE LIMITING
   useEffect(() => {
     const fetchUser = async () => {
@@ -814,22 +1115,6 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
     }
   }, [roomName, userName]);
 
-  // ⏳ Heartbeat cada 30 segundos mientras estás en la sala
-  useEffect(() => {
-    let interval = null;
-
-    if (room && roomName) {
-      updateHeartbeatRoom(roomName);
-
-      interval = setInterval(() => {
-        updateHeartbeatRoom(roomName);
-      }, 30000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [room, roomName]);
 
   // Memmo
   const memoizedRoomName = useMemo(() => {
@@ -1079,32 +1364,6 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
 
     return () => clearTimeout(timer);
   }, [messages]);
-
-  useEffect(() => {
-    const token = sessionStorage.getItem("token");
-    if (!token || !roomName) return;
-
-    const interval = setInterval(() => {
-      fetch(`${API_BASE_URL}/api/heartbeat`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          current_room: roomName,
-          activity_type: 'videochat_model',
-        }),
-      })
-        .then(res => {
-          if (!res.ok) console.warn("⚠️ Heartbeat falló", res.status);
-        })
-        .catch(err => console.error("❌ Heartbeat error:", err));
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [roomName]);
-
 
   // Estados de carga y error
   if (loading) {

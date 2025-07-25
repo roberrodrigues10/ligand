@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { register } from "/src/utils/auth.js";
 import ReCAPTCHA from "react-google-recaptcha";
+import { useTranslation } from "react-i18next"; // idioma
 
-const RECAPTCHA_SITE_KEY = "6LfNonwrAAAAAIgJSmx1LpsprNhNct1VVWMWp2rz"; // reemplaza esto
+const RECAPTCHA_SITE_KEY = "6LfNonwrAAAAAIgJSmx1LpsprNhNct1VVWMWp2rz";
 
 export default function Register({ onClose, onShowLogin }) {
   const navigate = useNavigate();
@@ -12,29 +13,31 @@ export default function Register({ onClose, onShowLogin }) {
   const [recaptchaToken, setCaptchaToken] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation(); // idioma
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
     if (!email || !password) {
-      setError("Por favor completa todos los campos.");
+      setError(t("register.errorFields"));
       return;
     }
-    {/*if (!recaptchaToken) {
-    setError("Por favor completa el reCAPTCHA.");
-    return;
-    }*/}
 
+    // Si activas CAPTCHA:
+    // if (!recaptchaToken) {
+    //   setError(t("register.errorCaptcha"));
+    //   return;
+    // }
 
     try {
       setLoading(true);
-      await register(email, password, recaptchaToken );
+      await register(email, password, recaptchaToken);
       localStorage.setItem("emailToVerify", email);
       navigate("/verificaremail", { state: { email } });
     } catch (err) {
       console.error(err);
-      setError("Ocurrió un error. Inténtalo nuevamente.");
+      setError(t("register.errorGeneric"));
     } finally {
       setLoading(false);
     }
@@ -58,16 +61,16 @@ export default function Register({ onClose, onShowLogin }) {
         </button>
 
         <h2 className="text-2xl text-[#ff007a] font-dancing-script text-center">
-          ¡Crea tu cuenta!
+          {t("register.title")}
         </h2>
         <p className="text-center text-white/80 mb-6">
-          Regístrate para empezar a conectar
+          {t("register.subtitle")}
         </p>
 
         <form onSubmit={handleSubmit}>
           <input
             type="email"
-            placeholder="Correo electrónico"
+            placeholder={t("register.emailPlaceholder")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full p-3 mb-4 bg-[#1a1c20] border border-[#2c2e33] text-white rounded-xl placeholder-white/60"
@@ -76,7 +79,7 @@ export default function Register({ onClose, onShowLogin }) {
 
           <input
             type="password"
-            placeholder="Contraseña"
+            placeholder={t("register.passwordPlaceholder")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full p-3 mb-4 bg-[#1a1c20] border border-[#2c2e33] text-white rounded-xl placeholder-white/60"
@@ -88,31 +91,31 @@ export default function Register({ onClose, onShowLogin }) {
               {error}
             </div>
           )}
-          
-          {/* reCAPTCHA */}
-        {/*<div className="mb-4 flex justify-center">
-          <ReCAPTCHA
-            sitekey={RECAPTCHA_SITE_KEY}
-            onChange={(token) => setCaptchaToken(token)}
-          />
-        </div>*/}
+
+          {/* reCAPTCHA opcional */}
+          {/* <div className="mb-4 flex justify-center">
+            <ReCAPTCHA
+              sitekey={RECAPTCHA_SITE_KEY}
+              onChange={(token) => setCaptchaToken(token)}
+            />
+          </div> */}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full py-3 bg-[#ff007a] text-white font-bold rounded-xl hover:bg-[#e6006e] transition disabled:opacity-50"
           >
-            {loading ? "Registrando..." : "Registrarse"}
+            {loading ? t("register.loading") : t("register.button")}
           </button>
 
           <div className="text-center text-white/80 mt-6">
-            ¿Ya tienes cuenta?{" "}
+            {t("register.haveAccount")}{" "}
             <button
               type="button"
               className="text-[#ff007a] underline"
-                onClick={() => navigate("/home?auth=login")}
-              >
-              Inicia sesión
+              onClick={() => navigate("/home?auth=login")}
+            >
+              {t("register.loginLink")}
             </button>
           </div>
         </form>

@@ -8,10 +8,21 @@ import LoginLigand from "./verificacion/login/loginligand";
 import Register from "./verificacion/register/register";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import api from '../api/axios';
+import { useTranslation } from 'react-i18next'; // importar hook
+import LanguageSelector from "../components/languageSelector";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+
+
 export default function ParlandomChatApp() {
+  const { t, i18n } = useTranslation();
+  useEffect(() => {
+  const savedLang = localStorage.getItem("lang");
+  if (savedLang && savedLang !== i18n.language) {
+    i18n.changeLanguage(savedLang);
+  }
+  }, []);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -173,14 +184,13 @@ export default function ParlandomChatApp() {
       {/* Header para escritorio */}
       <header className="hidden sm:flex justify-between items-center p-3 gap-0">
         {/* Lado izquierdo */}
-        <div className="flex items-center space-x-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ff007a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="2" y1="12" x2="22" y2="12" />
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-          </svg>
-          <span className="text-2xl font-bold text-fucsia">Idioma</span>
-        </div>
+        <div className="flex items-center space-x-3">
+        <span className="text-[19px] font-semibold" style={{ color: '#ff007a' }}>
+          {t('idioma')}:
+        </span>
+        <LanguageSelector />
+      </div>
+
 
         {/* Centro */}
         <div className="flex items-center justify-center">
@@ -194,7 +204,7 @@ export default function ParlandomChatApp() {
             className="border text-white bg-fucsia border-fucsia px-4 py-2 rounded-lg hover:bg-pink-600 transition-colors text-base"
             onClick={() => navigate("/home?auth=login")}
           >
-            Iniciar Sesión
+            {t('iniciarSesion')}
           </button>
           <button className="flex items-center gap-2 px-4 py-2 bg-[#ff007a] text-white rounded-lg hover:bg-pink-600 transition text-base">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -202,7 +212,7 @@ export default function ParlandomChatApp() {
               <path d="M9.09 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4" />
               <line x1="12" y1="17" x2="12" y2="17" />
             </svg>
-            Ayuda
+            {t('ayuda')}
           </button>
         </div>
       </header>
@@ -231,7 +241,7 @@ export default function ParlandomChatApp() {
             className="border text-white bg-fucsia border-fucsia px-3 py-1.5 rounded-lg hover:bg-pink-600 text-sm"
             onClick={() => navigate("/home?auth=login")}
           >
-            Iniciar Sesión
+            {t('iniciarSesion')}
           </button>
           <button className="flex items-center gap-1 px-3 py-1.5 bg-[#ff007a] text-white rounded-lg hover:bg-pink-600 text-sm">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -239,7 +249,7 @@ export default function ParlandomChatApp() {
               <path d="M9.09 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4" />
               <line x1="12" y1="17" x2="12" y2="17" />
             </svg>
-            Ayuda
+            {t('ayuda')}
           </button>
         </div>
       </header>
@@ -250,7 +260,8 @@ export default function ParlandomChatApp() {
         <div className="w-full lg:max-w-lg">
           <div className="text-center mb-6 sm:mb-8">
             <h1 className="font-pacifico text-fucsia text-8xl sm:text-11xl bg-backgroundDark rounded-lg">Ligand</h1>
-            <p className="text-lg sm:text-4xl text-pink-200 mt-4 sm:mt-[30px] font-semibold italic">¡Habla con extraños!</p>
+            <p className="text-lg sm:text-4xl text-pink-200 mt-4 sm:mt-[30px] font-semibold italic">{t('frasePrincipal')}</p>
+            
           </div>
 
           <div className="text-center mb-6">
@@ -258,14 +269,13 @@ export default function ParlandomChatApp() {
               className="w-full py-3 sm:py-4 px-6 sm:px-8 rounded-full text-white font-bold text-base sm:text-xl bg-fucsia hover:bg-fucsia-400 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
               onClick={() => navigate("/home?auth=register")}
             >
-              Comenzar a chatear
+              {t('comenzar')}
             </button>
           </div>
 
           <div className="text-center mb-8">
             <p className="text-white text-sm sm:text-lg leading-relaxed">
-              Video chat con personas aleatorias<br />
-              en línea al instante
+              {t('subtitulo')}
             </p>
           </div>
 
@@ -277,7 +287,7 @@ export default function ParlandomChatApp() {
                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-gray-400 group-hover:border-red-400 flex items-center justify-center transition-all duration-200" />
                 </div>
                 <span className="ml-2 sm:ml-3 text-sm sm:text-lg font-medium text-gray-300 transition-colors duration-200">
-                  {gender}
+                  {t(`genero.femenino`)}
                 </span>
               </label>
             ))}
@@ -287,7 +297,8 @@ export default function ParlandomChatApp() {
         {/* Lado derecho */}
         <div className="w-full lg:w-auto lg:ml-16">
           <div className="text-center text-white italic text-xl sm:text-3xl mb-6 font-semibold">
-            ¡Chicas Relevantes!
+            {t(`chicasRelevantes`)}
+            
           </div>
 
           {/* Carrusel */}

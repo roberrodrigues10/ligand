@@ -587,10 +587,40 @@ export default function VideoChat() {
   console.log('🛑 [CLIENTE] Stop presionado...');
   
   try {
-    // 🔥 NOTIFICAR AL SERVIDOR QUE EL CLIENTE SE VA
-    const authToken = sessionStorage.getItem('token');
+    // 🔥 1. LIMPIAR ESTADOS INMEDIATAMENTE para evitar loops de usePageAccess
+    console.log('🧹 [CLIENTE] Limpiando estados y sessionStorage...');
     
-    await fetch(`${API_BASE_URL}/api/livekit/client-leaving`, {
+    // Limpiar sessionStorage que puede estar siendo monitoreado por usePageAccess
+    sessionStorage.removeItem('roomName');
+    sessionStorage.removeItem('userName');
+    sessionStorage.removeItem('currentRoom');
+    sessionStorage.removeItem('inCall');
+    sessionStorage.removeItem('callToken');
+    sessionStorage.removeItem('videochatActive');
+    
+    // 🔥 2. LIMPIAR CACHE DE USUARIO
+    clearUserCache();
+    
+    // 🔥 3. CAMBIAR HEARTBEAT A BROWSING INMEDIATAMENTE
+    const authToken = sessionStorage.getItem('token');
+    if (authToken) {
+      await fetch(`${API_BASE_URL}/api/heartbeat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          activity_type: 'browsing',
+          room: null
+        })
+      });
+      console.log('✅ [CLIENTE] Estado cambiado a browsing');
+    }
+    
+    // 🔥 4. NOTIFICAR AL SERVIDOR (sin esperar respuesta)
+    console.log('📡 [CLIENTE] Notificando salida al servidor...');
+    fetch(`${API_BASE_URL}/api/livekit/client-leaving`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -600,19 +630,40 @@ export default function VideoChat() {
         currentRoom: roomName,
         userName: userName,
         action: 'stop',
-        partnerId: otherUser?.id, // ID de la modelo
+        partnerId: otherUser?.id,
+        timestamp: Date.now()
       }),
+    }).then(response => {
+      if (response.ok) {
+        console.log('✅ [CLIENTE] Servidor notificado exitosamente');
+      } else {
+        console.warn('⚠️ [CLIENTE] Error notificando servidor:', response.status);
+      }
+    }).catch(error => {
+      console.error('❌ [CLIENTE] Error notificando servidor:', error);
     });
 
-    // Cliente va a su página de espera
-    navigate('/esperandocallcliente', { replace: true });
+    // 🔥 5. PEQUEÑO DELAY PARA QUE SE PROCESEN LOS CAMBIOS
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // 🔥 6. NAVEGAR CON REPLACE PARA EVITAR HISTORIAL
+    console.log('🧭 [CLIENTE] Navegando a /esperandocallcliente...');
+    navigate('/homecliente', { replace: true });
     
   } catch (error) {
-    console.error('❌ Error finalizando chat:', error);
-    navigate('/esperandocallcliente', { replace: true });
+    console.error('❌ [CLIENTE] Error finalizando chat:', error);
+    
+    // 🔥 FALLBACK: Limpiar todo y navegar aunque haya error
+    sessionStorage.removeItem('roomName');
+    sessionStorage.removeItem('userName');
+    sessionStorage.removeItem('currentRoom');
+    sessionStorage.removeItem('inCall');
+    clearUserCache();
+    navigate('/homecliente', { replace: true });
   }
   }, [roomName, userName, otherUser, navigate]);
 
+  
   // Cargar usuario inicial
   useEffect(() => {
     const fetchUser = async () => {

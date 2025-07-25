@@ -1,9 +1,19 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const UserSearch = () => {
+  const { t, i18n } = useTranslation();
+  
+  useEffect(() => {
+    const savedLang = localStorage.getItem("lang");
+    if (savedLang && savedLang !== i18n.language) {
+      i18n.changeLanguage(savedLang);
+    }
+  }, []);
+
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState(null);
@@ -102,13 +112,13 @@ const UserSearch = () => {
     } catch (error) {
       console.error('❌ [USERSEARCH] Error en búsqueda:', error);
       setError(error.message);
-      setSearchStatus('Error en la búsqueda');
+      setSearchStatus(t('userSearch.error_connecting'));
     }
   };
 
   // 🔥 NUEVA FUNCIÓN: MANEJAR "SIGUIENTE PERSONA"
   const handleSiguientePersona = async () => {
-    setSearchStatus('Buscando nuevo usuario...');
+    setSearchStatus(t('userSearch.rouletting'));
     console.log('🔄 [USERSEARCH] Función siguiente activada');
     
     try {
@@ -138,7 +148,7 @@ const UserSearch = () => {
         if (data.success && data.foundUser && data.roomName) {
           // 🎉 USUARIO ENCONTRADO INMEDIATAMENTE
           console.log('🎉 [USERSEARCH] Nuevo usuario encontrado inmediatamente:', data);
-          setSearchStatus('¡Usuario encontrado! Conectando...');
+          setSearchStatus(t('userSearch.user_found_connecting'));
           await redirectToVideoChat(data.roomName, data.userName, data, true);
           return;
         }
@@ -157,7 +167,7 @@ const UserSearch = () => {
 
   // 🔥 NUEVA FUNCIÓN: MANEJAR RECONNECTION AUTOMÁTICA
   const handleReconnection = async () => {
-    setSearchStatus('Reconectando automáticamente...');
+    setSearchStatus(t('userSearch.reconnecting'));
     console.log('🔌 [USERSEARCH] Manejo de reconexión automática');
     
     // Para reconexiones, crear sala inmediatamente
@@ -166,7 +176,7 @@ const UserSearch = () => {
 
   // 🔥 NUEVA FUNCIÓN: MANEJAR RULETA INICIAL
   const handleRuletaInicial = async () => {
-    setSearchStatus('Iniciando ruleta...');
+    setSearchStatus(t('userSearch.starting_roulette'));
     console.log('🎰 [USERSEARCH] Ruleta inicial - buscando salas existentes primero');
     
     // 1. Intentar unirse a salas existentes
@@ -189,7 +199,7 @@ const UserSearch = () => {
     setIsSearchingRooms(true);
 
     try {
-      setSearchStatus('Buscando salas disponibles...');
+      setSearchStatus(t('userSearch.rouletting'));
       console.log('🔍 [USERSEARCH] Buscando salas existentes...');
       
       const authToken = sessionStorage.getItem('token');
@@ -244,7 +254,7 @@ const UserSearch = () => {
     setIsJoiningRoom(true);
 
     try {
-      setSearchStatus('Uniéndose a sala existente...');
+      setSearchStatus(t('userSearch.user_found_connecting'));
       console.log('🏃‍♀️ [USERSEARCH] Uniéndose a sala:', roomInfo.roomName);
       
       const authToken = sessionStorage.getItem('token');
@@ -295,7 +305,7 @@ const UserSearch = () => {
     setIsCreatingRoom(true);
 
     try {
-      setSearchStatus('Creando sala...');
+      setSearchStatus(t('userSearch.rouletting'));
       console.log('🏗️ [USERSEARCH] Creando nueva sala, tipo:', searchType);
       
       const authToken = sessionStorage.getItem('token');
@@ -361,7 +371,8 @@ const UserSearch = () => {
       };
       
       setRoomData(newRoomData);
-      setSearchStatus('Sala creada. Esperando usuarios...');
+      // 🔥 MANTENER "Ruleteando" hasta que realmente esté esperando
+      setSearchStatus(t('userSearch.rouletting'));
       
       // 🔥 HEARTBEAT INICIAL
       await sendHeartbeatDirect('searching', roomName);
@@ -372,7 +383,7 @@ const UserSearch = () => {
     } catch (error) {
       console.error('❌ [USERSEARCH] Error creando sala:', error);
       setError(error.message);
-      setSearchStatus('Error creando sala');
+      setSearchStatus(t('userSearch.error_connecting'));
     } finally {
       setIsCreatingRoom(false);
     }
@@ -381,6 +392,10 @@ const UserSearch = () => {
   // 🔥 MEJORADO: VERIFICACIÓN INTELIGENTE DE USUARIOS
   const startWaitingForUsers = (roomName, finalUserName, currentRoomData) => {
     console.log(`⏳ [USERSEARCH] Esperando usuarios en sala: ${roomName}`);
+    
+    // 🔥 CAMBIAR A MENSAJE ESPECÍFICO SEGÚN ROL
+    const waitingMessage = role === 'modelo' ? t('userSearch.waiting_guy') : t('userSearch.waiting_girl');
+    setSearchStatus(waitingMessage);
     
     // 🔥 HEARTBEAT INICIAL
     sendHeartbeatDirect('searching', roomName);
@@ -435,8 +450,9 @@ const UserSearch = () => {
           await redirectToVideoChat(roomName, finalUserName, currentRoomData?.ruletaData, false);
           
         } else {
-          // Continuar esperando
-          setSearchStatus(`Esperando usuarios... (${participantCount}/2 conectados)`);
+          // Continuar esperando - usar mensaje específico según rol
+          const waitingMessage = role === 'modelo' ? t('userSearch.waiting_guy') : t('userSearch.waiting_girl');
+          setSearchStatus(waitingMessage);
           
           // 🔥 RECREAR SALA SI LLEVA MUCHO TIEMPO SIN USUARIOS
           if (checkCount >= 15 && searchType === 'inicial') {
@@ -517,7 +533,7 @@ const UserSearch = () => {
     }
     
     // Crear nueva sala
-    setSearchStatus('Recreando sala...');
+    setSearchStatus(t('userSearch.rouletting'));
     await createRoom();
   };
 
@@ -538,7 +554,7 @@ const UserSearch = () => {
         searchType
       });
 
-      setSearchStatus('¡Conectado! Iniciando videochat...');
+      setSearchStatus(t('userSearch.connecting'));
       
       // 🔥 HEARTBEAT FINAL ANTES DE REDIRECCIONAR
       await sendHeartbeatDirect('videochat', roomName);
@@ -585,7 +601,7 @@ const UserSearch = () => {
 
     } catch (error) {
       console.error('❌ [USERSEARCH] Error en redirección:', error);
-      setError('Error al conectar al videochat');
+      setError(t('userSearch.error_connecting'));
       setIsRedirecting(false);
     }
   };
@@ -655,8 +671,8 @@ const UserSearch = () => {
         waitTimerRef.current = null;
       }
       
-      setError('No se conectó ningún usuario después de 3 minutos. Intenta más tarde.');
-      setSearchStatus('Tiempo de espera agotado');
+      setError(t('userSearch.timeout_message'));
+      setSearchStatus(t('userSearch.timeout_status'));
     }, 180000); // 3 minutos
 
     return () => clearTimeout(timeout);
@@ -722,34 +738,10 @@ const UserSearch = () => {
     if (isRedirecting) {
       return (
         <div className="space-y-2">
-          <p className="text-green-400 text-sm font-medium">🎉 ¡Usuario encontrado!</p>
+          <p className="text-green-400 text-sm font-medium">🎉 {t('userSearch.user_found_connecting')}</p>
           <div className="flex items-center justify-center gap-2 text-xs text-green-400">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
-            <span>Iniciando videochat...</span>
-          </div>
-        </div>
-      );
-    }
-
-    if (searchStatus.includes('Buscando salas') || searchStatus.includes('Buscando nuevo')) {
-      return (
-        <div className="space-y-2">
-          <p className="text-gray-400 text-sm">{searchStatus}</p>
-          <div className="flex items-center justify-center gap-2 text-xs text-blue-400">
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-            <span>Verificando salas existentes...</span>
-          </div>
-        </div>
-      );
-    }
-    
-    if (searchStatus.includes('Uniéndose')) {
-      return (
-        <div className="space-y-2">
-          <p className="text-gray-400 text-sm">{searchStatus}</p>
-          <div className="flex items-center justify-center gap-2 text-xs text-green-400">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
-            <span>Conectando a sala existente...</span>
+            <span>{t('userSearch.preparing_connection')}</span>
           </div>
         </div>
       );
@@ -770,18 +762,18 @@ const UserSearch = () => {
 
   // 🔥 FUNCIÓN PARA OBTENER TÍTULO SEGÚN TIPO
   const getSearchTitle = () => {
-    if (isRedirecting) return '🎉 ¡Conectando!';
+    if (isRedirecting) return `🎉 ${t('userSearch.connecting')}`;
     
     switch (searchType) {
       case 'siguiente': 
-        return `🔄 Buscando ${role === 'modelo' ? 'nuevo cliente' : 'nueva modelo'}...`;
+        return role === 'modelo' ? t('userSearch.searching_new_guy') : t('userSearch.searching_new_girl');
       case 'reconnect': 
-        return `🔌 Reconectando...`;
+        return t('userSearch.reconnecting');
       case 'inicial': 
       default: 
         return roomData ? 
-          `⏳ Esperando ${role === 'modelo' ? 'clientes' : 'modelos'}...` :
-          `🎰 Iniciando ruleta...`;
+          (role === 'modelo' ? t('userSearch.waiting_guy') : t('userSearch.waiting_girl')) :
+          t('userSearch.starting_roulette');
     }
   };
 
@@ -804,46 +796,22 @@ const UserSearch = () => {
           {getSearchTitle()}
         </h2>
 
-        {/* Subtítulo con tipo de búsqueda */}
-        {!isRedirecting && (
-          <div className="mb-4 px-3 py-1 bg-[#ff007a]/20 rounded-full text-xs text-[#ff007a] font-medium inline-block">
-            {searchType === 'siguiente' && '🔄 Función Siguiente'}
-            {searchType === 'reconnect' && '🔌 Reconexión Automática'}
-            {searchType === 'inicial' && '🎰 Ruleta Inicial'}
-          </div>
-        )}
-
         {/* Estado actual dinámico */}
         {getStatusMessage()}
 
-        {/* Información de la sala creada */}
+        {/* Información de la sala creada - SIMPLIFICADA */}
         {roomData && !isRedirecting && (
           <div className="mb-6 p-4 bg-[#1f2125] rounded-lg border border-[#ff007a]/30">
-            <p className="text-xs text-gray-400 mb-2">
-              {searchType === 'siguiente' ? 'Nueva sala creada:' : 'Sala creada:'}
-            </p>
-            <p className="text-[#ff007a] font-mono text-sm break-all">
-              {roomData.roomName}
-            </p>
-            <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+            <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="text-left">
-                <span className="text-gray-500">Tiempo:</span>
+                <span className="text-gray-500">{t('userSearch.time')}</span>
                 <span className="text-white font-bold ml-1">{formatWaitTime(waitTime)}</span>
               </div>
               <div className="text-right">
-                <span className="text-gray-500">Checks:</span>
+                <span className="text-gray-500">{t('userSearch.checks')}</span>
                 <span className="text-white font-bold ml-1">{consecutiveChecks}</span>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Información de exclusión (para función siguiente) */}
-        {searchType === 'siguiente' && excludeUserName && !isRedirecting && (
-          <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <p className="text-yellow-400 text-xs">
-              🚫 Excluyendo: <span className="font-medium">{excludeUserName}</span>
-            </p>
           </div>
         )}
 
@@ -859,55 +827,6 @@ const UserSearch = () => {
                 }}
               />
             </div>
-
-            {/* Estados de proceso dinámicos */}
-            <div className="text-xs text-gray-500 space-y-2">
-              {searchType === 'inicial' && (
-                <>
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
-                    <span>Buscando salas existentes...</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                    <span>Creando sala si no hay disponibles...</span>
-                  </div>
-                </>
-              )}
-              
-              {searchType === 'siguiente' && (
-                <>
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-ping"></div>
-                    <span>Buscando nuevo usuario...</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span>Excluyendo usuario anterior...</span>
-                  </div>
-                </>
-              )}
-              
-              {searchType === 'reconnect' && (
-                <>
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-ping"></div>
-                    <span>Reconectando automáticamente...</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span>Creando nueva sala...</span>
-                  </div>
-                </>
-              )}
-              
-              {roomData && (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                  <span>Verificando nuevos usuarios cada 7s...</span>
-                </div>
-              )}
-            </div>
           </div>
         )}
 
@@ -917,11 +836,11 @@ const UserSearch = () => {
             <div className="flex items-center justify-center gap-3">
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-400 border-t-transparent"></div>
               <p className="text-green-400 text-sm font-medium">
-                ¡Usuario encontrado! Iniciando videochat...
+                {t('userSearch.user_found_connecting')}
               </p>
             </div>
             <p className="text-green-300 text-xs mt-2">
-              Preparando conexión segura...
+              {t('userSearch.preparing_connection')}
             </p>
           </div>
         )}
@@ -932,8 +851,8 @@ const UserSearch = () => {
             <p className="text-red-400 text-sm font-medium">❌ {error}</p>
             <p className="text-red-300 text-xs mt-2">
               {searchType === 'siguiente' ? 
-                'Intenta buscar otro usuario' : 
-                'Intenta crear una nueva sala'
+                t('userSearch.try_another_user') : 
+                t('userSearch.try_again')
               }
             </p>
           </div>
@@ -946,89 +865,39 @@ const UserSearch = () => {
             className="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-full text-white text-sm transition"
           >
             {error ? 
-              '← Volver' : 
+              t('userSearch.back') : 
               searchType === 'siguiente' ? 
-                '← Cancelar búsqueda' : 
-                '← Cancelar espera'
+                t('userSearch.cancel_search') : 
+                t('userSearch.cancel_wait')
             }
           </button>
         )}
 
-        {/* Información adicional según tipo */}
+        {/* Información adicional - SIMPLIFICADA */}
         {!isRedirecting && (
           <div className="mt-6 text-xs text-gray-500 space-y-1">
-            <p>🏠 Sala propia {roomData ? 'creada y activa' : 'en preparación'}</p>
-            <p>⚡ Verificación automática cada 7 segundos</p>
-            
-            {searchType === 'siguiente' && (
-              <p className="text-[#ff007a]">🔄 Modo: Siguiente usuario</p>
-            )}
-            
-            {searchType === 'reconnect' && (
-              <p className="text-orange-400">🔌 Modo: Reconexión automática</p>
-            )}
-            
-            {searchType === 'inicial' && (
-              <p className="text-blue-400">🎰 Modo: Ruleta inicial</p>
-            )}
-            
-            {role === 'modelo' && (
-              <p>👩‍💼 Esperando que se conecte un cliente</p>
-            )}
-            {role === 'cliente' && (
-              <p>👤 Esperando que se conecte una modelo</p>
-            )}
-            
-            {excludeUser && (
-              <p className="text-yellow-400">🚫 Excluyendo usuario anterior</p>
-            )}
+            <p>{t('userSearch.automatic_verification')}</p>
           </div>
         )}
 
-        {/* 🔥 INDICADORES DE DEBUG (SOLO EN DESARROLLO) */}
-        {process.env.NODE_ENV === 'development' && !isRedirecting && (
-          <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <p className="text-yellow-400 text-xs font-bold mb-2">🐛 DEBUG INFO:</p>
-            <div className="text-xs text-yellow-300 space-y-1 text-left">
-              <p>• Tipo: <span className="font-mono">{searchType}</span></p>
-              <p>• Role: <span className="font-mono">{role}</span></p>
-              <p>• From: <span className="font-mono">{from || 'N/A'}</span></p>
-              <p>• Action: <span className="font-mono">{action || 'N/A'}</span></p>
-              <p>• Current Room: <span className="font-mono">{currentRoom || 'N/A'}</span></p>
-              <p>• User Name: <span className="font-mono">{userName || 'N/A'}</span></p>
-              <p>• Exclude: <span className="font-mono">{excludeUserName || 'N/A'}</span></p>
-              <div className="mt-2 pt-2 border-t border-yellow-500/30">
-                <p>Estados:</p>
-                {isSearchingRooms && <p className="text-blue-300">🔍 Buscando salas...</p>}
-                {isJoiningRoom && <p className="text-green-300">🏃‍♀️ Uniéndose a sala...</p>}
-                {isCreatingRoom && <p className="text-orange-300">🏗️ Creando sala...</p>}
-                {isRedirecting && <p className="text-purple-300">🎯 Redirigiendo...</p>}
-                {!isSearchingRooms && !isJoiningRoom && !isCreatingRoom && !isRedirecting && (
-                  <p className="text-gray-400">⏸️ En espera...</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* CSS para animaciones */}
+        <style jsx>{`
+          @keyframes loading-bar {
+            0% { width: 20%; }
+            50% { width: 80%; }
+            100% { width: 20%; }
+          }
+          
+          @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          
+          .animate-fade-in {
+            animation: fade-in 0.3s ease-out;
+          }
+        `}</style>
       </div>
-
-      {/* CSS para animaciones */}
-      <style jsx>{`
-        @keyframes loading-bar {
-          0% { width: 20%; }
-          50% { width: 80%; }
-          100% { width: 20%; }
-        }
-        
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 };
