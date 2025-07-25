@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next"; // idioma
 import Header from "./header";
  
  import {
@@ -14,6 +15,7 @@ import Header from "./header";
 } from "lucide-react";
 
 export default function InterfazMensajes() {
+  const { t } = useTranslation(); // idioma
   const [mensajes, setMensajes] = useState([
     { id: 1, texto: "¡Hola!", emisor: "usuario" },
     { id: 2, texto: "¿Cómo estás?", emisor: "usuario" },
@@ -47,7 +49,7 @@ export default function InterfazMensajes() {
         <aside className="w-1/3 bg-[#2b2d31] p-4 overflow-y-auto">
           <input
             type="text"
-            placeholder="🔍 Buscar"
+            placeholder={t('interfazMensajes.searchPlaceholder')}
             className="w-full mb-4 p-2 rounded-lg bg-[#1a1c20] text-white placeholder-white/60 outline-none"
           />
           {["SofiSweet", "Mia88", "JuanXtreme"].map((user, index) => (
@@ -58,11 +60,11 @@ export default function InterfazMensajes() {
             >
               <div>
                 <p className="font-semibold">{user}</p>
-                <p className="text-xs text-white/50">Hola 👋</p>
+                <p className="text-xs text-white/50">{t("interfazMensajes.previewMessage")}</p> // idioma
               </div>
               <span className="text-xs text-white/30">
-                {["14:20", "13:02", "Ayer"][index]}
-              </span>
+                {["14:20", "13:02", t("interfazMensajes.yesterday")][index]} // idioma
+              </span> 
             </div>
           ))}
         </aside>
@@ -89,13 +91,13 @@ export default function InterfazMensajes() {
               {mostrarOpciones && (
                 <div className="absolute right-0 mt-2 bg-[#1f2125] border border-[#ff007a]/30 rounded-xl shadow-lg z-50 w-48">
                   <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm">
-                    <Pencil size={16} /> Cambiar apodo
-                  </button>
+                    <Pencil size={16} /> {t("interfazMensajes.rename")} // idioma
+                  </button> 
                   <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm text-red-400">
-                    <Ban size={16} /> Bloquear usuario
+                    <Ban size={16} /> {t("interfazMensajes.block")} // idioma
                   </button>
                   <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm">
-                    <Languages size={16} /> Traducir mensajes
+                    <Languages size={16} /> {t("interfazMensajes.translate")} // idioma
                   </button>
                 </div>
               )}
@@ -132,7 +134,7 @@ export default function InterfazMensajes() {
           <div className="bg-[#2b2d31] p-4 border-t border-[#ff007a]/20 flex gap-3">
             <input
               type="text"
-              placeholder="Escribe un mensaje"
+              placeholder={t('interfazMensajes.inputPlaceholder')}
               className="flex-1 bg-[#1a1c20] text-white px-4 py-2 rounded-full outline-none"
               value={nuevoMensaje}
               onChange={(e) => setNuevoMensaje(e.target.value)}
@@ -142,7 +144,7 @@ export default function InterfazMensajes() {
               onClick={enviarMensaje}
               className="bg-[#ff007a] hover:bg-[#e6006e] text-white px-6 py-2 rounded-full font-semibold"
             >
-              Enviar
+              {t("interfazMensajes.send")} // idioma
             </button>
           </div>
         </section>

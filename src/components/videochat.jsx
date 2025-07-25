@@ -10,9 +10,11 @@ import {
   ShieldCheck,
   Clock,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import Header from "./header";
 
 export default function VideoChat() {
+  const { t } = useTranslation();
   const [tiempo, setTiempo] = useState(0);
   const [mensaje, setMensaje] = useState("");
   const [camaraPrincipal, setCamaraPrincipal] = useState("modelo");
@@ -40,19 +42,20 @@ export default function VideoChat() {
       {/* Temporizador y minutos restantes */}
       <div className="flex justify-between items-center text-sm text-white/70 mt-4 mb-2 font-mono px-2">
         <div>
-          ⏱ Tiempo de llamada:{" "}
+          ⏱ {t("videoChat.tiempoLlamada")}{" "}
           <span className="text-[#ff007a] font-bold">{formatoTiempo()}</span>
         </div>
         <div className="flex items-center gap-2">
           <Clock size={16} className="text-[#ff007a]" />
-          <span className="text-[#ff007a] font-bold">12 min restantes</span>
+          <span className="text-[#ff007a] font-bold">
+            {t("videoChat.minutosRestantes")}
+          </span>
         </div>
       </div>
 
       <div className="flex gap-6 mt-4">
         {/* ZONA VIDEO */}
         <div className="flex-1 bg-[#1f2125] rounded-2xl overflow-hidden relative flex items-center justify-center h-[500px] transition-all duration-500">
-          {/* Cámara principal */}
           <img
             src={
               camaraPrincipal === "modelo"
@@ -63,7 +66,6 @@ export default function VideoChat() {
             alt="video principal"
           />
 
-          {/* Cámara mini flotante */}
           <div className="absolute bottom-4 left-4 w-40 h-28 rounded-lg overflow-hidden border-2 border-[#ff007a] shadow-lg">
             <img
               src={
@@ -79,24 +81,22 @@ export default function VideoChat() {
 
         {/* PANEL DERECHO */}
         <div className="w-[340px] bg-[#1f2125] rounded-2xl flex flex-col justify-between relative">
-          {/* Info del usuario */}
           <div className="flex justify-between items-center p-4 border-b border-[#ff007a]/20">
             <div>
               <p className="font-semibold text-white">Lucas</p>
               <p className="text-sm text-white/60">🇵🇭 Filipinas</p>
             </div>
             <div className="flex items-center gap-2">
-              <ShieldCheck size={18} className="text-green-400" title="Verificado" />
-              <button title="Favorito" className="text-[#ff007a] hover:scale-110">
+              <ShieldCheck size={18} className="text-green-400" title={t("videoChat.verificado")} />
+              <button title={t("videoChat.favorito")} className="text-[#ff007a] hover:scale-110">
                 <Heart />
               </button>
-              <button title="Bloquear" className="text-red-400 hover:scale-110">
+              <button title={t("videoChat.bloquear")} className="text-red-400 hover:scale-110">
                 <Ban />
               </button>
             </div>
           </div>
 
-          {/* Mensajes */}
           <div className="flex-1 p-4 space-y-3 overflow-y-auto relative custom-scroll">
             <div className="text-sm">
               <span className="font-bold text-white">Lucas 🇵🇭</span>
@@ -111,47 +111,48 @@ export default function VideoChat() {
             </div>
           </div>
 
-          {/* Modal de regalos (pedir regalos) */}
-         {mostrarRegalos && (
+          {/* Modal regalos */}
+          {mostrarRegalos && (
             <div className="absolute bottom-[70px] left-1/2 transform -translate-x-1/2 bg-[#1a1c20] p-5 rounded-xl shadow-2xl w-[300px] max-h-[360px] overflow-y-auto z-50 border border-[#ff007a]/30 scrollbar-thin scrollbar-thumb-[#ff007a88] scrollbar-track-[#2b2d31]">
-                <div className="flex justify-between items-center mb-3">
+              <div className="flex justify-between items-center mb-3">
                 <h3 className="text-white font-semibold text-sm">
-                    🎁 Elige un regalo para pedir
+                  {t("videoChat.eligeRegalo")}
                 </h3>
                 <button
-                    className="text-white/50 hover:text-white text-sm"
-                    onClick={() => setMostrarRegalos(false)}
+                  className="text-white/50 hover:text-white text-sm"
+                  onClick={() => setMostrarRegalos(false)}
                 >
-                    ✕
+                  ✕
                 </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 {[
-                    { nombre: "🌹 Rosa", valor: 10 },
-                    { nombre: "💖 Corazón", valor: 20 },
-                    { nombre: "🍾 Champán", valor: 30 },
-                    { nombre: "💍 Anillo", valor: 50 },
-                    { nombre: "🍰 Pastel", valor: 15 },
-                    { nombre: "🐻 Peluche", valor: 25 },
-                    { nombre: "🎸 Canción", valor: 35 },
-                    { nombre: "🚗 Coche", valor: 70 },
-                    { nombre: "📱 Celular", valor: 80 },
-                    { nombre: "💎 Diamante", valor: 100 },
+                  { nombre: "🌹 Rosa", valor: 10 },
+                  { nombre: "💖 Corazón", valor: 20 },
+                  { nombre: "🍾 Champán", valor: 30 },
+                  { nombre: "💍 Anillo", valor: 50 },
+                  { nombre: "🍰 Pastel", valor: 15 },
+                  { nombre: "🐻 Peluche", valor: 25 },
+                  { nombre: "🎸 Canción", valor: 35 },
+                  { nombre: "🚗 Coche", valor: 70 },
+                  { nombre: "📱 Celular", valor: 80 },
+                  { nombre: "💎 Diamante", valor: 100 },
                 ].map((regalo, i) => (
-                    <div
+                  <div
                     key={i}
                     className="bg-[#2b2d31] px-3 py-2 rounded-xl flex items-center justify-between hover:bg-[#383c44] cursor-pointer transition"
-                    >
+                  >
                     <span className="text-sm text-white">{regalo.nombre}</span>
                     <span className="text-xs text-[#ff007a] font-bold">
-                        {regalo.valor} min
+                      {regalo.valor} min
                     </span>
-                    </div>
+                  </div>
                 ))}
-                </div>
+              </div>
             </div>
-            )}
-          {/* Input de mensaje */}
+          )}
+
+          {/* Input mensaje */}
           <div className="border-t border-[#ff007a]/20 p-3 flex gap-2 items-center relative">
             <button
               className="text-[#ff007a] hover:text-white"
@@ -165,7 +166,7 @@ export default function VideoChat() {
             <input
               value={mensaje}
               onChange={(e) => setMensaje(e.target.value)}
-              placeholder="Escribe un mensaje"
+              placeholder={t("videoChat.escribeMensaje")}
               className="flex-1 bg-[#131418] px-4 py-2 rounded-full outline-none text-white text-sm"
             />
             <button className="text-[#ff007a] hover:text-white">
@@ -193,15 +194,14 @@ export default function VideoChat() {
         <button
           className="bg-[#ff007a] p-4 rounded-full hover:bg-[#e6006e]"
           onClick={cambiarCamara}
-          title="Intercambiar cámara"
+          title={t("videoChat.intercambiarCamara")}
         >
           <Repeat size={22} />
         </button>
         <button className="bg-[#ff007a] hover:bg-[#e6006e] px-6 py-3 rounded-full text-white text-lg font-semibold">
-          Siguiente
+          {t("videoChat.siguiente")}
         </button>
       </div>
-
     </div>
   );
 }

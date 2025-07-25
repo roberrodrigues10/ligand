@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import api from "../../../api/axios";
 import { User, Heart, X } from "lucide-react";
 import logoproncipal from "../../imagenes/logoprincipal.png";
+import { useTranslation } from "react-i18next"; //idioma
 
 export default function SeleccionGenero() {
+  const { t } = useTranslation(); // idioma
   const [genero, setGenero] = useState("");
   const [error, setError] = useState(null);
   const [cargando, setCargando] = useState(false);
@@ -17,7 +19,7 @@ export default function SeleccionGenero() {
     e.preventDefault();
 
     if (!genero) {
-      setError("Por favor selecciona un rol");
+      setError(t("gender.selectRoleError")); // idioma
       return;
     }
 
@@ -30,11 +32,11 @@ export default function SeleccionGenero() {
         await api.get("/sanctum/csrf-cookie");
         await api.post("/api/asignar-rol", {
           rol: "cliente",
-          name: "Cliente",
+          name: t("gender.defaultClientName"), // idioma
         });
         navigate("/homellamadas"); // O a donde deba ir el cliente
       } catch (err) {
-        setError("Error al guardar el rol. Intenta nuevamente.");
+        setError(t("gender.saveError")); // idioma
       } finally {
         setCargando(false);
       }
@@ -48,12 +50,12 @@ export default function SeleccionGenero() {
     const soloLetras = /^[A-Za-z\s]+$/;
 
     if (!nombre.trim()) {
-      setNombreError("El nombre es obligatorio.");
+      setNombreError(t("gender.nameRequired"));  // idioma
       return;
     }
 
     if (!soloLetras.test(nombre)) {
-      setNombreError("Solo se permiten letras.");
+      setNombreError(t("gender.onlyLetters")); // idioma
       return;
     }
 
@@ -69,7 +71,7 @@ export default function SeleccionGenero() {
 
       navigate("/homellamadas");
     } catch (err) {
-      setError("Error al guardar el rol. Intenta nuevamente.");
+      setError(t("gender.saveError")); // idioma
     } finally {
       setCargando(false);
     }
@@ -83,7 +85,7 @@ export default function SeleccionGenero() {
         <span className="text-2xl text-fucsia font-pacifico">Ligand</span>
       </div>
 
-      <h1 className="text-2xl font-bold mb-8 text-center">¿Qué género eres?</h1>
+      <h1 className="text-2xl font-bold mb-8 text-center">{t("gender.title")}</h1>
 
       <form onSubmit={handleContinue} className="w-full max-w-2xl space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -95,7 +97,7 @@ export default function SeleccionGenero() {
             }`}
           >
             <Heart size={40} className="text-fucsia mb-3" />
-            <span className="text-lg font-semibold">Mujer</span>
+            <span className="text-lg font-semibold">{t("gender.female")}</span>
             <input
               type="radio"
               name="rol"
@@ -114,7 +116,7 @@ export default function SeleccionGenero() {
             }`}
           >
             <User size={40} className="text-fucsia mb-3" />
-            <span className="text-lg font-semibold">Hombre</span>
+            <span className="text-lg font-semibold">{t("gender.male")}</span>
             <input
               type="radio"
               name="rol"
@@ -133,7 +135,7 @@ export default function SeleccionGenero() {
           disabled={cargando}
           className="w-full bg-fucsia py-3 rounded-xl text-white font-bold hover:bg-pink-600 transition disabled:opacity-50"
         >
-          {cargando ? "Guardando..." : "Continuar"}
+          {cargando ? t("gender.saving") : t("gender.continue")}
         </button>
       </form>
 
@@ -149,14 +151,14 @@ export default function SeleccionGenero() {
             </button>
 
             <h2 className="text-xl font-bold text-fucsia mb-4 text-center">
-              Ingresa tu nombre 
+              {t("gender.enterName")}
             </h2>
 
             <input
               type="text"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              placeholder="Tu nombre"
+              placeholder={t("gender.namePlaceholder")}
               className="w-full px-4 py-2 rounded-lg bg-[#0a0d10] border border-gray-500 text-white focus:outline-none focus:ring-2 focus:ring-fucsia"
             />
 
@@ -169,13 +171,13 @@ export default function SeleccionGenero() {
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 text-sm text-gray-300 hover:underline"
               >
-                Cancelar
+                {t("gender.cancel")}
               </button>
               <button
                 onClick={validarNombreYEnviar}
                 className="bg-fucsia hover:bg-pink-600 text-white font-semibold px-4 py-2 rounded-lg text-sm"
               >
-                Continuar
+                {t("gender.continue")}
               </button>
             </div>
           </div>

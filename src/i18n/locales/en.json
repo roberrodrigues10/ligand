@@ -1,0 +1,179 @@
+{
+  "home": "Home",
+  "messages": "Messages",
+  "favoritesHome": "Favorites",
+  "settingsHome": "Settings",
+  "logout": "Log out",
+  "accountMenu": "Account Menu",
+  "idioma": "Language",
+  "iniciarSesion": "Login",
+  "ayuda": "Help",
+  "comenzar": "Start Chatting",
+  "subtitulo": "Video chat with random people instantly",
+  "genero": {
+    "femenino": "Female",
+    "masculino": "Male"
+  },
+  "chicasRelevantes": "Relevant Girls",
+  "activa": "🟢 Active",
+  "inactiva": "⚫ Inactive",
+  "frasePrincipal": "Talk to strangers!",
+  "login": {
+    "titulo": "Welcome back!",
+    "subtitulo": "Log in to stay connected",
+    "placeholder_email": "Email or username",
+    "placeholder_contrasena": "Password",
+    "boton_iniciar": "Log in",
+    "boton_google": "Log in with Google",
+    "olvidaste_contrasena": "Forgot your password?",
+    "recuerdame": "Remember me",
+    "o": "or",
+    "no_tienes_cuenta": "Don’t have an account?",
+    "registrate": "Sign up here",
+    "titulo_recuperar": "Recover password",
+    "descripcion_recuperar": "Enter your registered email to receive a recovery link.",
+    "boton_enviar_recuperacion": "Send recovery link",
+    "msg_recuperacion_enviada": "An email with instructions has been sent.",
+    "error_recuperacion_invalido": "Invalid or unregistered email.",
+    "error_generico": "An error occurred while sending the email.",
+    "error_credenciales": "Incorrect email or password."
+  },
+   "register": {
+    "title": "Create your account!",
+    "subtitle": "Sign up to start connecting",
+    "emailPlaceholder": "Email address",
+    "passwordPlaceholder": "Password",
+    "errorFields": "Please complete all fields.",
+    "errorGeneric": "An error occurred. Please try again.",
+    "loading": "Registering...",
+    "button": "Register",
+    "haveAccount": "Already have an account?",
+    "loginLink": "Log in"
+  },
+  "verification": {
+    "title": "Email Verification",
+    "instructions": "Enter the code we sent to your email address.",
+    "buttonVerify": "Verify Code",
+    "resend": "Didn't receive the code? Resend",
+    "resendingShort": "Resending...",
+    "enter6digits": "Please enter all 6 digits.",
+    "emailNotFound": "No email found in memory.",
+    "verifying": "Verifying...",
+    "success": "Email verified successfully.",
+    "codeResent": "Code resent to your email.",
+    "error": "Error verifying the code."
+  },
+  "gender": {
+    "title": "What is your gender?",
+    "female": "Woman",
+    "male": "Man",
+    "continue": "Continue",
+    "saving": "Saving...",
+    "selectRoleError": "Please select a role",
+    "saveError": "Error saving role. Try again.",
+    "defaultClientName": "Client",
+    "enterName": "Enter your name",
+    "namePlaceholder": "Your name",
+    "nameRequired": "Name is required.",
+    "onlyLetters": "Only letters are allowed.",
+    "cancel": "Cancel"
+  },
+  "client": {
+    "greeting": "Hi {{name}}! Ready to make history?",
+    "instructions": "Click below to start a random video call and connect with someone new.",
+    "startCall": "Start Video Call",
+    "uploadStory": "Upload Story",
+    "tipTitle": "Tip of the day:",
+    "tipText": "Smile, relax and let the connections flow. Someone awesome might be just a click away!",
+    "activeUsers": "Active Users",
+    "estado": {
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "yourHistory": "Your History"
+  },
+  "history": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "accion": {
+      "callEnded": "Call ended",
+      "messageSent": "Message sent",
+      "addedToFavorites": "Added you to favorites"
+    }
+  },
+  "interfazMensajes": {
+    "searchPlaceholder": "🔍 Search",
+    "previewMessage": "Hi 👋",
+    "yesterday": "Yesterday",
+    "rename": "Change nickname",
+    "block": "Block user",
+    "translate": "Translate messages",
+    "writeMessage": "Write a message",
+    "send": "Send",
+    "inputPlaceholder": "Write a message"
+  },
+  "favorites": {
+    "title": "Your Favorites",
+    "status": {
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "block": "Block",
+    "remove": "Remove from favorites",
+    "blockedUser": "User {{name}} has been blocked.",
+    "chat": "Chat",
+    "call": "Call",
+    "description": {
+      "niceConnection": "We got along great ✨",
+      "interestingChat": "Interesting conversation",
+      "veryFunny": "Very funny"
+    }
+  },
+  "settings": {
+    "title": "Account Settings",
+    "accountSecurity": "Account and Security",
+    "changePassword": "Change password",
+    "logoutAll": "Log out from all devices",
+    "deleteAccount": "Delete account",
+    "enable2FA": "Enable two-factor authentication (2FA)",
+    "profile": "Profile",
+    "uploadPhoto": "Upload profile photo",
+    "takePhoto": "Take photo",
+    "deletePhoto": "Delete profile photo",
+    "editAlias": "Edit alias or visible name",
+    "language": "Preferred language",
+    "payments": "Subscription and Payments",
+    "managePaymentMethod": "Add or remove payment method",
+    "country": "Country of residence (fiscal)",
+    "minimumPayout": "Set minimum payout",
+    "others": "Others",
+    "support": "Support or Help",
+    "terms": "Terms and Conditions",
+    "report": "Report a problem",
+    "modalInstruction": "Here you can implement the form or content for {{item}}."
+  },
+  "subirHistoria": {
+    "titulo": "Upload or record your story",
+    "grabar": "Record story",
+    "subir": "Upload from your device",
+    "publicar": "Publish story",
+    "alerta_grabacion": "Recording function in development or integrate getUserMedia to capture video."
+  },
+  "esperandoVerificacion": {
+    "titulo": "Awaiting Verification",
+    "mensajeLinea1": "Thank you for signing up.",
+    "mensajeLinea2": "We’ll notify you once your account is verified.",
+    "boton": "Verification in Progress"
+  },
+  "videoChat": {
+    "tiempoLlamada": "Call time:",
+    "minutosRestantes": "12 min remaining",
+    "verificado": "Verified",
+    "favorito": "Favorite",
+    "bloquear": "Block",
+    "eligeRegalo": "🎁 Choose a gift to request",
+    "escribeMensaje": "Write a message",
+    "intercambiarCamara": "Switch camera",
+    "siguiente": "Next"
+  }
+}

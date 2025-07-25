@@ -1,12 +1,13 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next"; // idioma
 import logoproncipal from "../../imagenes/logoprincipal.png";
-import { verificarCodigo } from "../../../utils/auth"; // asegúrate de que este archivo exista
-import { login } from "../../../utils/auth"; // Ajusta el path a donde esté tu auth.js
+import { verificarCodigo, login } from "../../../utils/auth";
 
-console.log("✅ Componente EmailVerification montado"); // este debe verse SIEMPRE
+console.log("✅ Componente EmailVerification montado");
 
 export default function EmailVerification() {
+  const { t } = useTranslation(); // idioma
   const navigate = useNavigate();
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [message, setMessage] = useState("");
@@ -44,62 +45,55 @@ export default function EmailVerification() {
     console.log("🔍 handleVerify se ejecutó");
     const fullCode = code.join("");
     if (fullCode.length !== 6) {
-      setMessage("Por favor ingresa los 6 dígitos.");
+      setMessage(t("verification.enter6digits")); // idioma
       console.warn("Código incompleto:", fullCode);
       return;
     }
 
     const email = localStorage.getItem("emailToVerify");
-    console.log("📧 Email desde localStorage:", email);
-    console.log("🔢 Código a verificar:", fullCode);
-
     if (!email) {
-      setMessage("No se encontró el correo registrado.");
-      console.error("No se encontró 'emailToVerify' en localStorage.");
+      setMessage(t("verification.emailNotFound"));
+      console.error("No se encontró 'emailToVerify' en localStorage."); // idioma
       return;
     }
 
     try {
-      setMessage("Verificando...");
+      setMessage(t("verification.verifying")); // idioma
       const response = await verificarCodigo(email, fullCode);
       console.log("✅ Verificación exitosa:", response);
 
       const password = localStorage.getItem("passwordToVerify");
-      console.log("🔐 Password desde localStorage:", password);
       await login(email, password);
-      console.log("🔐 Password desde localStorage:", password);
 
       localStorage.removeItem("emailToVerify");
       localStorage.removeItem("passwordToVerify");
 
-      setMessage("Correo verificado exitosamente.");
+      setMessage(t("verification.success")); // idioma
       navigate("/genero");
     } catch (error) {
-      if (error.response && error.response.status === 422) {
+      if (error.response?.status === 422) {
         console.error("🔍 Errores de validación:", error.response.data.errors);
       } else {
         console.error("❌ Error al verificar código:", error);
+        setMessage(t("verification.error")); // idioma
       }
     }
-
   };
 
   const handleResend = () => {
     setResending(true);
-    setMessage("Reenviando código...");
+    setMessage(t("verification.resending")); // idioma
     console.log("📩 Reenviando código...");
 
-    // Aquí podrías implementar el endpoint para reenviar el código
     setTimeout(() => {
       setResending(false);
-      setMessage("Código reenviado al correo.");
+      setMessage(t("verification.codeResent")); // idioma
       console.log("✅ Código reenviado");
     }, 2000);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex flex-col items-center justify-center">
-      {/* Logo + Nombre */}
       <div className="flex items-center justify-center mb-6">
         <img src={logoproncipal} alt="Logo" className="w-16 h-16 mr-[-5px]" />
         <span className="text-2xl text-fucsia font-pacifico">Ligand</span>
@@ -107,13 +101,12 @@ export default function EmailVerification() {
 
       <div className="flex flex-col items-center bg-[#1f2228] p-8 rounded-2xl shadow-xl max-w-md w-full mx-4">
         <h1 className="text-3xl font-bold text-fucsia mb-4">
-          Verificación de correo
+          {t("verification.title")} // idioma
         </h1>
         <p className="text-gray-300 mb-6 text-center">
-          Ingresa el código que te enviamos a tu correo electrónico.
+          {t("verification.instructions")} // idioma
         </p>
 
-        {/* 6 cuadros de código */}
         <div className="flex gap-2 mb-6">
           {code.map((digit, index) => (
             <input
@@ -134,7 +127,7 @@ export default function EmailVerification() {
           onClick={handleVerify}
           className="bg-fucsia hover:bg-pink-600 transition-colors text-white font-semibold px-6 py-2 rounded-2xl mb-4 w-full"
         >
-          Verificar código
+          {t("verification.buttonVerify")} // idioma
         </button>
 
         <button
@@ -142,7 +135,9 @@ export default function EmailVerification() {
           disabled={resending}
           className="text-sm text-fucsia hover:underline disabled:opacity-50"
         >
-          {resending ? "Reenviando..." : "¿No recibiste el código? Reenviar"}
+          {resending
+            ? t("verification.resendingShort")// idioma
+            : t("verification.resend")} // idioma
         </button>
 
         {message && (
