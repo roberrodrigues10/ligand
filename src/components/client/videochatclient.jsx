@@ -520,15 +520,15 @@ export default function VideoChat() {
     }
   };
 
-  // 🔥 EN videochatclient.js - función siguientePersona
+  // 🔥 REEMPLAZAR esta función en videochatclient.js (línea ~600 aprox)
   const siguientePersona = async () => {
     console.log('🔄 [CLIENTE] Siguiente persona...');
     
     try {
       const authToken = sessionStorage.getItem('token');
       
-      // 🔥 NOTIFICAR AL SERVIDOR QUE EL CLIENTE SE VA
-      const response = await fetch(`${API_BASE_URL}/api/livekit/client-leaving`, {
+      // 🔥 1. NOTIFICAR AL SERVIDOR QUE EL CLIENTE SE VA
+      const leaveResponse = await fetch(`${API_BASE_URL}/api/livekit/client-leaving`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -537,36 +537,85 @@ export default function VideoChat() {
         body: JSON.stringify({ 
           currentRoom: roomName,
           userName: userName,
-          action: 'siguiente', // ✅ Esto ya funciona
+          action: 'siguiente',
           partnerId: otherUser?.id,
           timestamp: Date.now()
         }),
       });
 
-      // 🔥 LIMPIAR CACHE
-      clearUserCache();
-
-      // 🔥 NAVEGAR CON PARÁMETROS DE "SIGUIENTE"
-      const urlParams = new URLSearchParams({
-        role: 'cliente',
-        currentRoom: roomName,
-        userName: userName,
-        selectedCamera: selectedCamera || '',
-        selectedMic: selectedMic || '',
-        excludeUser: otherUser?.id || '',
-        excludeUserName: otherUser?.name || '',
-        from: 'videochat_siguiente',
-        action: 'siguiente', // 🔥 AGREGAR ESTE PARÁMETRO IMPORTANTE
-        reason: 'cliente_siguiente' // 🔥 AGREGAR TAMBIÉN ESTE
+      // 🔥 2. LLAMAR A nextRoom Y PROCESAR LA RESPUESTA
+      console.log('📡 [CLIENTE] Llamando a nextRoom...');
+      const nextResponse = await fetch(`${API_BASE_URL}/api/livekit/next-room`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ 
+          action: 'siguiente',
+          reason: 'cliente_siguiente',
+          from: 'videochat_siguiente'
+        }),
       });
+
+      if (!nextResponse.ok) {
+        throw new Error(`Error ${nextResponse.status}: ${nextResponse.statusText}`);
+      }
+
+      const data = await nextResponse.json();
+      console.log('✅ [CLIENTE] Respuesta de nextRoom:', data);
       
-      console.log('🧭 [CLIENTE] Navegando a UserSearch:', `/usersearch?${urlParams}`);
-      navigate(`/usersearch?${urlParams}`);
+      // 🔥 3. PROCESAR LA RESPUESTA Y REDIRIGIR
+      if (data.success) {
+        if (data.type === 'match_found' || data.type === 'direct_match') {
+          // 🎉 MATCH ENCONTRADO - REDIRIGIR A VIDEOCHAT DIRECTAMENTE
+          console.log('🎉 [CLIENTE] Match encontrado, redirigiendo a videochat...');
+          
+          clearUserCache();
+          
+          // 🔥 REDIRIGIR A VIDEOCHAT CON LOS DATOS DEL MATCH
+          navigate("/videochatclient", {
+            state: {
+              roomName: data.roomName,
+              userName: data.userName,
+              selectedCamera: selectedCamera,
+              selectedMic: selectedMic,
+              matched_with: data.matched_with,
+              fromNextRoom: true
+            },
+            replace: true
+          });
+          
+        } else if (data.type === 'waiting') {
+          // ⏳ SIN MATCH INMEDIATO - IR A BÚSQUEDA
+          console.log('⏳ [CLIENTE] Sin match inmediato, navegando a búsqueda...');
+          
+          clearUserCache();
+          startSearching();
+          
+          const urlParams = new URLSearchParams({
+            role: 'cliente',
+            action: 'siguiente',
+            currentRoom: roomName,
+            userName: userName,
+            selectedCamera: selectedCamera || '',
+            selectedMic: selectedMic || '',
+            from: 'videochat_siguiente',
+            waitingRoom: data.roomName
+          });
+          
+          navigate(`/usersearch?${urlParams}`);
+        }
+      } else {
+        throw new Error(data.error || 'Error desconocido en nextRoom');
+      }
 
     } catch (error) {
       console.error('❌ [CLIENTE] Error en siguientePersona:', error);
       
+      // 🔥 FALLBACK: IR A BÚSQUEDA EN CASO DE ERROR
       clearUserCache();
+      startSearching();
       
       const urlParams = new URLSearchParams({
         role: 'cliente',
@@ -575,7 +624,7 @@ export default function VideoChat() {
         selectedCamera: selectedCamera || '',
         selectedMic: selectedMic || '',
         from: 'videochat_siguiente_error',
-        action: 'siguiente', // 🔥 TAMBIÉN EN EL ERROR
+        action: 'siguiente',
         reason: 'cliente_siguiente'
       });
       
