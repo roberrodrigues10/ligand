@@ -520,17 +520,15 @@ export default function VideoChat() {
     }
   };
 
-  // 🔥 FUNCIÓN SIGUIENTE PERSONA - ADAPTADA DEL MODELO
+  // 🔥 EN videochatclient.js - función siguientePersona
   const siguientePersona = async () => {
-    console.log('🔄 [CLIENTE] Siguiente persona (lógica modelo)...');
-    
-    // 🔥 USAR CONTEXTO GLOBAL PERO COMO CLIENTE
-    startSearching('cliente');
+    console.log('🔄 [CLIENTE] Siguiente persona...');
     
     try {
       const authToken = sessionStorage.getItem('token');
       
-      const response = await fetch(`${API_BASE_URL}/api/livekit/next-room`, {
+      // 🔥 NOTIFICAR AL SERVIDOR QUE EL CLIENTE SE VA
+      const response = await fetch(`${API_BASE_URL}/api/livekit/client-leaving`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -538,93 +536,82 @@ export default function VideoChat() {
         },
         body: JSON.stringify({ 
           currentRoom: roomName,
-          userName: userName 
+          userName: userName,
+          action: 'siguiente', // ✅ Esto ya funciona
+          partnerId: otherUser?.id,
+          timestamp: Date.now()
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🎉 [CLIENTE] Respuesta del servidor:', data);
-        
-        if (data.success) {
-          if (data.type === 'match_found' || data.type === 'direct_match') {
-            // 🔥 NUEVA CONEXIÓN ENCONTRADA
-            console.log('🎯 [CLIENTE] Nueva conexión encontrada:', data.roomName || data.room_name);
-            
-            clearUserCache();
-            
-            navigate("/videochatclient", {
-              state: {
-                roomName: data.roomName || data.room_name,
-                userName: userName,
-                selectedCamera: selectedCamera,
-                selectedMic: selectedMic,
-              },
-              replace: true
-            });
-          } else if (data.type === 'waiting') {
-            // 🔥 EN ESPERA - USAR CONTEXTO DE BÚSQUEDA
-            console.log('⏳ [CLIENTE] En espera de conexión...');
-            
-            clearUserCache();
-            
-            navigate("/videochatclient", {
-              state: {
-                roomName: data.roomName || data.room_name,
-                userName: userName,
-                selectedCamera: selectedCamera,
-                selectedMic: selectedMic,
-              },
-              replace: true
-            });
-          } else {
-            console.log('⚠️ [CLIENTE] Respuesta inesperada del servidor:', data);
-            stopSearching();
-          }
-        } else {
-          console.error('❌ [CLIENTE] Error del servidor:', data.error);
-          stopSearching();
-        }
-      } else {
-        console.error('❌ [CLIENTE] Error HTTP:', response.status);
-        stopSearching();
-      }
+      // 🔥 LIMPIAR CACHE
+      clearUserCache();
+
+      // 🔥 NAVEGAR CON PARÁMETROS DE "SIGUIENTE"
+      const urlParams = new URLSearchParams({
+        role: 'cliente',
+        currentRoom: roomName,
+        userName: userName,
+        selectedCamera: selectedCamera || '',
+        selectedMic: selectedMic || '',
+        excludeUser: otherUser?.id || '',
+        excludeUserName: otherUser?.name || '',
+        from: 'videochat_siguiente',
+        action: 'siguiente', // 🔥 AGREGAR ESTE PARÁMETRO IMPORTANTE
+        reason: 'cliente_siguiente' // 🔥 AGREGAR TAMBIÉN ESTE
+      });
+      
+      console.log('🧭 [CLIENTE] Navegando a UserSearch:', `/usersearch?${urlParams}`);
+      navigate(`/usersearch?${urlParams}`);
+
     } catch (error) {
-      console.error('❌ [CLIENTE] Error en siguiente persona:', error);
-      stopSearching();
+      console.error('❌ [CLIENTE] Error en siguientePersona:', error);
+      
+      clearUserCache();
+      
+      const urlParams = new URLSearchParams({
+        role: 'cliente',
+        currentRoom: roomName,
+        userName: userName,
+        selectedCamera: selectedCamera || '',
+        selectedMic: selectedMic || '',
+        from: 'videochat_siguiente_error',
+        action: 'siguiente', // 🔥 TAMBIÉN EN EL ERROR
+        reason: 'cliente_siguiente'
+      });
+      
+      navigate(`/usersearch?${urlParams}`);
     }
   };
-
   // 🔥 FUNCIÓN FINALIZAR CHAT ADAPTADA DEL MODELO
   const finalizarChat = useCallback(async () => {
-  console.log('🛑 [MODELO] Stop presionado - MODELO deja de trabajar...');
-  
+  console.log('🛑 [CLIENTE] Stop presionado...');
   
   try {
-    // 🔥 FINALIZAR SESIÓN ACTUAL
-    if (finalizarSesion) {
-      console.log('🚪 [MODELO] Finalizando sesión...');
-      await finalizarSesion('modelo_stop_working');
-    }
+    // 🔥 NOTIFICAR AL SERVIDOR QUE EL CLIENTE SE VA
+    const authToken = sessionStorage.getItem('token');
     
-    // Limpiar cache
-    clearUserCache();
-    
-    
-    // 🔥 MODELO VA A SU PÁGINA DE ESPERA (no trabaja más)
+    await fetch(`${API_BASE_URL}/api/livekit/client-leaving`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ 
+        currentRoom: roomName,
+        userName: userName,
+        action: 'stop',
+        partnerId: otherUser?.id, // ID de la modelo
+      }),
+    });
+
+    // Cliente va a su página de espera
     navigate('/esperandocallcliente', { replace: true });
     
   } catch (error) {
-    console.error('❌ [MODELO] Error al dejar de trabajar:', error);
+    console.error('❌ Error finalizando chat:', error);
     navigate('/esperandocallcliente', { replace: true });
   }
-}, [
-  finalizarSesion, 
-  clearUserCache,
-  navigate
-  ]);
-
-  // 🔥 USEEFFECTS CORREGIDOS
+  }, [roomName, userName, otherUser, navigate]);
 
   // Cargar usuario inicial
   useEffect(() => {

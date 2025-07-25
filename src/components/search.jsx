@@ -193,7 +193,7 @@ const UserSearch = () => {
       // Detener verificaciones
       if (checkIntervalRef.current) {
         clearInterval(checkIntervalRef.current);
-        checkIntervalRef.current = null;
+        checkIntervalRef.current = null;  
       }
       
       if (waitTimerRef.current) {

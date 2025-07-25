@@ -53,6 +53,155 @@ const USER_CACHE = new Map();
 const getRoomCacheKey = (roomName, currentUserName) => {
   return `${roomName}_${currentUserName}`;
 };
+// 🔥 AGREGAR ESTE COMPONENTE AL INICIO DE videochat.jsx
+// (Después de los imports y antes del componente VideoChat principal)
+
+  // 🔥 REEMPLAZAR EL ParticipantsHandler EN videochat.jsx
+  // 🔥 REEMPLAZAR EL ParticipantsHandler EN videochat.jsx
+  const ParticipantsHandler = ({ 
+    onParticipantsChange, 
+    modeloStoppedWorking, 
+    receivedNotification,
+    navigate,
+    roomName,
+    userName,
+    selectedCamera,
+    selectedMic,
+    clearUserCache 
+  }) => {
+    const participants = useParticipants();
+    const timerRef = useRef(null);
+    
+    // 🔥 USAR roomName DIRECTAMENTE COMO KEY PARA EL FLAG
+    const navigationStateRef = useRef({});
+    
+    // 🔥 FUNCIÓN PARA VERIFICAR SI YA NAVEGÓ EN ESTA SALA
+    const hasNavigatedInRoom = (currentRoom) => {
+      return navigationStateRef.current[currentRoom] === true;
+    };
+    
+    // 🔥 FUNCIÓN PARA MARCAR QUE NAVEGÓ EN ESTA SALA
+    const markNavigatedInRoom = (currentRoom) => {
+      navigationStateRef.current[currentRoom] = true;
+      console.log('🔒 [MODELO] Marcando navegación en sala:', currentRoom);
+    };
+    
+    useEffect(() => {
+      console.log('👥 [MODELO] LiveKit Participants cambió:', {
+        total: participants.length,
+        local: participants.filter(p => p.isLocal).length,
+        remote: participants.filter(p => !p.isLocal).length,
+        identities: participants.map(p => p.identity),
+        timestamp: new Date().toLocaleTimeString(),
+        roomName: roomName,
+        hasNavigatedInThisRoom: hasNavigatedInRoom(roomName) // 🔥 MOSTRAR ESTADO POR SALA
+      });
+
+      // Notificar al componente padre
+      if (onParticipantsChange) {
+        onParticipantsChange(participants);
+      }
+
+      // 🔥 SI YA NAVEGÓ EN ESTA SALA ESPECÍFICA, NO HACER NADA MÁS
+      if (hasNavigatedInRoom(roomName)) {
+        console.log('🚫 [MODELO] Ya navegó en esta sala específica:', roomName);
+        return;
+      }
+
+      // 🔥 CONDICIONES DE BLOQUEO
+      if (modeloStoppedWorking || receivedNotification) {
+        console.log('🛑 [MODELO] No buscar - modelo paró o recibió notificación');
+        return;
+      }
+
+      // Solo la modelo queda (1 participante = solo local)
+      const soloLaModeloQueda = participants.length <= 1;
+      
+      if (soloLaModeloQueda && participants.length > 0) {
+        // 🔥 LIMPIAR TIMER ANTERIOR SI EXISTE
+        if (timerRef.current) {
+          console.log('🧹 [MODELO] Limpiando timer anterior...');
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+
+        console.log('👤 [MODELO] ¡Cliente se fue de sala:', roomName, '! Navegando a UserSearch en 2 segundos...');
+        
+        // 🔥 MARCAR QUE VA A NAVEGAR EN ESTA SALA ESPECÍFICA
+        markNavigatedInRoom(roomName);
+        
+        // 🔥 CREAR NUEVO TIMER
+        timerRef.current = setTimeout(() => {
+          console.log('🔄 [MODELO] ⏰ EJECUTANDO navegación desde sala:', roomName);
+          
+          // Limpiar cache
+          if (clearUserCache) {
+            clearUserCache();
+          }
+          
+          // Navegar a UserSearch
+          const urlParams = new URLSearchParams({
+            role: 'modelo',
+            currentRoom: roomName || '',
+            userName: userName || '',
+            selectedCamera: selectedCamera || '',
+            selectedMic: selectedMic || '',
+            reason: 'cliente_se_fue',
+            fromRoom: roomName, // 🔥 AGREGAR SALA DE ORIGEN
+            timestamp: Date.now()
+          });
+          
+          console.log('🧭 [MODELO] 🚀 NAVEGANDO AHORA desde sala:', roomName, 'hacia:', `/usersearch?${urlParams}`);
+          navigate(`/usersearch?${urlParams}`);
+          
+          // Limpiar referencia del timer
+          timerRef.current = null;
+          
+        }, 2000); // 2 segundos de delay
+
+      } else if (participants.length > 1) {
+        console.log('👥 [MODELO] Cliente aún conectado en sala:', roomName);
+        
+        // 🔥 LIMPIAR TIMER SI EL CLIENTE VUELVE (PERO NO RESETEAR FLAG)
+        // El flag de navegación se mantiene por sala para evitar navegaciones múltiples
+        if (timerRef.current) {
+          console.log('🧹 [MODELO] Cliente reconectado en sala:', roomName, '- cancelando navegación pendiente');
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+          
+          // 🔥 SOLO RESETEAR FLAG SI REALMENTE CANCELAMOS LA NAVEGACIÓN
+          delete navigationStateRef.current[roomName];
+          console.log('🔄 [MODELO] Flag de navegación reseteado para sala:', roomName);
+        }
+      }
+
+    }, [
+      participants.length,
+      modeloStoppedWorking,
+      receivedNotification,
+      navigate,
+      roomName, // 🔥 DEPENDENCIA IMPORTANTE
+      userName,
+      selectedCamera,
+      selectedMic,
+      clearUserCache,
+      onParticipantsChange
+    ]);
+
+    // 🔥 CLEANUP AL DESMONTAR EL COMPONENTE
+    useEffect(() => {
+      return () => {
+        if (timerRef.current) {
+          console.log('🧹 [MODELO] Limpiando timer al desmontar componente');
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+      };
+    }, []);
+
+    return null; // Este componente no renderiza nada visible
+  };
+      
 
 // ✅ COMPONENTE CON VIDEO REAL PARA LA MODELO - RESPONSIVE
 const VideoDisplay = ({ onCameraSwitch, mainCamera }) => {
@@ -243,6 +392,8 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
   const [connected, setConnected] = useState(false);
   const [room, setRoom] = useState(null);
   const [modeloStoppedWorking, setModeloStoppedWorking] = useState(false);
+  const [receivedNotification, setReceivedNotification] = useState(false);
+
 
   // ❌ ELIMINAR ESTA LÍNEA:
   // const [isSearchingUser, setIsSearchingUser] = useState(false);
@@ -618,6 +769,57 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
   clearUserCache,
   navigate
   ]);
+  // En videochat.js (MODELO)
+  useEffect(() => {
+    if (!userData.id || !roomName) return;
+
+    console.log('📡 [MODELO] Conectando a notificaciones...');
+    
+    // 🔥 CONECTAR A SERVER-SENT EVENTS
+    const eventSource = new EventSource(
+      `${API_BASE_URL}/api/notifications/${userData.id}`,
+      {
+        withCredentials: false,
+      }
+    );
+    
+    eventSource.onopen = () => {
+      console.log('✅ [MODELO] Notificaciones conectadas');
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('📨 [MODELO] Notificación recibida:', data);
+        
+        if (data.type === 'client_left') {
+          console.log(`👤 [MODELO] Cliente se fue (${data.action}) - buscando automáticamente...`);
+          
+          // 🔥 NAVEGAR AUTOMÁTICAMENTE A BÚSQUEDA
+          const urlParams = new URLSearchParams({
+            role: 'modelo',
+            currentRoom: roomName,
+            userName: userName,
+            selectedCamera: selectedCamera || '',
+            selectedMic: selectedMic || '',
+          });
+          
+          navigate(`/usersearch?${urlParams}`);
+        }
+      } catch (error) {
+        console.error('❌ [MODELO] Error procesando notificación:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('❌ [MODELO] Error en notificaciones:', error);
+    };
+
+    return () => {
+      console.log('🔌 [MODELO] Cerrando conexión de notificaciones');
+      eventSource.close();
+    };
+  }, [userData.id, roomName, navigate]);
 
   // 🔥 CARGAR USUARIO CON RATE LIMITING
   useEffect(() => {
@@ -688,7 +890,6 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
       });
     }
   }, [connected, token, chatFunctions, forceStopSearching]);
-  // 🔥 TAMBIÉN AGREGAR UN TIMEOUT DE SEGURIDAD (por si no encuentra usuarios):
 
   useEffect(() => {
     console.log('🔧 Configurando chatFunctions para:', { roomName, userName });
@@ -785,20 +986,100 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
     }
   }, [otherUser]);
 
+
+// 🔥 REEMPLAZAR EL useEffect PROBLEMÁTICO EN videochat.js (MODELO)
   useEffect(() => {
-    if (!memoizedRoomName || !memoizedUserName) return;
-    
-    console.log('🔧 Configurando chatFunctions para:', { 
-      roomName: memoizedRoomName, 
-      userName: memoizedUserName 
+    if (modeloStoppedWorking || receivedNotification) {
+      console.log('🛑 [MODELO] No buscar - modelo paró o recibió notificación');
+      return;
+    }
+
+    if (!connected || !token || !chatFunctions) {
+      console.log('⏳ [MODELO] Aún no conectado completamente');
+      return;
+    }
+
+    console.log('🔍 [MODELO] Verificando participantes:', {
+      participantsCount: chatFunctions.participantsCount,
+      hasOtherParticipant: chatFunctions.hasOtherParticipant,
+      participants: chatFunctions.participants?.map(p => ({ identity: p.identity, isLocal: p.isLocal }))
     });
+
+    // 🔥 DETECCIÓN MEJORADA: Solo la modelo queda en la sala
+    const soloLaModeloQueda = chatFunctions.participantsCount <= 1;
     
-    window.livekitChatFunctions = handleChatFunctions;
-    
-    return () => {
-      delete window.livekitChatFunctions;
-    };
-  }, [memoizedRoomName, memoizedUserName, handleChatFunctions]);
+    if (soloLaModeloQueda) {
+      console.log('👤 [MODELO] ¡Cliente se fue! Navegando a UserSearch...');
+      
+      // 🔥 TIMEOUT CORTO PARA DAR TIEMPO A QUE SE ACTUALICE EL ESTADO
+      const timer = setTimeout(() => {
+        console.log('🔄 [MODELO] Ejecutando navegación a UserSearch...');
+        
+        // Limpiar cache del usuario anterior
+        clearUserCache();
+        
+        // 🔥 NAVEGAR INMEDIATAMENTE A USERSEARCH
+        const urlParams = new URLSearchParams({
+          role: 'modelo',
+          currentRoom: roomName,
+          userName: userName,
+          selectedCamera: selectedCamera || '',
+          selectedMic: selectedMic || '',
+          reason: 'cliente_se_fue' // Para debugging
+        });
+        
+        console.log('🧭 [MODELO] Navegando a:', `/usersearch?${urlParams}`);
+        navigate(`/usersearch?${urlParams}`);
+        
+      }, 2000); // 2 segundos de delay
+
+      return () => clearTimeout(timer);
+    } else {
+      console.log('👥 [MODELO] Cliente aún conectado, no hacer nada');
+    }
+
+  }, [
+    connected, 
+    token, 
+    chatFunctions?.participantsCount, // 🔥 DEPENDENCIA ESPECÍFICA
+    chatFunctions?.hasOtherParticipant,
+    modeloStoppedWorking, 
+    receivedNotification,
+    navigate,
+    roomName,
+    userName,
+    selectedCamera,
+    selectedMic
+  ]);
+  // 🔥 AÑADIR ESTE DEBUG EN videochat.js (MODELO)
+// Justo después de configurar chatFunctions
+
+  useEffect(() => {
+    if (chatFunctions) {
+      console.log('👥 [MODELO] DEBUG Participantes:', {
+        count: chatFunctions.participantsCount,
+        hasOther: chatFunctions.hasOtherParticipant,
+        participants: chatFunctions.participants?.map(p => ({
+          identity: p.identity,
+          isLocal: p.isLocal,
+          sid: p.sid
+        })) || [],
+        timestamp: new Date().toLocaleTimeString()
+      });
+    }
+  }, [chatFunctions?.participantsCount, chatFunctions?.hasOtherParticipant]);
+
+  const handleParticipantsChange = useCallback((participants) => {
+    console.log('🔄 [MODELO] Participantes actualizados:', participants.length);
+  }, []);
+
+
+
+  // 🔥 TAMBIÉN RESETEAR EL FLAG CUANDO CAMBIE LA SALA
+  useEffect(() => {
+    setModeloStoppedWorking(false);
+    setReceivedNotification(false); // 🔥 RESETEAR TAMBIÉN ESTE
+  }, [roomName]);
 
   // 🔥 FIX 4: Obtener token con rate limiting protection
   useEffect(() => {
@@ -1120,6 +1401,19 @@ const { startSearching, stopSearching, forceStopSearching } = useSearching();
       }}
     >
       <RoomAudioRenderer />
+      {/* 🔥 AÑADIR ESTO */}
+      <ParticipantsHandler
+        onParticipantsChange={handleParticipantsChange}
+        modeloStoppedWorking={modeloStoppedWorking}
+        receivedNotification={receivedNotification}
+        navigate={navigate}
+        roomName={roomName}
+        userName={userName}
+        selectedCamera={selectedCamera}
+        selectedMic={selectedMic}
+        clearUserCache={clearUserCache}
+      />
+  
       
       {memoizedRoomName && memoizedUserName && (
         <SimpleChat
