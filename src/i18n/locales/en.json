@@ -175,5 +175,25 @@
     "escribeMensaje": "Write a message",
     "intercambiarCamara": "Switch camera",
     "siguiente": "Next"
-  }
+  },
+  "verificacion": {
+    "titulo": "Identity Verification",
+    "descripcion": "To begin, you must accept our Terms and Conditions.",
+    "boton": "Start Verification",
+    "modal": {
+      "titulo": "Terms and Conditions",
+      "parrafo1": "By continuing with the verification, you confirm that the information provided is truthful and that the submitted documents are valid. We reserve the right to reject any suspicious or fraudulent verification attempt.",
+      "parrafo2": "Your data will be used solely to verify your identity for platform security purposes.",
+      "parrafo3": "If you agree with these terms, click on \"Accept and continue\".",
+      "cancelar": "Cancel",
+      "aceptar": "Accept and continue"
+    }
+  },
+  "reset_password": "Reset Password",
+  "new_password": "New password",
+  "confirm_password": "Confirm password",
+  "change_password": "Change password",
+  "passwords_no_match": "Passwords do not match.",
+  "password_changed_successfully": "Password changed successfully!",
+  "error_changing_password": "Error changing the password. Please try again."
 }

@@ -175,5 +175,25 @@
     "escribeMensaje": "Escreva uma mensagem",
     "intercambiarCamara": "Trocar câmera",
     "siguiente": "Próximo"
-  }
+  },
+  "verificacion": {
+    "titulo": "Verificação de identidade",
+    "descripcion": "Para começar, você deve aceitar nossos Termos e Condições.",
+    "boton": "Iniciar verificação",
+    "modal": {
+      "titulo": "Termos e Condições",
+      "parrafo1": "Ao continuar com a verificação, você confirma que as informações fornecidas são verdadeiras e que os documentos enviados são válidos. Reservamo-nos o direito de rejeitar qualquer tentativa de verificação suspeita ou fraudulenta.",
+      "parrafo2": "Seus dados serão usados apenas para validar sua identidade com fins de segurança na plataforma.",
+      "parrafo3": "Se você concorda com estes termos, clique em \"Aceitar e continuar\".",
+      "cancelar": "Cancelar",
+      "aceptar": "Aceitar e continuar"
+    }
+  },
+  "reset_password": "Redefinir senha",
+  "new_password": "Nova senha",
+  "confirm_password": "Confirmar senha",
+  "change_password": "Alterar senha",
+  "passwords_no_match": "As senhas não coincidem.",
+  "password_changed_successfully": "Senha alterada com sucesso!",
+  "error_changing_password": "Erro ao alterar a senha. Tente novamente."
 }

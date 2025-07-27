@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logoproncipal from "../../imagenes/logoprincipal.png";
+import { useTranslation } from "react-i18next";
 
 export default function InicioVerificacion() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const aceptarTerminos = () => {
     setMostrarModal(false);
@@ -19,16 +21,14 @@ export default function InicioVerificacion() {
         <span className="text-2xl font-pacifico text-zorrofucsia ml-[-10px]">Ligand</span>
       </div>
 
-      <h1 className="text-white text-3xl font-bold mb-4">Verificación de identidad</h1>
-      <p className="text-white/70 mb-6 text-center max-w-md">
-        Para comenzar, debes aceptar nuestros Términos y Condiciones.
-      </p>
+      <h1 className="text-white text-3xl font-bold mb-4">{t("verificacion.titulo")}</h1>
+      <p className="text-white/70 mb-6 text-center max-w-md">{t("verificacion.descripcion")}</p>
 
       <button
         onClick={() => setMostrarModal(true)}
         className="bg-[#ff007a] hover:bg-[#e6006e] text-white font-bold py-3 px-6 rounded-xl transition"
       >
-        Empezar verificación
+        {t("verificacion.boton")}
       </button>
 
       {/* Modal */}
@@ -38,19 +38,11 @@ export default function InicioVerificacion() {
             className="bg-[#1a1c20] rounded-2xl p-8 max-w-md w-full relative shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-white text-xl font-bold mb-4">Términos y Condiciones</h2>
+            <h2 className="text-white text-xl font-bold mb-4">{t("verificacion.modal.titulo")}</h2>
             <div className="text-white/70 text-sm mb-6 max-h-64 overflow-y-auto">
-              <p className="mb-2">
-                Al continuar con la verificación, aceptas que la información proporcionada es veraz y que los documentos
-                enviados son válidos. Nos reservamos el derecho de rechazar cualquier intento de verificación sospechoso
-                o fraudulento.
-              </p>
-              <p className="mb-2">
-                Tus datos serán utilizados únicamente para validar tu identidad con fines de seguridad en la plataforma.
-              </p>
-              <p>
-                Si estás de acuerdo con estos términos, haz clic en "Aceptar y continuar".
-              </p>
+              <p className="mb-2">{t("verificacion.modal.parrafo1")}</p>
+              <p className="mb-2">{t("verificacion.modal.parrafo2")}</p>
+              <p>{t("verificacion.modal.parrafo3")}</p>
             </div>
 
             <div className="flex justify-end gap-4">
@@ -58,13 +50,13 @@ export default function InicioVerificacion() {
                 onClick={() => setMostrarModal(false)}
                 className="text-white bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg"
               >
-                Cancelar
+                {t("verificacion.modal.cancelar")}
               </button>
               <button
                 onClick={aceptarTerminos}
                 className="bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg font-semibold"
               >
-                Aceptar y continuar
+                {t("verificacion.modal.aceptar")}
               </button>
             </div>
           </div>
