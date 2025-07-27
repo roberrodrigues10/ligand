@@ -1,17 +1,89 @@
-// 🔥 /src/utils/heartbeat.js - Utilidad centralizada para heartbeats
+// 🔥 /src/utils/heartbeat.js - Utilidad centralizada para heartbeats CON RATE LIMITING
 
 import { useEffect, useRef } from 'react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// 🔥 FUNCIÓN PRINCIPAL PARA ENVIAR HEARTBEAT
+// 🔥 SISTEMA DE RATE LIMITING GLOBAL
+class HeartbeatRateLimiter {
+  constructor() {
+    this.lastHeartbeat = 0;
+    this.isBlocked = false;
+    this.blockUntil = 0;
+    this.consecutiveErrors = 0;
+    this.minInterval = 20000; // 15 segundos mínimo entre heartbeats
+  }
+
+  canSendHeartbeat() {
+    const now = Date.now();
+    
+    // Si estamos bloqueados temporalmente
+    if (this.isBlocked && now < this.blockUntil) {
+      console.log(`🛑 [HEARTBEAT] Bloqueado hasta ${new Date(this.blockUntil).toLocaleTimeString()}`);
+      return false;
+    }
+    
+    // Si ha pasado el bloqueo, desbloqueamos
+    if (this.isBlocked && now >= this.blockUntil) {
+      this.isBlocked = false;
+      this.consecutiveErrors = 0;
+      console.log('✅ [HEARTBEAT] Desbloqueado');
+    }
+    
+    // Verificar intervalo mínimo
+    if (now - this.lastHeartbeat < this.minInterval) {
+      console.log(`⏰ [HEARTBEAT] Muy frecuente - esperando ${this.minInterval - (now - this.lastHeartbeat)}ms`);
+      return false;
+    }
+    
+    return true;
+  }
+
+  recordSuccess() {
+    this.lastHeartbeat = Date.now();
+    this.consecutiveErrors = 0;
+  }
+
+  recordError(isRateLimit = false) {
+    this.consecutiveErrors++;
+    
+    if (isRateLimit || this.consecutiveErrors >= 3) {
+      // Bloquear por tiempo exponencial
+      const blockDuration = Math.min(30000 * Math.pow(2, this.consecutiveErrors), 300000); // Max 5 minutos
+      this.blockUntil = Date.now() + blockDuration;
+      this.isBlocked = true;
+      
+      console.warn(`🚫 [HEARTBEAT] Bloqueado por ${blockDuration/1000}s (errores: ${this.consecutiveErrors})`);
+    }
+  }
+
+  getRecommendedInterval() {
+    // Intervalo dinámico basado en errores
+    const baseInterval = 15000;
+    const multiplier = Math.min(1 + (this.consecutiveErrors * 0.5), 4); // Max 4x
+    return Math.floor(baseInterval * multiplier);
+  }
+}
+
+const rateLimiter = new HeartbeatRateLimiter();
+
+// 🔥 FUNCIÓN PRINCIPAL OPTIMIZADA PARA ENVIAR HEARTBEAT
 export const sendHeartbeat = async (activityType = 'browsing', room = null) => {
+  // Verificar rate limiting
+  if (!rateLimiter.canSendHeartbeat()) {
+    return false;
+  }
+
   try {
     const authToken = sessionStorage.getItem('token');
     if (!authToken) {
       console.log('⚠️ [HEARTBEAT] No hay token de autenticación');
       return false;
     }
+
+    // Timeout para evitar requests colgados
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     
     const response = await fetch(`${API_BASE_URL}/api/heartbeat`, {
       method: 'POST',
@@ -22,91 +94,132 @@ export const sendHeartbeat = async (activityType = 'browsing', room = null) => {
       body: JSON.stringify({
         activity_type: activityType,
         room: room
-      })
+      }),
+      signal: controller.signal
     });
 
+    clearTimeout(timeoutId);
+
+    if (response.status === 429) {
+      console.warn('⚠️ [HEARTBEAT] Rate limited por servidor');
+      rateLimiter.recordError(true);
+      return false;
+    }
+
     if (response.ok) {
-      const data = await response.json(
-);
+      const data = await response.json();
       console.log(`💓 [HEARTBEAT] ✅ ${activityType} en ${room || 'ninguna sala'}`);
+      rateLimiter.recordSuccess();
       return true;
     } else {
       console.log(`⚠️ [HEARTBEAT] Error ${response.status}`);
+      rateLimiter.recordError(false);
       return false;
     }
   } catch (error) {
-    console.log('❌ [HEARTBEAT] Error de red:', error.message);
+    if (error.name === 'AbortError') {
+      console.log('⏰ [HEARTBEAT] Timeout');
+    } else {
+      console.log('❌ [HEARTBEAT] Error de red:', error.message);
+    }
+    rateLimiter.recordError(false);
     return false;
   }
 };
 
-// 🔥 HOOK PERSONALIZADO PARA HEARTBEAT AUTOMÁTICO
-export const useHeartbeat = (activityType = 'browsing', room = null, intervalMs = 15000, enabled = true) => {
+// 🔥 HOOK PERSONALIZADO OPTIMIZADO PARA HEARTBEAT AUTOMÁTICO
+export const useHeartbeat = (activityType = 'browsing', room = null, baseIntervalMs = 15000, enabled = true) => {
   const intervalRef = useRef(null);
   const isEnabledRef = useRef(enabled);
+  const currentIntervalRef = useRef(baseIntervalMs);
 
   useEffect(() => {
     isEnabledRef.current = enabled;
   }, [enabled]);
 
+  const scheduleNextHeartbeat = () => {
+    if (!isEnabledRef.current) return;
+    
+    // Usar intervalo dinámico basado en errores
+    const dynamicInterval = Math.max(rateLimiter.getRecommendedInterval(), baseIntervalMs);
+    currentIntervalRef.current = dynamicInterval;
+    
+    intervalRef.current = setTimeout(async () => {
+      if (isEnabledRef.current) {
+        await sendHeartbeat(activityType, room);
+        scheduleNextHeartbeat(); // Programar el siguiente
+      }
+    }, dynamicInterval);
+  };
+
+  if (!navigator.onLine) {
+  console.log('📴 [HEARTBEAT] Offline, omitiendo');
+    return false;
+  }
+
+
   useEffect(() => {
     if (!isEnabledRef.current) return;
 
-    console.log(`🚀 [HEARTBEAT] Iniciando: ${activityType} cada ${intervalMs}ms`);
+    console.log(`🚀 [HEARTBEAT] Iniciando: ${activityType} cada ~${baseIntervalMs}ms (dinámico)`);
 
     // Heartbeat inicial
-    sendHeartbeat(activityType, room);
-
-    // Heartbeat periódico
-    intervalRef.current = setInterval(() => {
-      if (isEnabledRef.current) {
-        sendHeartbeat(activityType, room);
-      }
-    }, intervalMs);
+    sendHeartbeat(activityType, room).then(() => {
+      // Programar siguientes heartbeats
+      scheduleNextHeartbeat();
+    });
 
     return () => {
       if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+        clearTimeout(intervalRef.current);
         intervalRef.current = null;
       }
       
-      // 🔥 CLEANUP: Volver a browsing al desmontar (excepto si ya era browsing)
+      // 🔥 CLEANUP: Volver a browsing al desmontar (con rate limiting)
       if (activityType !== 'browsing' && isEnabledRef.current) {
         console.log(`🧹 [HEARTBEAT] Cleanup: ${activityType} → browsing`);
-        sendHeartbeat('browsing', null);
+        setTimeout(() => {
+          sendHeartbeat('browsing', null);
+        }, 1000); // Delay para evitar rate limiting
       }
     };
-  }, [activityType, room, intervalMs]);
+  }, [activityType, room, baseIntervalMs]);
 
   // Función para cambiar estado manualmente
-  const changeActivity = (newActivityType, newRoom = null) => {
+  const changeActivity = async (newActivityType, newRoom = null) => {
     console.log(`🔄 [HEARTBEAT] Cambio: ${activityType} → ${newActivityType}`);
-    sendHeartbeat(newActivityType, newRoom);
+    return await sendHeartbeat(newActivityType, newRoom);
   };
 
-  return { changeActivity };
+  return { 
+    changeActivity,
+    getCurrentInterval: () => currentIntervalRef.current,
+    isRateLimited: () => rateLimiter.isBlocked
+  };
 };
 
-// 🔥 HOOK ESPECIALIZADO PARA COMPONENTES DE VIDEOCHAT
+// 🔥 HOOK ESPECIALIZADO PARA COMPONENTES DE VIDEOCHAT (MÁS CONSERVADOR)
 export const useVideoChatHeartbeat = (roomName, role = 'modelo') => {
   const activityType = role === 'modelo' ? 'videochat' : 'videochat_client';
   
-  return useHeartbeat(activityType, roomName, 15000, !!roomName);
+  // Intervalo más largo para videochat para evitar rate limiting
+  return useHeartbeat(activityType, roomName, HEARTBEAT_INTERVALS.SLOW, !!roomName);
 };
 
-// 🔥 HOOK PARA COMPONENTES DE BÚSQUEDA
+// 🔥 HOOK PARA COMPONENTES DE BÚSQUEDA (CONSERVADOR)
 export const useSearchHeartbeat = (roomName, isSearching = true) => {
   const activityType = isSearching ? 'searching' : 'browsing';
   
-  return useHeartbeat(activityType, roomName, 10000, isSearching);
+  // Intervalo más largo para búsqueda
+  return useHeartbeat(activityType, roomName, 18000, isSearching);
 };
 
-// 🔥 HOOK PARA COMPONENTES DE NAVEGACIÓN
-export const useBrowsingHeartbeat = (intervalMs = 20000) => {
+// 🔥 HOOK PARA COMPONENTES DE NAVEGACIÓN (MUY CONSERVADOR)
+export const useBrowsingHeartbeat = (intervalMs = 25000) => {
   return useHeartbeat('browsing', null, intervalMs);
 };
 
-// 🔥 CONSTANTES ÚTILES
+// 🔥 CONSTANTES ACTUALIZADAS CON INTERVALOS MÁS LARGOS
 export const ACTIVITY_TYPES = {
   // ✅ Disponibles para emparejamiento
   BROWSING: 'browsing',
@@ -120,9 +233,9 @@ export const ACTIVITY_TYPES = {
 };
 
 export const HEARTBEAT_INTERVALS = {
-  FAST: 10000,    // 10 segundos - Para búsqueda activa
-  NORMAL: 15000,  // 15 segundos - Para videochat
-  SLOW: 20000,    // 20 segundos - Para navegación
+  FAST: 15000,    // 15 segundos - Mínimo absoluto
+  NORMAL: 20000,  // 20 segundos - Para videochat
+  SLOW: 25000,    // 25 segundos - Para navegación
   VERY_SLOW: 30000 // 30 segundos - Para estados idle
 };
 
@@ -137,37 +250,62 @@ export const isAvailableForMatching = (activityType) => {
   return availableTypes.includes(activityType);
 };
 
-// 🔥 FUNCIÓN PARA LIMPIAR HEARTBEAT AL CERRAR VENTANA
+// 🔥 FUNCIÓN OPTIMIZADA PARA LIMPIAR HEARTBEAT AL CERRAR VENTANA
 export const setupHeartbeatCleanup = () => {
   const cleanup = () => {
     // Usar sendBeacon para envío confiable al cerrar
     const authToken = sessionStorage.getItem('token');
     if (authToken && navigator.sendBeacon) {
-      const data = new FormData();
-      data.append('activity_type', 'idle');
-      data.append('room', '');
+      const formData = new FormData();
+      formData.append('activity_type', 'idle');
+      formData.append('room', '');
       
-      navigator.sendBeacon(`${API_BASE_URL}/api/heartbeat`, data);
+      // Agregar token al FormData
+      formData.append('Authorization', `Bearer ${authToken}`);
+      
+      navigator.sendBeacon(`${API_BASE_URL}/api/heartbeat`, formData);
       console.log('🧹 [HEARTBEAT] Cleanup enviado via sendBeacon');
     }
+  };
+
+  // Throttle para visibilitychange
+  let visibilityTimeout = null;
+  const handleVisibilityChange = () => {
+    if (visibilityTimeout) clearTimeout(visibilityTimeout);
+    
+    visibilityTimeout = setTimeout(() => {
+      if (document.hidden) {
+        sendHeartbeat('idle', null);
+      } else {
+        sendHeartbeat('browsing', null);
+      }
+    }, 2000); // Delay para evitar cambios rápidos
   };
 
   // Limpiar al cerrar ventana/pestaña
   window.addEventListener('beforeunload', cleanup);
   window.addEventListener('unload', cleanup);
   
-  // Limpiar al perder visibilidad
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      sendHeartbeat('idle', null);
-    } else {
-      sendHeartbeat('browsing', null);
-    }
-  });
+  // Limpiar al perder visibilidad (con throttle)
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 
   return () => {
     window.removeEventListener('beforeunload', cleanup);
     window.removeEventListener('unload', cleanup);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    if (visibilityTimeout) clearTimeout(visibilityTimeout);
+  };
+};
+
+// 🔥 FUNCIÓN PARA OBTENER ESTADÍSTICAS DE RATE LIMITING
+export const getHeartbeatStats = () => {
+  return {
+    isBlocked: rateLimiter.isBlocked,
+    blockUntil: rateLimiter.blockUntil,
+    consecutiveErrors: rateLimiter.consecutiveErrors,
+    lastHeartbeat: rateLimiter.lastHeartbeat,
+    recommendedInterval: rateLimiter.getRecommendedInterval(),
+    timeUntilNextAllowed: Math.max(0, rateLimiter.minInterval - (Date.now() - rateLimiter.lastHeartbeat))
   };
 };
 
@@ -180,5 +318,6 @@ export default {
   ACTIVITY_TYPES,
   HEARTBEAT_INTERVALS,
   isAvailableForMatching,
-  setupHeartbeatCleanup
+  setupHeartbeatCleanup,
+  getHeartbeatStats
 };

@@ -20,323 +20,189 @@ const UserSearch = () => {
   const [searchStatus, setSearchStatus] = useState('Iniciando...');
   const [roomData, setRoomData] = useState(null);
   const [waitTime, setWaitTime] = useState(0);
+  const [checkCount, setCheckCount] = useState(0);
+  
+  // 🌐 NUEVOS ESTADOS PARA MONITOR DE RED
+  const [networkStatus, setNetworkStatus] = useState({
+    isOnline: navigator.onLine,
+    quality: 'checking', // 'excellent', 'good', 'poor', 'checking'
+    latency: null,
+    lastCheck: null
+  });
+  
+  // 🎯 NUEVOS ESTADOS PARA DETECCIÓN DE ACCIONES
+  const [actionDetection, setActionDetection] = useState({
+    isMonitoring: false,
+    lastActionCheck: null,
+    consecutiveChecks: 0,
+    actionType: null, // 'stop', 'siguiente', null
+    detectedAt: null
+  });
+
   const checkIntervalRef = useRef(null);
   const waitTimerRef = useRef(null);
+  const networkTimerRef = useRef(null);
+  const actionTimerRef = useRef(null);
   const isMountedRef = useRef(true);
   
-  // 🔥 ESTADOS PARA PREVENIR DOBLE EJECUCIÓN
-  const [isSearchingRooms, setIsSearchingRooms] = useState(false);
-  const [isJoiningRoom, setIsJoiningRoom] = useState(false);
+  // 🔥 ESTADOS CRÍTICOS PARA PREVENIR DOBLE EJECUCIÓN
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  
-  // 🔥 NUEVOS ESTADOS PARA MANEJO CENTRALIZADO
-  const [searchType, setSearchType] = useState('inicial'); // 'inicial', 'siguiente', 'reconnect'
-  const [consecutiveChecks, setConsecutiveChecks] = useState(0);
+  const [hasProcessedResponse, setHasProcessedResponse] = useState(false);
   
   // 🔥 OBTENER PARÁMETROS
-  const role = searchParams.get('role'); // 'modelo' o 'cliente'
+  const role = searchParams.get('role');
   const selectedCamera = searchParams.get('selectedCamera');
   const selectedMic = searchParams.get('selectedMic');
   const currentRoom = searchParams.get('currentRoom');
   const userName = searchParams.get('userName');
-  const action = searchParams.get('action'); // 'siguiente', 'inicial'
-  const from = searchParams.get('from'); // 'videochat_siguiente', 'esperarcall'
+  const action = searchParams.get('action');
+  const from = searchParams.get('from');
   const excludeUser = searchParams.get('excludeUser');
   const excludeUserName = searchParams.get('excludeUserName');
   
-  console.log('🔍 [USERSEARCH] Parámetros recibidos:', { 
-    role, currentRoom, userName, action, from, excludeUser
-  });
+  console.log('🔍 [USERSEARCH] Parámetros:', { role, action, from, currentRoom, userName });
 
-  // 🔥 DETERMINAR TIPO DE BÚSQUEDA
-  const determineSearchType = () => {
-    if (action === 'siguiente') return 'siguiente';
-    if (from === 'videochat_siguiente') return 'siguiente';
-    if (currentRoom && userName) return 'siguiente';
-    if (from === 'client_disconnect') return 'reconnect';
-    return 'inicial';
-  };
-
-  // 🔥 FUNCIÓN PARA ENVIAR HEARTBEAT CENTRALIZADO
-  const sendHeartbeatDirect = async (activityType, room = null) => {
+  // 🌐 FUNCIÓN: VERIFICAR CALIDAD DE RED
+  const checkNetworkQuality = async () => {
     try {
-      const authToken = sessionStorage.getItem('token');
-      if (!authToken) return;
-
-      await fetch(`${API_BASE_URL}/api/heartbeat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          activity_type: activityType,
-          room: room,
-          component: 'usersearch',
-          searchType: searchType
-        })
-      });
-
-      console.log(`💓 [USERSEARCH] Heartbeat enviado: ${activityType}`);
-    } catch (error) {
-      console.log('⚠️ [USERSEARCH] Error enviando heartbeat:', error);
-    }
-  };
-
-  // 🔥 FUNCIÓN PRINCIPAL: INICIALIZAR BÚSQUEDA CENTRALIZADA
-  const initializeSearch = async () => {
-    if (isSearchingRooms || isJoiningRoom || isCreatingRoom) {
-      console.log('⚠️ [USERSEARCH] Proceso ya en ejecución, ignorando...');
-      return;
-    }
-
-    const currentSearchType = determineSearchType();
-    setSearchType(currentSearchType);
-
-    console.log('🚀 [USERSEARCH] Iniciando búsqueda tipo:', currentSearchType);
-
-    try {
-      switch (currentSearchType) {
-        case 'siguiente':
-          await handleSiguientePersona();
-          break;
-        case 'reconnect':
-          await handleReconnection();
-          break;
-        case 'inicial':
-        default:
-          await handleRuletaInicial();
-          break;
-      }
-    } catch (error) {
-      console.error('❌ [USERSEARCH] Error en búsqueda:', error);
-      setError(error.message);
-      setSearchStatus(t('userSearch.error_connecting'));
-    }
-  };
-
-  // 🔥 NUEVA FUNCIÓN: MANEJAR "SIGUIENTE PERSONA"
-  const handleSiguientePersona = async () => {
-    setSearchStatus(t('userSearch.rouletting'));
-    console.log('🔄 [USERSEARCH] Función siguiente activada');
-    
-    try {
-      const authToken = sessionStorage.getItem('token');
+      const startTime = performance.now();
       
-      // 🔥 BUSCAR NUEVO USUARIO EXCLUYENDO EL ANTERIOR
-      const response = await fetch(`${API_BASE_URL}/api/livekit/next-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ 
-          currentRoom,
-          userName,
-          userRole: role,
-          excludeUserId: excludeUser,
-          excludeUserName: excludeUserName,
-          action: 'siguiente',
-          searchType: 'siguiente'
-        }),
+      // Test de conectividad básico
+      const response = await fetch(`${API_BASE_URL}/api/ping`, {
+        method: 'GET',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      const endTime = performance.now();
+      const latency = Math.round(endTime - startTime);
+      
+      let quality = 'excellent';
+      if (latency > 1000) quality = 'poor';
+      else if (latency > 500) quality = 'good';
+      
+      setNetworkStatus(prev => ({
+        ...prev,
+        isOnline: true,
+        quality,
+        latency,
+        lastCheck: new Date().toLocaleTimeString()
+      }));
+      
+      return { isOnline: true, quality, latency };
+      
+    } catch (error) {
+      console.log('🌐 [NETWORK] Error checking quality:', error);
+      setNetworkStatus(prev => ({
+        ...prev,
+        isOnline: false,
+        quality: 'poor',
+        latency: null,
+        lastCheck: new Date().toLocaleTimeString()
+      }));
+      
+      return { isOnline: false, quality: 'poor', latency: null };
+    }
+  };
+
+  // 🎯 FUNCIÓN: DETECTAR ACCIONES DE USUARIO (STOP/SIGUIENTE)
+  const detectUserActions = async (roomName) => {
+    if (!roomName || !isMountedRef.current) return null;
+
+    try {
+      const authToken = sessionStorage.getItem('token');
+      if (!authToken) return null;
+
+      const response = await fetch(`${API_BASE_URL}/api/chat/room-status/${roomName}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${authToken}` },
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (!response.ok) return null;
+
+      const statusData = await response.json();
+      
+      // Verificar si hay acciones pendientes
+      if (statusData.pendingAction) {
+        const actionType = statusData.pendingAction.type; // 'stop' o 'siguiente'
+        const actionUser = statusData.pendingAction.userId;
+        const actionTime = statusData.pendingAction.timestamp;
         
-        if (data.success && data.foundUser && data.roomName) {
-          // 🎉 USUARIO ENCONTRADO INMEDIATAMENTE
-          console.log('🎉 [USERSEARCH] Nuevo usuario encontrado inmediatamente:', data);
-          setSearchStatus(t('userSearch.user_found_connecting'));
-          await redirectToVideoChat(data.roomName, data.userName, data, true);
-          return;
-        }
+        console.log(`🎯 [ACTION] Detectada acción: ${actionType} por usuario: ${actionUser}`);
+        
+        setActionDetection(prev => ({
+          ...prev,
+          actionType,
+          detectedAt: new Date(actionTime),
+          lastActionCheck: new Date()
+        }));
+        
+        return { type: actionType, user: actionUser, timestamp: actionTime };
       }
       
-      // 🔄 NO HAY USUARIOS DISPONIBLES - CREAR SALA Y ESPERAR
-      console.log('⏳ [USERSEARCH] No hay usuarios disponibles, creando nueva sala...');
-      await createRoom();
+      return null;
       
     } catch (error) {
-      console.error('❌ [USERSEARCH] Error en siguiente persona:', error);
-      // Fallback: crear nueva sala
-      await createRoom();
-    }
-  };
-
-  // 🔥 NUEVA FUNCIÓN: MANEJAR RECONNECTION AUTOMÁTICA
-  const handleReconnection = async () => {
-    setSearchStatus(t('userSearch.reconnecting'));
-    console.log('🔌 [USERSEARCH] Manejo de reconexión automática');
-    
-    // Para reconexiones, crear sala inmediatamente
-    await createRoom();
-  };
-
-  // 🔥 NUEVA FUNCIÓN: MANEJAR RULETA INICIAL
-  const handleRuletaInicial = async () => {
-    setSearchStatus(t('userSearch.starting_roulette'));
-    console.log('🎰 [USERSEARCH] Ruleta inicial - buscando salas existentes primero');
-    
-    // 1. Intentar unirse a salas existentes
-    const joinedExisting = await searchExistingRooms();
-    
-    if (!joinedExisting && !isJoiningRoom) {
-      // 2. Crear nueva sala si no hay existentes
-      console.log('🏗️ [USERSEARCH] No hay salas existentes, creando nueva');
-      await createRoom();
-    }
-  };
-
-  // 🔥 MEJORADO: BUSCAR SALAS EXISTENTES
-  const searchExistingRooms = async () => {
-    if (isSearchingRooms) {
-      console.log('⚠️ [USERSEARCH] Ya se está buscando salas, ignorando...');
+      console.log('🎯 [ACTION] Error detectando acciones:', error);
       return null;
     }
-
-    setIsSearchingRooms(true);
-
-    try {
-      setSearchStatus(t('userSearch.rouletting'));
-      console.log('🔍 [USERSEARCH] Buscando salas existentes...');
-      
-      const authToken = sessionStorage.getItem('token');
-      if (!authToken) {
-        throw new Error('No hay token de autenticación');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/livekit/find-available-rooms`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ 
-          userRole: role,
-          lookingFor: role === 'modelo' ? 'cliente' : 'modelo',
-          excludeUserId: excludeUser,
-          searchType: searchType
-        }),
-      });
-
-      if (!response.ok) {
-        console.log('⚠️ [USERSEARCH] No hay salas disponibles');
-        return null;
-      }
-
-      const data = await response.json();
-      console.log('✅ [USERSEARCH] Salas encontradas:', data);
-
-      if (data.success && data.availableRoom) {
-        return await joinExistingRoom(data.availableRoom);
-      } else {
-        console.log('⚠️ [USERSEARCH] No hay salas compatibles');
-        return null;
-      }
-
-    } catch (error) {
-      console.log('⚠️ [USERSEARCH] Error buscando salas existentes:', error);
-      return null;
-    } finally {
-      setIsSearchingRooms(false);
-    }
   };
 
-  // 🔥 MEJORADO: UNIRSE A SALA EXISTENTE
-  const joinExistingRoom = async (roomInfo) => {
-    if (isJoiningRoom) {
-      console.log('⚠️ [USERSEARCH] Ya se está uniendo a una sala, ignorando...');
-      return true;
-    }
-
-    setIsJoiningRoom(true);
-
-    try {
-      setSearchStatus(t('userSearch.user_found_connecting'));
-      console.log('🏃‍♀️ [USERSEARCH] Uniéndose a sala:', roomInfo.roomName);
-      
-      const authToken = sessionStorage.getItem('token');
-      
-      const response = await fetch(`${API_BASE_URL}/api/livekit/join-room`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ 
-          roomName: roomInfo.roomName,
-          userRole: role,
-          searchType: searchType
-        }),
-      });
-
-      if (!response.ok) {
-        console.log('❌ [USERSEARCH] Error uniéndose a sala');
-        return null;
-      }
-
-      const data = await response.json();
-      console.log('✅ [USERSEARCH] Unido a sala existente:', data);
-
-      if (data.success) {
-        await redirectToVideoChat(data.roomName, data.userName, data, true);
-        return true;
-      }
-
-      return null;
-
-    } catch (error) {
-      console.error('❌ [USERSEARCH] Error uniéndose a sala:', error);
-      return null;
-    } finally {
-      setIsJoiningRoom(false);
-    }
-  };
-
-  // 🔥 MEJORADO: CREAR SALA
-  const createRoom = async () => {
-    if (isCreatingRoom) {
-      console.log('⚠️ [USERSEARCH] Ya se está creando una sala, ignorando...');
+  // 🚨 FUNCIÓN CRÍTICA: CREAR SALA SIN BUGS
+  const createRoomSafe = async () => {
+    // 🛑 MÚLTIPLES PROTECCIONES
+    if (isCreatingRoom || isRedirecting || hasProcessedResponse) {
+      console.log('⚠️ [USERSEARCH] Operación en curso, IGNORANDO');
       return;
     }
 
+    if (!isMountedRef.current) {
+      console.log('⚠️ [USERSEARCH] Componente desmontado, IGNORANDO');
+      return;
+    }
+
+    // 🔥 BLOQUEAR EJECUCIONES ADICIONALES
     setIsCreatingRoom(true);
+    setHasProcessedResponse(true);
 
     try {
-      setSearchStatus(t('userSearch.rouletting'));
-      console.log('🏗️ [USERSEARCH] Creando nueva sala, tipo:', searchType);
-      
+      setSearchStatus('Creando sala...');
+      console.log('🏗️ [USERSEARCH] Creando sala ÚNICA');
+
+      // 🌐 VERIFICAR RED ANTES DE CONTINUAR
+      const networkCheck = await checkNetworkQuality();
+      if (!networkCheck.isOnline) {
+        throw new Error('Sin conexión a internet');
+      }
+
       const authToken = sessionStorage.getItem('token');
       if (!authToken) {
         throw new Error('No hay token de autenticación');
       }
 
-      let endpoint = '';
-      let body = {};
+      // 🔥 ENDPOINT Y BODY SEGÚN CONTEXTO
+      let endpoint = '/api/ruleta/iniciar';
+      let body = { 
+        userRole: role,
+        simple: true,
+        preventDouble: true,
+        networkQuality: networkCheck.quality
+      };
 
-      // 🔥 DIFERENTES ENDPOINTS SEGÚN TIPO DE BÚSQUEDA
-      if (searchType === 'siguiente' && currentRoom && userName) {
+      if (action === 'siguiente' && currentRoom && userName) {
         endpoint = '/api/livekit/next-room';
         body = { 
+          action: 'siguiente',
           currentRoom,
           userName,
-          reason: `${role}_siguiente`,
           excludeUserId: excludeUser,
-          excludeUserName: excludeUserName,
-          searchType: 'siguiente'
-        };
-      } else {
-        // Ruleta inicial o reconnect
-        endpoint = '/api/ruleta/iniciar';
-        body = { 
           userRole: role,
-          searchType: searchType
+          preventDouble: true,
+          networkQuality: networkCheck.quality
         };
       }
 
-      console.log(`📡 [USERSEARCH] Creando sala en ${endpoint}`, body);
+      console.log(`📡 [USERSEARCH] Request a ${endpoint}:`, body);
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
@@ -348,13 +214,53 @@ const UserSearch = () => {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Error ${response.status}: ${errorText}`);
+        if (response.status === 429) {
+          throw new Error('Servidor ocupado');
+        }
+        throw new Error(`Error ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('✅ [USERSEARCH] Sala creada:', data);
+      console.log('✅ [USERSEARCH] Respuesta:', JSON.stringify(data, null, 2));
 
+      // 🚨 PROCESAMIENTO CRÍTICO DE RESPUESTA
+      await processServerResponse(data);
+
+    } catch (error) {
+      console.error('❌ [USERSEARCH] Error:', error);
+      setError(error.message);
+      setSearchStatus('Error conectando');
+      
+      // Reset flags en caso de error
+      setIsCreatingRoom(false);
+      setHasProcessedResponse(false);
+    }
+  };
+
+  // 🚨 FUNCIÓN CRÍTICA: PROCESAR RESPUESTA DEL SERVIDOR
+  const processServerResponse = async (data) => {
+    if (!data.success) {
+      throw new Error('Respuesta del servidor no exitosa');
+    }
+
+    console.log('🔍 [USERSEARCH] Procesando tipo:', data.type);
+
+    // 🎉 CASO 1: MATCH ENCONTRADO - REDIRECCIONAR INMEDIATAMENTE
+    if (data.type === 'match_found' || data.type === 'direct_match') {
+      console.log('🎉 [USERSEARCH] MATCH ENCONTRADO - REDIRIGIENDO INMEDIATAMENTE');
+      
+      if (!data.roomName || !data.userName) {
+        throw new Error('Datos de match incompletos');
+      }
+
+      await redirectToVideoChat(data.roomName, data.userName, data, true);
+      return;
+    }
+
+    // ⏳ CASO 2: SALA CREADA PARA ESPERAR
+    if (data.type === 'waiting' || data.type === 'room_created' || data.roomName) {
+      console.log('⏳ [USERSEARCH] SALA CREADA - INICIAR ESPERA');
+      
       const roomName = data.roomName || data.newRoomName;
       const finalUserName = data.userName;
 
@@ -362,142 +268,166 @@ const UserSearch = () => {
         throw new Error('Datos de sala incompletos');
       }
 
-      // 🔥 ACTUALIZAR ESTADO DE LA SALA
       const newRoomData = {
         roomName,
         userName: finalUserName,
-        ruletaData: data,
-        searchType: searchType
+        ruletaData: data
       };
       
       setRoomData(newRoomData);
-      // 🔥 MANTENER "Ruleteando" hasta que realmente esté esperando
-      setSearchStatus(t('userSearch.rouletting'));
+      setSearchStatus(role === 'modelo' ? 'Esperando cliente...' : 'Esperando modelo...');
       
-      // 🔥 HEARTBEAT INICIAL
-      await sendHeartbeatDirect('searching', roomName);
-      
-      // 🔥 INICIAR VERIFICACIÓN PERIÓDICA
-      startWaitingForUsers(roomName, finalUserName, newRoomData);
-
-    } catch (error) {
-      console.error('❌ [USERSEARCH] Error creando sala:', error);
-      setError(error.message);
-      setSearchStatus(t('userSearch.error_connecting'));
-    } finally {
-      setIsCreatingRoom(false);
+      // 🚀 INICIAR VERIFICACIÓN OPTIMIZADA
+      startOptimizedWaiting(roomName, finalUserName, newRoomData);
+      return;
     }
+
+    throw new Error(`Tipo de respuesta no reconocida: ${data.type}`);
   };
 
-  // 🔥 MEJORADO: VERIFICACIÓN INTELIGENTE DE USUARIOS
-  const startWaitingForUsers = (roomName, finalUserName, currentRoomData) => {
-    console.log(`⏳ [USERSEARCH] Esperando usuarios en sala: ${roomName}`);
+  // 🚨 FUNCIÓN: ESPERA OPTIMIZADA CON DETECCIÓN DE ACCIONES
+  const startOptimizedWaiting = (roomName, finalUserName, roomDataObj) => {
+    console.log(`⏳ [USERSEARCH] Iniciando espera OPTIMIZADA para: ${roomName}`);
     
-    // 🔥 CAMBIAR A MENSAJE ESPECÍFICO SEGÚN ROL
-    const waitingMessage = role === 'modelo' ? t('userSearch.waiting_guy') : t('userSearch.waiting_girl');
-    setSearchStatus(waitingMessage);
+    // 🌐 Monitor de red cada 5 segundos
+    networkTimerRef.current = setInterval(() => {
+      checkNetworkQuality();
+    }, 5000);
     
-    // 🔥 HEARTBEAT INICIAL
-    sendHeartbeatDirect('searching', roomName);
-    
-    // Timer para contar tiempo de espera
+    // 🎯 Monitor de acciones cada 1 segundo (MÁS RÁPIDO)
+    actionTimerRef.current = setInterval(async () => {
+      if (!isMountedRef.current || isRedirecting) return;
+      
+      const action = await detectUserActions(roomName);
+      if (action) {
+        console.log(`🎯 [ACTION] Acción detectada: ${action.type}`);
+        setActionDetection(prev => ({
+          ...prev,
+          isMonitoring: true,
+          actionType: action.type,
+          detectedAt: new Date(action.timestamp)
+        }));
+        
+        // Si es stop, redirigir inmediatamente a home
+        if (action.type === 'stop') {
+          console.log('🛑 [ACTION] STOP detectado - redirigiendo a home');
+          handleStopAction();
+          return;
+        }
+        
+        // 🔥 FORZAR REDIRECCIÓN INMEDIATA EN "SIGUIENTE"
+        if (action.type === 'siguiente') {
+          console.log('⏭️ [ACTION] SIGUIENTE detectado - FORZANDO REDIRECCIÓN INMEDIATA');
+          handleNextAction();
+          return;
+        }
+      }
+    }, 1000); // 🔥 CAMBIADO A 1 SEGUNDO (más rápido)
+
+    // Timer para tiempo de espera
     waitTimerRef.current = setInterval(() => {
       setWaitTime(prev => prev + 1);
     }, 1000);
 
-    // 🔥 VERIFICACIÓN MÁS INTELIGENTE
     let checkCount = 0;
-    
+    // 🔥 SIN LÍMITE DE CHECKS - ESPERA INDEFINIDA HASTA MATCH REAL
+
+    // 🔄 VERIFICACIÓN CADA 2 SEGUNDOS (MÁS RÁPIDO) - SOLO REDIRIGE CON MATCH REAL
     checkIntervalRef.current = setInterval(async () => {
-      if (!isMountedRef.current || isRedirecting) return;
+      if (!isMountedRef.current || isRedirecting) {
+        console.log('🛑 [USERSEARCH] Componente desmontado o redirigiendo, deteniendo checks');
+        return;
+      }
       
       checkCount++;
-      setConsecutiveChecks(checkCount);
+      setCheckCount(checkCount);
+      console.log(`🔍 [USERSEARCH] Check ${checkCount} - Esperando match real`);
+
+      // 🎯 SOLO REDIRIGIR CON MATCH REAL - SIN TIMEOUT AUTOMÁTICO
       
       try {
-        // 🔥 HEARTBEAT EN CADA VERIFICACIÓN
-        await sendHeartbeatDirect('searching', roomName);
-        
-        console.log(`🔍 [USERSEARCH] Check #${checkCount} en sala: ${roomName}`);
-        
-        const authToken = sessionStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/api/chat/participants/${roomName}`, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${authToken}` },
-        });
-
-        if (!response.ok) {
-          console.log('⚠️ [USERSEARCH] Error verificando participantes:', response.status);
+        // 🌐 Verificar red antes del check
+        const networkCheck = await checkNetworkQuality();
+        if (!networkCheck.isOnline) {
+          console.log('🌐 [CHECK] Sin red, saltando verificación');
           return;
         }
 
-        const data = await response.json();
-        const participantCount = data.total_count || 0;
+        const participantData = await checkParticipantsSafe(roomName);
+        const participantCount = participantData?.total_count || 0;
         
-        console.log(`📊 [USERSEARCH] Check #${checkCount}: ${participantCount}/2 participantes`, {
-          participants: data.participants?.map(p => p.identity) || [],
-          searchType: searchType
-        });
+        console.log(`📊 [USERSEARCH] Check ${checkCount}: ${participantCount}/2 participantes - Esperando match real`);
 
-        // 🔥 VERIFICAR SI HAY 2 O MÁS PARTICIPANTES
+        // 🎉 SOLO REDIRIGIR CUANDO HAY MATCH REAL (2+ participantes)
         if (participantCount >= 2) {
-          console.log('🎉 [USERSEARCH] ¡Usuario encontrado! Ambos conectados');
+          console.log('🎉 [USERSEARCH] MATCH REAL ENCONTRADO - REDIRIGIENDO');
+          clearAllIntervals();
           
-          // 🔥 MARCAR SALA COMO ACTIVA
-          await markRoomAsActive(roomName);
-          
-          // 🔥 REDIRECCIONAR INMEDIATAMENTE
-          await redirectToVideoChat(roomName, finalUserName, currentRoomData?.ruletaData, false);
-          
-        } else {
-          // Continuar esperando - usar mensaje específico según rol
-          const waitingMessage = role === 'modelo' ? t('userSearch.waiting_guy') : t('userSearch.waiting_girl');
-          setSearchStatus(waitingMessage);
-          
-          // 🔥 RECREAR SALA SI LLEVA MUCHO TIEMPO SIN USUARIOS
-          if (checkCount >= 15 && searchType === 'inicial') {
-            console.log('🔄 [USERSEARCH] Mucho tiempo esperando (inicial), recreando sala...');
-            await recreateRoom(roomName, finalUserName);
-          } else if (checkCount >= 25 && searchType === 'siguiente') {
-            console.log('🔄 [USERSEARCH] Mucho tiempo esperando (siguiente), recreando sala...');
-            await recreateRoom(roomName, finalUserName);
-          }
+          await redirectToVideoChat(roomName, finalUserName, roomDataObj.ruletaData, false);
         }
+        // 🔄 SI NO HAY MATCH, CONTINUAR ESPERANDO (NO TIMEOUT)
 
       } catch (error) {
-        console.error('⚠️ [USERSEARCH] Error verificando sala:', error);
+        console.log(`⚠️ [USERSEARCH] Error en check ${checkCount}:`, error);
       }
-    }, 7000); // 🔥 7 segundos entre verificaciones
+    }, 2000); // 🔥 CAMBIADO A 2 SEGUNDOS (más rápido)
   };
 
-  // 🔥 NUEVA FUNCIÓN: MARCAR SALA COMO ACTIVA
-  const markRoomAsActive = async (roomName) => {
-    try {
-      const authToken = sessionStorage.getItem('token');
-      await fetch(`${API_BASE_URL}/api/livekit/mark-room-active`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ 
-          roomName, 
-          status: 'active',
-          timestamp: Date.now(),
-          searchType: searchType
-        }),
-      });
-      console.log('✅ [USERSEARCH] Sala marcada como activa:', roomName);
-    } catch (error) {
-      console.log('⚠️ [USERSEARCH] Error marcando sala activa:', error);
-    }
-  };
-
-  // 🔥 NUEVA FUNCIÓN: RECREAR SALA
-  const recreateRoom = async (oldRoomName, oldUserName) => {
-    console.log('🔄 [USERSEARCH] Recreando sala... Antigua:', oldRoomName);
+  // 🛑 FUNCIÓN: MANEJAR ACCIÓN DE STOP
+  const handleStopAction = () => {
+    console.log('🛑 [STOP] Procesando acción de stop');
     
-    // Limpiar timers
+    clearAllIntervals();
+    
+    // Limpiar estado
+    isMountedRef.current = false;
+    window.__USERSEARCH_ACTIVE = null;
+    sessionStorage.removeItem('inCall');
+    sessionStorage.removeItem('videochatActive');
+    
+    // Redirigir según rol
+    const homeRoute = role === 'modelo' ? '/homellamadas' : '/homecliente';
+    navigate(homeRoute, { replace: true });
+  };
+
+  // ⏭️ FUNCIÓN: MANEJAR ACCIÓN DE SIGUIENTE (NUEVA)
+  const handleNextAction = () => {
+    console.log('⏭️ [NEXT] Procesando acción de siguiente - FORZANDO REDIRECCIÓN');
+    
+    clearAllIntervals();
+    
+    // 🔥 FORZAR LIMPIEZA TOTAL
+    isMountedRef.current = false;
+    window.__USERSEARCH_ACTIVE = null;
+    sessionStorage.removeItem('inCall');
+    sessionStorage.removeItem('videochatActive');
+    sessionStorage.removeItem('roomName');
+    sessionStorage.removeItem('currentRoom');
+    
+    // 🚀 REDIRECCIÓN FORZADA A USERSEARCH CON PARÁMETROS
+    const searchParams = new URLSearchParams({
+      role: role,
+      action: 'siguiente',
+      from: 'forced_redirect',
+      timestamp: Date.now()
+    });
+    
+    console.log('🚀 [NEXT] Redirigiendo a nueva búsqueda:', searchParams.toString());
+    
+    // 🔥 MÚLTIPLES MÉTODOS DE REDIRECCIÓN PARA ASEGURAR
+    navigate(`/usersearch?${searchParams}`, { replace: true });
+    
+    // Backup con timeout
+    setTimeout(() => {
+      if (window.location.pathname !== '/usersearch') {
+        console.log('🔄 [NEXT] Backup redirect ejecutándose');
+        window.location.href = `/usersearch?${searchParams}`;
+      }
+    }, 500);
+  };
+
+  // 🧹 FUNCIÓN: LIMPIAR TODOS LOS INTERVALS
+  const clearAllIntervals = () => {
     if (checkIntervalRef.current) {
       clearInterval(checkIntervalRef.current);
       checkIntervalRef.current = null;
@@ -508,395 +438,424 @@ const UserSearch = () => {
       waitTimerRef.current = null;
     }
     
-    // Resetear estados
-    setWaitTime(0);
-    setConsecutiveChecks(0);
-    setRoomData(null);
-    
-    // 🔥 NOTIFICAR SERVIDOR SOBRE SALA ANTIGUA
-    try {
-      const authToken = sessionStorage.getItem('token');
-      await fetch(`${API_BASE_URL}/api/livekit/abandon-room`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ 
-          roomName: oldRoomName,
-          userName: oldUserName,
-          reason: 'timeout_recreation'
-        }),
-      });
-    } catch (error) {
-      console.log('⚠️ [USERSEARCH] Error notificando abandono de sala:', error);
+    if (networkTimerRef.current) {
+      clearInterval(networkTimerRef.current);
+      networkTimerRef.current = null;
     }
     
-    // Crear nueva sala
-    setSearchStatus(t('userSearch.rouletting'));
-    await createRoom();
+    if (actionTimerRef.current) {
+      clearInterval(actionTimerRef.current);
+      actionTimerRef.current = null;
+    }
   };
 
-  // 🔥 FUNCIÓN CENTRALIZADA DE REDIRECCIÓN
-  const redirectToVideoChat = async (roomName, finalUserName, ruletaData = null, joinedExisting = false) => {
+  // 🚨 FUNCIÓN: VERIFICAR PARTICIPANTES CON PROTECCIÓN (MÁS RÁPIDO)
+  const checkParticipantsSafe = async (roomName) => {
+    try {
+      const lastCheck = localStorage.getItem('lastParticipantCheck');
+      const now = Date.now();
+      
+      // 🔥 REDUCIR RATE LIMITING PARA SER MÁS RÁPIDO
+      if (lastCheck && (now - parseInt(lastCheck)) < 1000) {
+        console.log('⏰ [CHECK] Rate limited, retornando 0');
+        return { total_count: 0 };
+      }
+      
+      const authToken = sessionStorage.getItem('token');
+      if (!authToken) return { total_count: 0 };
+
+      const response = await fetch(`${API_BASE_URL}/api/chat/participants/${roomName}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${authToken}` },
+      });
+
+      if (response.ok) {
+        localStorage.setItem('lastParticipantCheck', now.toString());
+        return await response.json();
+      }
+      
+      return { total_count: 0 };
+    } catch (error) {
+      console.log('⚠️ [CHECK] Error verificando participantes:', error);
+      return { total_count: 0 };
+    }
+  };
+
+  // 🚨 FUNCIÓN: REDIRECCIÓN PROTEGIDA (MÁS AGRESIVA)
+  const redirectToVideoChat = async (roomName, finalUserName, ruletaData = null, fromMatch = false) => {
     if (isRedirecting) {
-      console.log('⚠️ [USERSEARCH] Ya se está redirigiendo, ignorando...');
+      console.log('⚠️ [REDIRECT] Ya redirigiendo, ignorando');
       return;
     }
 
     setIsRedirecting(true);
 
     try {
-      console.log('🎯 [USERSEARCH] Iniciando redirección...', {
+      console.log('🎯 [REDIRECT] Navegando a videochat:', {
         roomName,
         finalUserName,
-        joinedExisting,
-        searchType
+        fromMatch,
+        role
       });
 
-      setSearchStatus(t('userSearch.connecting'));
-      
-      // 🔥 HEARTBEAT FINAL ANTES DE REDIRECCIONAR
-      await sendHeartbeatDirect('videochat', roomName);
-      
-      // Detener todas las verificaciones
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current);
-        checkIntervalRef.current = null;  
-      }
-      
-      if (waitTimerRef.current) {
-        clearInterval(waitTimerRef.current);
-        waitTimerRef.current = null;
-      }
+      setSearchStatus('Conectando...');
+      clearAllIntervals();
+
+      // 🔥 GUARDAR EN SESSIONSTORAGE PARA VIDEOCHAT
+      sessionStorage.setItem('roomName', roomName);
+      sessionStorage.setItem('userName', finalUserName);
+      sessionStorage.setItem('currentRoom', roomName);
+      sessionStorage.setItem('inCall', 'true');
+      sessionStorage.setItem('videochatActive', 'true');
 
       const targetRoute = role === 'modelo' ? '/videochat' : '/videochatclient';
-      const urlParams = new URLSearchParams({
-        roomName,
-        userName: finalUserName,
-        ...(selectedCamera && { selectedCamera }),
-        ...(selectedMic && { selectedMic }),
-        searchType: searchType,
-        from: 'usersearch'
+      
+      console.log(`🧭 [REDIRECT] Navegando a: ${targetRoute}`);
+
+      // 🔥 REDIRECCIÓN MÚLTIPLE PARA ASEGURAR
+      navigate(targetRoute, {
+        state: {
+          roomName,
+          userName: finalUserName,
+          selectedCamera,
+          selectedMic,
+          ruletaData,
+          fromMatch,
+          from: 'usersearch',
+          modelo: ruletaData?.modelo || null
+        },
+        replace: true
       });
 
-      console.log(`🧭 [USERSEARCH] Redirigiendo a: ${targetRoute}?${urlParams}`);
-
-      // 🔥 DELAY MÍNIMO PARA EVITAR RACE CONDITIONS
+      // 🔥 BACKUP INMEDIATO
       setTimeout(() => {
-        navigate(`${targetRoute}?${urlParams}`, {
-          state: {
-            roomName,
-            userName: finalUserName,
-            selectedCamera,
-            selectedMic,
-            ruletaData: ruletaData || roomData?.ruletaData,
-            joinedExisting,
-            searchType: searchType,
-            from: 'usersearch'
-          },
-          replace: true
+        const urlParams = new URLSearchParams({
+          roomName,
+          userName: finalUserName
         });
-      }, 1000); // 1 segundo para asegurar que todo esté listo
+        
+        window.history.replaceState(
+          { roomName, userName: finalUserName },
+          '',
+          `${targetRoute}?${urlParams}`
+        );
+        
+        // 🚀 FORZAR REDIRECCIÓN SI NO FUNCIONÓ
+        if (window.location.pathname !== targetRoute) {
+          console.log('🔄 [REDIRECT] Forzando redirección con window.location');
+          window.location.href = `${targetRoute}?${urlParams}`;
+        }
+      }, 100);
+
+      // 🔥 SEGUNDO BACKUP
+      setTimeout(() => {
+        if (window.location.pathname !== targetRoute) {
+          console.log('🚨 [REDIRECT] Segundo intento de redirección forzada');
+          window.location.replace(`${targetRoute}?roomName=${roomName}&userName=${finalUserName}`);
+        }
+      }, 1000);
 
     } catch (error) {
-      console.error('❌ [USERSEARCH] Error en redirección:', error);
-      setError(t('userSearch.error_connecting'));
+      console.error('❌ [REDIRECT] Error:', error);
+      setError('Error conectando');
       setIsRedirecting(false);
+      
+      // 🔥 FALLBACK EN CASO DE ERROR
+      setTimeout(() => {
+        const targetRoute = role === 'modelo' ? '/videochat' : '/videochatclient';
+        window.location.href = `${targetRoute}?roomName=${roomName}&userName=${finalUserName}`;
+      }, 500);
     }
   };
 
-  // 🔥 USEEFFECT PRINCIPAL - MEJORADO
+  // 🚨 USEEFFECT PRINCIPAL - ULTRA PROTEGIDO
   useEffect(() => {
-    // 🔥 PREVENIR DOBLE MONTAJE EN DESARROLLO
-    if (window.__USERSEARCH_ACTIVE) {
-      console.log('🛑 [USERSEARCH] Ya hay una búsqueda activa, ignorando montaje duplicado');
+    const mountKey = `usersearch_${role}_${Date.now()}`;
+    
+    if (window.__USERSEARCH_ACTIVE === mountKey) {
+      console.log('🛑 [MOUNT] Ya activo con esta clave, ignorando');
       return;
     }
-    window.__USERSEARCH_ACTIVE = true;
+
+    if (window.__USERSEARCH_ACTIVE) {
+      console.log('🛑 [MOUNT] Hay otra instancia activa, esperando...');
+      setTimeout(() => {
+        window.__USERSEARCH_ACTIVE = null;
+      }, 1000);
+      return;
+    }
+
+    window.__USERSEARCH_ACTIVE = mountKey;
 
     if (!role) {
-      console.error('❌ [USERSEARCH] Falta parámetro role');
+      console.error('❌ [MOUNT] Sin rol, navegando a home');
       navigate('/home');
       return;
     }
 
-    console.log('🚀 [USERSEARCH] Iniciando proceso centralizado...');
+    console.log('🚀 [MOUNT] Iniciando UserSearch ÚNICO:', mountKey);
     isMountedRef.current = true;
     
-    // 🔥 DELAY MÍNIMO PARA EVITAR RACE CONDITIONS
+    // 🌐 VERIFICAR RED AL INICIO
+    checkNetworkQuality();
+    
     const initTimeout = setTimeout(() => {
-      if (isMountedRef.current) {
-        initializeSearch();
+      if (isMountedRef.current && window.__USERSEARCH_ACTIVE === mountKey) {
+        createRoomSafe();
       }
-    }, 200);
+    }, 300);
 
-    // Cleanup
     return () => {
-      console.log('🧹 [USERSEARCH] Limpiando...');
+      console.log('🧹 [CLEANUP] Limpiando UserSearch:', mountKey);
       clearTimeout(initTimeout);
-      window.__USERSEARCH_ACTIVE = false;
-      isMountedRef.current = false;
       
-      // Resetear estados de protección
-      setIsSearchingRooms(false);
-      setIsJoiningRoom(false);
+      if (window.__USERSEARCH_ACTIVE === mountKey) {
+        window.__USERSEARCH_ACTIVE = null;
+      }
+      
+      isMountedRef.current = false;
+      clearAllIntervals();
+
       setIsCreatingRoom(false);
       setIsRedirecting(false);
-      
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current);
-        checkIntervalRef.current = null;
-      }
-      
-      if (waitTimerRef.current) {
-        clearInterval(waitTimerRef.current);
-        waitTimerRef.current = null;
-      }
+      setHasProcessedResponse(false);
     };
-  }, [role]); // Solo depende del role
-
-  // 🔥 TIMEOUT DE SEGURIDAD (3 minutos)
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      console.log('⏰ [USERSEARCH] Timeout alcanzado (3 minutos)');
-      
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current);
-        checkIntervalRef.current = null;
-      }
-      
-      if (waitTimerRef.current) {
-        clearInterval(waitTimerRef.current);
-        waitTimerRef.current = null;
-      }
-      
-      setError(t('userSearch.timeout_message'));
-      setSearchStatus(t('userSearch.timeout_status'));
-    }, 180000); // 3 minutos
-
-    return () => clearTimeout(timeout);
   }, []);
 
-  // 🔥 FUNCIÓN PARA VOLVER
-  const handleGoBack = () => {
-    console.log('↩️ [USERSEARCH] Usuario canceló búsqueda');
-    
-    // Detener verificaciones
-    if (checkIntervalRef.current) {
-      clearInterval(checkIntervalRef.current);
-      checkIntervalRef.current = null;
-    }
-    
-    if (waitTimerRef.current) {
-      clearInterval(waitTimerRef.current);
-      waitTimerRef.current = null;
-    }
-    
-    isMountedRef.current = false;
-    
-    // 🔥 NOTIFICAR SERVIDOR SOBRE CANCELACIÓN
-    if (roomData?.roomName) {
-      try {
-        const authToken = sessionStorage.getItem('token');
-        fetch(`${API_BASE_URL}/api/livekit/abandon-room`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({ 
-            roomName: roomData.roomName,
-            userName: roomData.userName,
-            reason: 'user_cancelled'
-          }),
-        });
-      } catch (error) {
-        console.log('⚠️ [USERSEARCH] Error notificando cancelación:', error);
+  // 🚨 TIMEOUT DE SEGURIDAD CORREGIDO (SOLO PARA CASOS EXTREMOS)
+  useEffect(() => {
+    const safetyTimeout = setTimeout(() => {
+      console.log('🚨 [SAFETY] Timeout de seguridad (5 min) - REGRESANDO AL HOME');
+      
+      clearAllIntervals();
+      
+      if (!isRedirecting) {
+        // 🔥 LIMPIAR TODO Y REGRESAR AL HOME (NO AL VIDEOCHAT)
+        isMountedRef.current = false;
+        window.__USERSEARCH_ACTIVE = null;
+        sessionStorage.removeItem('inCall');
+        sessionStorage.removeItem('videochatActive');
+        sessionStorage.removeItem('roomName');
+        sessionStorage.removeItem('currentRoom');
+        
+        setError('Tiempo de espera agotado - regresando al inicio');
+        
+        setTimeout(() => {
+          const homeRoute = role === 'modelo' ? '/homellamadas' : '/homecliente';
+          console.log('🏠 [SAFETY] Redirigiendo a:', homeRoute);
+          
+          // 🚀 MÚLTIPLES MÉTODOS PARA ASEGURAR REDIRECCIÓN AL HOME
+          navigate(homeRoute, { replace: true });
+          
+          // Backup 1
+          setTimeout(() => {
+            if (window.location.pathname !== homeRoute) {
+              console.log('🔄 [SAFETY] Backup 1 - window.location');
+              window.location.href = homeRoute;
+            }
+          }, 500);
+          
+          // Backup 2
+          setTimeout(() => {
+            if (window.location.pathname !== homeRoute) {
+              console.log('🚨 [SAFETY] Backup 2 - forzando home');
+              window.location.replace(homeRoute);
+            }
+          }, 1500);
+          
+        }, 2000);
       }
-    }
+    }, 300000); // 5 MINUTOS MÁXIMO
+
+    return () => clearTimeout(safetyTimeout);
+  }, []);
+
+  // 🚨 FUNCIÓN PARA VOLVER (MEJORADA)
+  const handleGoBack = () => {
+    console.log('↩️ [BACK] Cancelando búsqueda');
     
-    // Redirigir según rol
-    if (role === 'modelo') {
-      navigate('/esperandocall');
-    } else if (role === 'cliente') {
-      navigate('/esperandocallcliente');
-    } else {
-      navigate('/home');
-    }
+    clearAllIntervals();
+    isMountedRef.current = false;
+    window.__USERSEARCH_ACTIVE = null;
+    
+    // 🔥 LIMPIAR DATOS DE SESIÓN
+    sessionStorage.removeItem('inCall');
+    sessionStorage.removeItem('videochatActive');
+    sessionStorage.removeItem('roomName');
+    sessionStorage.removeItem('currentRoom');
+    
+    const fallbackRoute = role === 'modelo' ? '/esperandocall' : '/esperandocallcliente';
+    navigate(fallbackRoute, { replace: true });
   };
 
-  // 🔥 FORMATEAR TIEMPO DE ESPERA
+  // 🔥 FORMATEAR TIEMPO
   const formatWaitTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 🔥 FUNCIÓN PARA MOSTRAR ESTADO SEGÚN TIPO DE BÚSQUEDA
-  const getStatusMessage = () => {
-    if (isRedirecting) {
-      return (
-        <div className="space-y-2">
-          <p className="text-green-400 text-sm font-medium">🎉 {t('userSearch.user_found_connecting')}</p>
-          <div className="flex items-center justify-center gap-2 text-xs text-green-400">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
-            <span>{t('userSearch.preparing_connection')}</span>
-          </div>
-        </div>
-      );
-    }
-    
-    return <p className="text-gray-400 mb-6 text-sm leading-relaxed">{searchStatus}</p>;
-  };
-
-  // 🔥 FUNCIÓN PARA OBTENER EMOJI SEGÚN TIPO
-  const getSearchEmoji = () => {
-    switch (searchType) {
-      case 'siguiente': return '🔄';
-      case 'reconnect': return '🔌';
-      case 'inicial': 
-      default: return '🎰';
+  // 🌐 OBTENER ICONO DE CALIDAD DE RED
+  const getNetworkIcon = (quality) => {
+    switch (quality) {
+      case 'excellent': return '🟢';
+      case 'good': return '🟡';
+      case 'poor': return '🔴';
+      default: return '⚪';
     }
   };
 
-  // 🔥 FUNCIÓN PARA OBTENER TÍTULO SEGÚN TIPO
-  const getSearchTitle = () => {
-    if (isRedirecting) return `🎉 ${t('userSearch.connecting')}`;
-    
-    switch (searchType) {
-      case 'siguiente': 
-        return role === 'modelo' ? t('userSearch.searching_new_guy') : t('userSearch.searching_new_girl');
-      case 'reconnect': 
-        return t('userSearch.reconnecting');
-      case 'inicial': 
-      default: 
-        return roomData ? 
-          (role === 'modelo' ? t('userSearch.waiting_guy') : t('userSearch.waiting_girl')) :
-          t('userSearch.starting_roulette');
+  // 🎯 OBTENER ICONO DE ACCIÓN
+  const getActionIcon = (actionType) => {
+    switch (actionType) {
+      case 'stop': return '🛑';
+      case 'siguiente': return '⏭️';
+      default: return '👁️';
     }
   };
 
-  // 🔥 RENDER PRINCIPAL
+  // 🚨 RENDER MEJORADO
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex items-center justify-center p-4">
       <div className="text-center max-w-md mx-auto">
-        {/* Spinner animado con emoji dinámico */}
+        {/* Spinner */}
         <div className="relative mb-8">
           <div className="animate-spin rounded-full h-24 w-24 border-4 border-transparent border-t-[#ff007a] border-r-[#ff007a] mx-auto"></div>
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-4xl animate-pulse">
-              {isRedirecting ? '🎉' : getSearchEmoji()}
+              {isRedirecting ? '🎉' : 
+               actionDetection.actionType === 'stop' ? '🛑' : 
+               actionDetection.actionType === 'siguiente' ? '⏭️' : '🎰'}
             </div>
           </div>
         </div>
 
-        {/* Título dinámico según tipo de búsqueda */}
+        {/* Título */}
         <h2 className="text-2xl font-bold mb-4 text-white">
-          {getSearchTitle()}
+          {isRedirecting ? '🎉 Conectando...' : 
+           actionDetection.actionType === 'stop' ? '🛑 Finalizando...' :
+           actionDetection.actionType === 'siguiente' ? '⏭️ Cambiando...' :
+           action === 'siguiente' ? 
+             (role === 'modelo' ? 'Buscando nuevo cliente' : 'Buscando nueva modelo') :
+             'Iniciando ruleta...'}
         </h2>
 
-        {/* Estado actual dinámico */}
-        {getStatusMessage()}
+        {/* Estado */}
+        <p className="text-gray-400 mb-6 text-sm">{searchStatus}</p>
 
-        {/* Información de la sala creada - SIMPLIFICADA */}
+        {/* Monitor de Red */}
+        <div className="mb-4 p-3 bg-[#1a1d21] rounded-lg border border-gray-700">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center space-x-2">
+              <span>{getNetworkIcon(networkStatus.quality)}</span>
+              <span className="text-gray-400">Red:</span>
+              <span className={`font-bold ${
+                networkStatus.quality === 'excellent' ? 'text-green-400' :
+                networkStatus.quality === 'good' ? 'text-yellow-400' : 'text-red-400'
+              }`}>
+                {networkStatus.quality === 'excellent' ? 'Excelente' :
+                 networkStatus.quality === 'good' ? 'Buena' :
+                 networkStatus.quality === 'poor' ? 'Mala' : 'Verificando...'}
+              </span>
+            </div>
+            {networkStatus.latency && (
+              <span className="text-gray-500">{networkStatus.latency}ms</span>
+            )}
+          </div>
+          {networkStatus.lastCheck && (
+            <div className="text-[10px] text-gray-500 mt-1">
+              Última verificación: {networkStatus.lastCheck}
+            </div>
+          )}
+        </div>
+
+        {/* Monitor de Acciones */}
+        {actionDetection.isMonitoring && (
+          <div className="mb-4 p-3 bg-[#1f1521] rounded-lg border border-purple-500/30">
+            <div className="flex items-center justify-center space-x-2 text-xs">
+              <span>{getActionIcon(actionDetection.actionType)}</span>
+              <span className="text-purple-400">Detectando acciones del usuario</span>
+            </div>
+            {actionDetection.detectedAt && (
+              <div className="text-[10px] text-gray-500 mt-1">
+                Última detección: {actionDetection.detectedAt.toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Info de progreso SIN nombre de sala */}
         {roomData && !isRedirecting && (
           <div className="mb-6 p-4 bg-[#1f2125] rounded-lg border border-[#ff007a]/30">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="text-left">
-                <span className="text-gray-500">{t('userSearch.time')}</span>
-                <span className="text-white font-bold ml-1">{formatWaitTime(waitTime)}</span>
+            <div className="text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Tiempo de espera:</span>
+                <span className="text-white font-bold text-lg">{formatWaitTime(waitTime)}</span>
               </div>
-              <div className="text-right">
-                <span className="text-gray-500">{t('userSearch.checks')}</span>
-                <span className="text-white font-bold ml-1">{consecutiveChecks}</span>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Verificaciones:</span>
+                <span className="text-blue-400">{checkCount} checks</span>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Barra de progreso animada */}
-        {!error && !isRedirecting && (
-          <div className="space-y-4 mb-8">
-            <div className="w-full bg-[#1e1f24] rounded-full h-2 overflow-hidden">
-              <div 
-                className="bg-gradient-to-r from-[#ff007a] to-pink-500 h-2 rounded-full animate-pulse"
-                style={{
-                  animation: 'loading-bar 2s ease-in-out infinite',
-                  width: roomData ? '80%' : '40%'
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Indicador de redirección */}
-        {isRedirecting && (
-          <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-lg">
-            <div className="flex items-center justify-center gap-3">
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-400 border-t-transparent"></div>
-              <p className="text-green-400 text-sm font-medium">
-                {t('userSearch.user_found_connecting')}
+              
+              <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+                <div 
+                  className="bg-[#ff007a] h-2 rounded-full transition-all duration-300 animate-pulse"
+                  style={{ width: '100%' }}
+                ></div>
+              </div>
+              
+              <p className="text-green-400 text-center mt-2">
+                ✨ Esperando match real - Sin límite de tiempo
               </p>
             </div>
-            <p className="text-green-300 text-xs mt-2">
-              {t('userSearch.preparing_connection')}
-            </p>
           </div>
         )}
 
         {/* Error */}
         {error && (
           <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-            <p className="text-red-400 text-sm font-medium">❌ {error}</p>
-            <p className="text-red-300 text-xs mt-2">
-              {searchType === 'siguiente' ? 
-                t('userSearch.try_another_user') : 
-                t('userSearch.try_again')
-              }
-            </p>
+            <p className="text-red-400 text-sm">❌ {error}</p>
           </div>
         )}
 
-        {/* Botón para volver - dinámico según contexto */}
-        {!isRedirecting && (
+        {/* Botón volver */}
+        {!isRedirecting && actionDetection.actionType !== 'stop' && (
           <button
             onClick={handleGoBack}
             className="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-full text-white text-sm transition"
           >
-            {error ? 
-              t('userSearch.back') : 
-              searchType === 'siguiente' ? 
-                t('userSearch.cancel_search') : 
-                t('userSearch.cancel_wait')
-            }
+            ← Volver
           </button>
         )}
 
-        {/* Información adicional - SIMPLIFICADA */}
-        {!isRedirecting && (
-          <div className="mt-6 text-xs text-gray-500 space-y-1">
-            <p>{t('userSearch.automatic_verification')}</p>
-          </div>
-        )}
-
-        {/* CSS para animaciones */}
-        <style jsx>{`
-          @keyframes loading-bar {
-            0% { width: 20%; }
-            50% { width: 80%; }
-            100% { width: 20%; }
-          }
-          
-          @keyframes fade-in {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          
-          .animate-fade-in {
-            animation: fade-in 0.3s ease-out;
-          }
-        `}</style>
+        {/* Botón reset emergencia (MEJORADO) */}
+        <div className="fixed top-4 right-4">
+          <button
+            onClick={() => {
+              console.log('🚨 [EMERGENCY] Reset total');
+              window.__USERSEARCH_ACTIVE = null;
+              clearAllIntervals();
+              
+              // 🔥 LIMPIEZA TOTAL DE DATOS
+              sessionStorage.clear();
+              localStorage.clear();
+              
+              // 🏠 REDIRIGIR AL HOME (NO AL VIDEOCHAT)
+              const homeRoute = role === 'modelo' ? '/homellamadas' : '/homecliente';
+              navigate(homeRoute, { replace: true });
+              
+              setTimeout(() => {
+                if (window.location.pathname !== homeRoute) {
+                  window.location.href = homeRoute;
+                }
+              }, 500);
+            }}
+            className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-white text-xs font-bold"
+          >
+            🚨 RESET
+          </button>
+        </div>
       </div>
     </div>
   );

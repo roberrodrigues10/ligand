@@ -3,6 +3,15 @@
     {
       "source": "/(.*)",
       "destination": "/index.html"
-    }
+    },
+    {
+    "crons": [
+      {
+        "path": "/api/cleanup-cron",
+        "schedule": "0 * * * *"
+      }
+    ]
+  }
   ]
+  
 }

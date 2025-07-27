@@ -27,22 +27,33 @@
     Menu,
     Send,
     Square,
+    ArrowRight,
+    Settings,
+     Globe,      
+    Languages,   
+    Eye,         
+    EyeOff,      
+    Wrench,      
+    Camera,      
+    Users,       
+    Mic2,        
+    Volume2      
   } from "lucide-react";
   import Header from "./header";
   import SimpleChat from "./messages";
   import { getUser } from "../utils/auth";
   import { useSessionCleanup } from './closesession';
-  import { updateHeartbeatRoom } from '../utils/auth';
-  import { useVideoChatHeartbeat } from '../utils/heartbeat'; // 🔥 AGREGAR ESTE IMPORT
+  import { 
+    useTranslation, 
+    TranslationSettings, 
+    TranslatedMessage 
+  } from '../utils/translationSystem.jsx';
+  import CameraAudioSettings from '../utils/cameraaudiosettings.jsx';
 
 
 
-
-  // 🔥 AGREGAR ESTE IMPORT
-  import { useSearching } from '../contexts/SearchingContext.jsx'; // Asegúrate de que esta ruta sea correcta
-
-  // ❌ ELIMINAR ESTE IMPORT:
-  // import SearchingUserLoading from './search';
+  // 🔥 IMPORT DEL CONTEXTO DE BÚSQUEDA
+  import { useSearching } from '../contexts/SearchingContext.jsx';
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -53,11 +64,6 @@
   const getRoomCacheKey = (roomName, currentUserName) => {
     return `${roomName}_${currentUserName}`;
   };
-  // 🔥 AGREGAR ESTE COMPONENTE AL INICIO DE videochat.jsx
-  // (Después de los imports y antes del componente VideoChat principal)
-
-    
-        
 
   // ✅ COMPONENTE CON VIDEO REAL PARA LA MODELO - RESPONSIVE
   const VideoDisplay = ({ onCameraSwitch, mainCamera }) => {
@@ -183,38 +189,44 @@
   };
 
   // ✅ COMPONENTE PARA MENSAJES FLOTANTES
-  const FloatingMessages = ({ messages }) => {
-    return (
-      <div className="lg:hidden absolute top-4 left-2 right-2 max-h-[35vh] overflow-y-auto z-10 space-y-2">
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`transition-opacity duration-300 ${
-              msg.isOld ? 'opacity-30' : 'opacity-100'
-            }`}
-          >
-            {msg.type === 'system' ? (
-              <div className="bg-black/70 backdrop-blur-sm rounded-lg p-2 border border-green-400/30 max-w-[90%]">
-                <span className="font-bold text-green-400 text-xs">🎰 Sistema</span>
-                <p className="text-white text-xs mt-1 leading-tight">{msg.text}</p>
-              </div>
-            ) : msg.type === 'remote' ? (
-              <div className="bg-black/70 backdrop-blur-sm rounded-lg p-2 max-w-[85%]">
-                <span className="font-bold text-blue-400 text-xs">Cliente</span>
-                <p className="text-white text-xs mt-1 leading-tight">{msg.text}</p>
-              </div>
-            ) : (
-              <div className="flex justify-end">
-                <div className="bg-[#ff007a]/80 backdrop-blur-sm rounded-lg p-2 max-w-[75%]">
-                  <p className="text-white text-xs leading-tight">{msg.text}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const FloatingMessages = ({ messages, translationSettings }) => {
+  return (
+    <div className="lg:hidden absolute top-4 left-2 right-2 max-h-[82%] overflow-y-auto z-10 flex flex-col-reverse space-y-2 space-y-reverse">
+      {messages.map((msg, index) => (
+        <div
+          key={msg.id || index}
+          className={`
+            transition-opacity duration-300
+            ${msg.isOld ? 'opacity-30' : 'opacity-100'}
+            flex ${msg.type === 'local' ? 'justify-end' : 'justify-start'}
+          `}
+        >
+          {msg.type === 'system' ? (
+            <div className="backdrop-blur-sm rounded-lg p-2 border border-green-400/30 max-w-[70%] w-fit break-words text-xs">
+              {msg.text}
+            </div>
+          ) : msg.type === 'local' ? (
+            <div className="backdrop-blur-sm rounded-lg p-2 border border-[#ff007a] max-w-[70%] w-fit bg-[#ff007a] text-white text-xs break-words">
+              <TranslatedMessage 
+                message={msg} 
+                settings={translationSettings}
+                className="text-white"
+              />
+            </div>
+          ) : (
+            <div className="backdrop-blur-sm rounded-lg p-2 border-blue-400/30 max-w-[70%] w-fit text-xs break-words whitespace-pre-line text-white">
+              <TranslatedMessage 
+                message={msg} 
+                settings={translationSettings}
+                className="text-white"
+              />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
 
   // 🔥 COMPONENTE PRINCIPAL COMPLETAMENTE CORREGIDO
   export default function VideoChat() {
@@ -222,9 +234,8 @@
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
-
-    // 🔥 AGREGAR EL HOOK DE SEARCHING
-  const { startSearching, stopSearching, forceStopSearching } = useSearching();
+    // 🔥 HOOK DE SEARCHING CONTEXT
+    const { startSearching, stopSearching, forceStopSearching } = useSearching();
 
     // 🔥 PRIMERO: Declarar roomName y userName
     const modelo = location.state?.modelo;
@@ -239,6 +250,19 @@
     const userName = getParam("userName");
     const selectedCamera = location.state?.selectedCamera;
     const selectedMic = location.state?.selectedMic;
+    const [showSettings, setShowSettings] = useState(false);
+    const [showTranslationSettings, setShowTranslationSettings] = useState(false);
+    const [showMainSettings, setShowMainSettings] = useState(false);
+    const { 
+      settings: translationSettings, 
+      setSettings: setTranslationSettings,
+      translateMessage,  // ← Cambio importante
+      clearProcessedMessages,
+      languages 
+    } = useTranslation();
+    const [showCameraAudioModal, setShowCameraAudioModal] = useState(false);
+
+
 
     // 🔥 ESTADOS BÁSICOS
     const [token, setToken] = useState('');
@@ -249,11 +273,7 @@
     const [room, setRoom] = useState(null);
     const [modeloStoppedWorking, setModeloStoppedWorking] = useState(false);
     const [receivedNotification, setReceivedNotification] = useState(false);
-    const [isProcessingLeave, setIsProcessingLeave] = useState(false); // ← ESTA LÍNEA
-
-
-    // ❌ ELIMINAR ESTA LÍNEA:
-    // const [isSearchingUser, setIsSearchingUser] = useState(false);
+    const [isProcessingLeave, setIsProcessingLeave] = useState(false);
 
     // Estados para controles
     const [micEnabled, setMicEnabled] = useState(true);
@@ -266,22 +286,9 @@
     const [mostrarRegalos, setMostrarRegalos] = useState(false);
     const [showSidePanel, setShowSidePanel] = useState(false);
     const { finalizarSesion, limpiarDatosSession } = useSessionCleanup(roomName, connected);
-    const [messages, setMessages] = useState([
-      {
-        id: 1,
-        type: 'system',
-        text: '¡Cliente conectado! Comienza tu show 🎥',
-        timestamp: Date.now(),
-        isOld: false
-      },
-      {
-        id: 2,
-        type: 'remote',
-        text: '¡Hola! ¿Cómo estás?',
-        timestamp: Date.now(),
-        isOld: false
-      }
-    ]);
+    const [messages, setMessages] = useState([]);
+    const [isSendingMessage, setIsSendingMessage] = useState(false); // 🔥 AGREGAR ESTA LÍNEA
+
 
     // 🔥 ESTADOS DE USUARIO CON CACHE PERSISTENTE
     const [userData, setUserData] = useState({
@@ -306,69 +313,38 @@
       return !hasCache;
     });
     
+    // 🔥 HEARTBEAT PERSONALIZADO
     useEffect(() => {
-    if (!roomName || modeloStoppedWorking) {
-      console.log('🛑 [HOOK] useVideoChatHeartbeat detenido por modeloStoppedWorking');
-      return;
-    }
-
-    console.log('🚀 [HOOK] Iniciando useVideoChatHeartbeat personalizado');
-    
-    // Heartbeat inicial
-    sendHeartbeat('videochat');
-
-    const interval = setInterval(() => {
-      if (modeloStoppedWorking) {
-        console.log('🛑 [HOOK] Deteniendo interval por modeloStoppedWorking');
-        clearInterval(interval);
+      if (!roomName || modeloStoppedWorking) {
+        console.log('🛑 [HOOK] useVideoChatHeartbeat detenido por modeloStoppedWorking');
         return;
       }
-      sendHeartbeat('videochat');
-    }, 15000);
 
-    return () => {
-      console.log('🧹 [HOOK] Cleanup useVideoChatHeartbeat');
-      clearInterval(interval);
-      if (!modeloStoppedWorking) {
-        sendHeartbeat('browsing');
-      }
-    };
-  }, [roomName, modeloStoppedWorking]);
+      console.log('🚀 [HOOK] Iniciando useVideoChatHeartbeat personalizado');
+      
+      // Heartbeat inicial
+      sendHeartbeat('videochat');
+
+      const interval = setInterval(() => {
+        if (modeloStoppedWorking) {
+          console.log('🛑 [HOOK] Deteniendo interval por modeloStoppedWorking');
+          clearInterval(interval);
+          return;
+        }
+        sendHeartbeat('videochat');
+      }, 15000);
+
+      return () => {
+        console.log('🧹 [HOOK] Cleanup useVideoChatHeartbeat');
+        clearInterval(interval);
+        if (!modeloStoppedWorking) {
+          sendHeartbeat('browsing');
+        }
+      };
+    }, [roomName, modeloStoppedWorking]);
 
     const [chatFunctions, setChatFunctions] = useState(null);
     const messagesContainerRef = useRef(null);
-    // 🔧 REEMPLAZAR la función sendHeartbeat existente con esta versión:
-
-    const sendHeartbeat = async (activityType = 'videochat') => {
-      try {
-        // 🔥 VERIFICAR FLAG ANTES DE ENVIAR
-        if (modeloStoppedWorking && activityType === 'videochat') {
-          console.log('🛑 [MODELO] Heartbeat videochat bloqueado por flag de stop');
-          return;
-        }
-
-        const authToken = sessionStorage.getItem('token');
-        if (!authToken) return;
-
-        const response = await fetch(`${API_BASE_URL}/api/heartbeat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            activity_type: activityType,
-            room: activityType === 'browsing' ? null : roomName // 🔥 Si es browsing, room = null
-          })
-        });
-
-        if (response.ok) {
-          console.log(`💓 [VIDEOCHAT] Heartbeat enviado: ${activityType}`);
-        }
-      } catch (error) {
-        console.log('⚠️ [VIDEOCHAT] Error enviando heartbeat:', error);
-      }
-    };
 
     // 🔥 FUNCIONES DE CACHE MEJORADAS
     const updateOtherUser = (user) => {
@@ -395,6 +371,7 @@
       setOtherUser(null);
       setIsDetectingUser(true);
     };
+    
 
     // 🔥 FUNCIÓN DE RATE LIMITING
     const handleRateLimit = useCallback((error, context = 'general') => {
@@ -476,25 +453,7 @@
       updateOtherUser(user);
     };
 
-    const handleMessageReceived = (newMessage) => {
-      console.log('🎯 handleMessageReceived llamado con:', newMessage);
-      
-      const formattedMessage = {
-        ...newMessage,
-        id: newMessage.id || Date.now() + Math.random(),
-        type: 'remote',
-        senderRole: newMessage.senderRole || 'cliente'
-      };
-      
-      console.log('💾 Mensaje formateado para guardar:', formattedMessage);
-      
-      setMessages(prev => {
-        console.log('📝 Mensajes antes:', prev.length);
-        const updated = [formattedMessage, ...prev];
-        console.log('📝 Mensajes después:', updated.length);
-        return updated;
-      });
-    };
+    
 
     const handleGiftReceived = (gift) => {
       const giftMessage = {
@@ -528,37 +487,101 @@
       setConnected(false);
     };
 
-    const enviarMensaje = () => {
-      if (mensaje.trim()) {
-        console.log('🚀 Intentando enviar mensaje:', mensaje.trim());
+    const enviarMensaje = async () => {
+  if (mensaje.trim() && !isSendingMessage) {
+    setIsSendingMessage(true);
+    console.log('🚀 Intentando enviar mensaje:', mensaje.trim());
+    
+    const messageToSend = mensaje.trim();
+    
+    // Enviar mensaje original al chat
+    if (chatFunctions?.sendMessage) {
+      console.log('📡 Llamando a chatFunctions.sendMessage...');
+      const success = chatFunctions.sendMessage(messageToSend);
+      
+      if (success) {
+        // Crear mensaje local con formato correcto
+        const nuevoMensaje = {
+          id: Date.now(),
+          type: 'local',
+          text: messageToSend,
+          timestamp: Date.now(),
+          isOld: false,
+          sender: userData.name,
+          senderRole: userData.role
+        };
         
-        if (chatFunctions?.sendMessage) {
-          console.log('📡 Llamando a chatFunctions.sendMessage...');
-          const success = chatFunctions.sendMessage(mensaje.trim());
-          
-          if (success) {
-            const nuevoMensaje = {
-              id: Date.now(),
-              type: 'local',
-              text: mensaje.trim(),
-              timestamp: Date.now(),
-              isOld: false
-            };
-            setMessages(prev => [nuevoMensaje, ...prev]);
-            setMensaje("");
-          }
-        } else {
-          const nuevoMensaje = {
-            id: Date.now(),
-            type: 'local',
-            text: mensaje.trim(),
-            timestamp: Date.now(),
-            isOld: false
-          };
-          setMessages(prev => [...prev, nuevoMensaje]);
-          setMensaje("");
-        }
+        setMessages(prev => [nuevoMensaje, ...prev]);
+        setMensaje("");
+        console.log('✅ Mensaje enviado y guardado localmente');
       }
+    } else {
+      // Fallback si no hay chatFunctions
+      const nuevoMensaje = {
+        id: Date.now(),
+        type: 'local',
+        text: messageToSend,
+        timestamp: Date.now(),
+        isOld: false,
+        sender: userData.name,
+        senderRole: userData.role
+      };
+      setMessages(prev => [nuevoMensaje, ...prev]);
+      setMensaje("");
+      console.log('✅ Mensaje guardado localmente (modo fallback)');
+    }
+    
+    setIsSendingMessage(false);
+  }
+    };
+
+    // 3. 🔧 USEEFFECT PARA TRADUCIR MENSAJES AUTOMÁTICAMENTE
+    // ⭐ AGREGAR ESTE USEEFFECT DESPUÉS DE LA LÍNEA 403:
+
+    useEffect(() => {
+      // Procesar mensajes para traducción automática
+      const processMessagesForTranslation = async () => {
+        if (!translationSettings.enabled) return;
+        
+        for (const message of messages) {
+          if (!message.processed) {
+            try {
+              const result = await translateMessage(message);
+              if (result) {
+                console.log(`✅ Mensaje traducido: "${message.text}" → "${result.translated}"`);
+                // Marcar como procesado para evitar re-traducir
+                message.processed = true;
+              }
+            } catch (error) {
+              console.warn('Error traduciendo mensaje:', error);
+            }
+          }
+        }
+      };
+      
+      processMessagesForTranslation();
+    }, [messages, translateMessage, translationSettings.enabled]);
+
+    // ✅ FUNCIÓN handleMessageReceived (mantener igual, solo agregar log)
+    const handleMessageReceived = (newMessage) => {
+      console.log('🎯 handleMessageReceived llamado con:', newMessage);
+      console.log('🔍 [DEBUG] Translation settings enabled:', translationSettings.enabled);
+      
+      const formattedMessage = {
+        ...newMessage,
+        id: newMessage.id || Date.now() + Math.random(),
+        type: 'remote',
+        senderRole: newMessage.senderRole || 'cliente'
+      };
+      
+      console.log('💾 Mensaje formateado para guardar:', formattedMessage);
+      
+      setMessages(prev => {
+        console.log('📝 Mensajes antes:', prev.length);
+        const updated = [formattedMessage, ...prev];
+        console.log('📝 Mensajes después:', updated.length);
+        return updated;
+      });
     };
 
     const enviarRegalo = (regalo) => {
@@ -584,212 +607,299 @@
       }
     };
 
-
-
-  // 🔥 REEMPLAZAR esta función en videochat.js (MODELO, línea ~700 aprox)
+    // 🔥 FUNCIÓN SIGUIENTE PERSONA - NAVEGACIÓN INSTANTÁNEA
   const siguientePersona = async () => {
-    console.log('🔄 [MODELO] Siguiente persona solicitado...');
-    
+  console.log('🔄 [MODELO] Siguiente persona - NAVEGACIÓN INMEDIATA');
+  
+  // 🚀 NO ESPERAR NADA - NAVEGAR INMEDIATAMENTE
+  clearUserCache();
+  startSearching();
+  
+  // 🔥 NOTIFICACIÓN ASYNC - NO BLOCKING
+  if (otherUser?.id && roomName) {
+    fetch(`${API_BASE_URL}/api/livekit/notify-partner-next`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+      },
+      body: JSON.stringify({ roomName })
+    }).catch(() => {}); // Ignorar errores
+  }
+  
+  // 🚀 NAVEGACIÓN INSTANTÁNEA
+  const urlParams = new URLSearchParams({
+    role: 'modelo',
+    action: 'siguiente',
+    from: 'videochat_siguiente',
+    excludeUser: otherUser?.id || '',
+    excludeUserName: otherUser?.name || '',
+    selectedCamera: selectedCamera || '',
+    selectedMic: selectedMic || ''
+  });
+  
+  navigate(`/usersearch?${urlParams}`, { replace: true });
+  };
+
+  const finalizarChat = useCallback(async () => {
+  console.log('🛑 [MODELO] Stop presionado - NAVEGACIÓN INMEDIATA');
+  
+  if (isProcessingLeave) return; // Prevenir doble ejecución
+  setIsProcessingLeave(true);
+  
+  // 🔥 NOTIFICACIÓN ASYNC - NO BLOCKING
+  if (otherUser?.id && roomName) {
+    fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+      },
+      body: JSON.stringify({ roomName })
+    }).catch(() => {}); // Ignorar errores
+  }
+  
+  // 🚀 LIMPIAR Y NAVEGAR INMEDIATAMENTE
+  setModeloStoppedWorking(true);
+  setReceivedNotification(true);
+  clearUserCache();
+  
+  sessionStorage.removeItem('roomName');
+  sessionStorage.removeItem('userName');
+  sessionStorage.removeItem('currentRoom');
+  sessionStorage.removeItem('inCall');
+  
+  // 🚀 NAVEGACIÓN INSTANTÁNEA - SIN DELAYS
+  navigate('/homellamadas', { replace: true });
+  }, [roomName, userName, otherUser, navigate, isProcessingLeave]);
+
+  // 🔥 FUNCIÓN sendHeartbeat CORREGIDA - VIDEOCHAT.JSX (MODELO)
+  const sendHeartbeat = async (activityType = 'videochat') => {
     try {
+      // 🔥 VERIFICAR FLAG ANTES DE ENVIAR
+      if (modeloStoppedWorking && activityType === 'videochat') {
+        console.log('🛑 [MODELO] Heartbeat videochat bloqueado por flag de stop');
+        return;
+      }
+
       const authToken = sessionStorage.getItem('token');
-      
-      // 🔥 1. LLAMAR A nextRoom Y PROCESAR LA RESPUESTA
-      console.log('📡 [MODELO] Llamando a nextRoom...');
-      const response = await fetch(`${API_BASE_URL}/api/livekit/next-room`, {
+      if (!authToken) return;
+
+      // 🔥 FIRE-AND-FORGET - SIN AWAIT, SIN MANEJO DE ERRORES
+      fetch(`${API_BASE_URL}/api/heartbeat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ 
-          action: 'siguiente',
-          reason: 'modelo_siguiente',
-          from: 'videochat_siguiente'
-        }),
-      });
+        body: JSON.stringify({
+          activity_type: activityType,
+          room: activityType === 'browsing' ? null : roomName
+        })
+      }).catch(() => {}); // 🔥 Ignorar errores completamente
 
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('✅ [MODELO] Respuesta de nextRoom:', data);
-      
-      // 🔥 2. PROCESAR LA RESPUESTA Y REDIRIGIR
-      if (data.success) {
-        if (data.type === 'match_found' || data.type === 'direct_match') {
-          // 🎉 MATCH ENCONTRADO - REDIRIGIR A VIDEOCHAT DIRECTAMENTE
-          console.log('🎉 [MODELO] Match encontrado inmediatamente, navegando a videochat...');
-          
-          clearUserCache();
-          
-          // 🔥 REDIRIGIR DIRECTAMENTE A VIDEOCHAT SIN PASAR POR SEARCH
-          navigate("/videochat", {
-            state: {
-              roomName: data.roomName,
-              userName: data.userName,
-              selectedCamera: selectedCamera,
-              selectedMic: selectedMic,
-              matched_with: data.matched_with,
-              fromNextRoom: true
-            },
-            replace: true
-          });
-          
-        } else if (data.type === 'waiting') {
-          // ⏳ SIN MATCH INMEDIATO - IR A BÚSQUEDA
-          console.log('⏳ [MODELO] Sin match inmediato, navegando a búsqueda...');
-          
-          clearUserCache();
-          startSearching();
-          
-          const urlParams = new URLSearchParams({
-            role: 'modelo',
-            action: 'siguiente',
-            currentRoom: roomName,
-            userName: userName,
-            selectedCamera: selectedCamera || '',
-            selectedMic: selectedMic || '',
-            from: 'videochat_siguiente',
-            waitingRoom: data.roomName
-          });
-          
-          navigate(`/usersearch?${urlParams}`);
-        }
-      } else {
-        throw new Error(data.error || 'Error desconocido en nextRoom');
-      }
-      
+      console.log(`💓 [VIDEOCHAT] Heartbeat enviado: ${activityType}`);
     } catch (error) {
-      console.error('❌ [MODELO] Error en siguiente:', error);
-      
-      // 🔥 MANEJAR RATE LIMITING
-      if (error.message?.includes('429') || error.message?.includes('rate limit')) {
-        console.warn('⚠️ [MODELO] Rate limited, esperando antes de reintentar...');
-        
-        setError('Servidor ocupado, reintentando...');
-        
-        setTimeout(() => {
-          setError(null);
-          
-          const urlParams = new URLSearchParams({
-            role: 'modelo',
-            currentRoom: roomName,
-            userName: userName,
-            selectedCamera: selectedCamera || '',
-            selectedMic: selectedMic || '',
-            from: 'videochat_siguiente_retry'
-          });
-          
-          navigate(`/usersearch?${urlParams}`);
-        }, 3000);
-        
-        return;
-      }
-      
-      // 🔥 OTROS ERRORES: IR A BÚSQUEDA INMEDIATAMENTE
-      clearUserCache();
-      startSearching();
-      
-      const urlParams = new URLSearchParams({
-        role: 'modelo',
-        currentRoom: roomName,
-        userName: userName,
-        selectedCamera: selectedCamera || '',
-        selectedMic: selectedMic || '',
-        from: 'videochat_siguiente_error',
-        error: 'connection_error'
-      });
-      
-      navigate(`/usersearch?${urlParams}`);
+      // 🔥 NO HACER NADA - CONTINUAR SIN HEARTBEAT
+      console.log('⚠️ [VIDEOCHAT] Error enviando heartbeat (ignorado):', error);
     }
   };
 
+// 🔥 USEEFFECT DEL HEARTBEAT CORREGIDO - VIDEOCHAT.JSX (MODELO)
+useEffect(() => {
+  if (!roomName || modeloStoppedWorking) {
+    console.log('🛑 [HOOK] useVideoChatHeartbeat detenido por modeloStoppedWorking');
+    return;
+  }
 
-    const finalizarChat = useCallback(async () => {
-    console.log('🛑 [MODELO] Stop presionado...');
-    
-    if (isProcessingLeave) {
-      console.log('⚠️ [MODELO] Ya se está procesando salida, ignorando...');
+  console.log('🚀 [HOOK] Iniciando useVideoChatHeartbeat personalizado');
+  
+  // 🔥 HEARTBEAT INICIAL FIRE-AND-FORGET
+  const authToken = sessionStorage.getItem('token');
+  if (authToken) {
+    fetch(`${API_BASE_URL}/api/heartbeat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        activity_type: 'videochat',
+        room: roomName
+      })
+    }).catch(() => {}); // 🔥 Ignorar errores
+  }
+
+  const interval = setInterval(() => {
+    if (modeloStoppedWorking) {
+      console.log('🛑 [HOOK] Deteniendo interval por modeloStoppedWorking');
+      clearInterval(interval);
       return;
     }
     
-    setIsProcessingLeave(true);
-    
-    try {
-      // 🔥 1. DETENER TODOS LOS HEARTBEATS INMEDIATAMENTE
-      console.log('🛑 [MODELO] Deteniendo heartbeats...');
-      
-      // 🔥 2. CAMBIAR ESTADO ANTES DE LA PETICIÓN
-      setModeloStoppedWorking(true);
-      setReceivedNotification(true);
-      
-      // 🔥 3. LIMPIAR DATOS DE SESIÓN INMEDIATAMENTE
-      console.log('🧹 [MODELO] Limpiando datos de sesión...');
-      clearUserCache();
-      
-      // 🔥 4. LIMPIAR SESSIONSTORAGE PARA EVITAR GUARDS
-      console.log('🧹 [MODELO] Limpiando sessionStorage...');
-      sessionStorage.removeItem('roomName');
-      sessionStorage.removeItem('userName');
-      sessionStorage.removeItem('currentRoom'); // Por si existe
-      sessionStorage.removeItem('inCall'); // Por si existe
-      
-      // 🔥 5. ENVIAR HEARTBEAT DE BROWSING INMEDIATAMENTE
-      await sendHeartbeat('browsing');
-      console.log('✅ [MODELO] Estado cambiado a browsing');
-      
-      const authToken = sessionStorage.getItem('token');
-      
-      // 🔥 6. NOTIFICAR AL SERVIDOR (pero no esperar respuesta)
-      console.log('📡 [MODELO] Notificando salida al servidor...');
-      fetch(`${API_BASE_URL}/api/livekit/model-leaving`, {
+    const token = sessionStorage.getItem('token');
+    if (token) {
+      fetch(`${API_BASE_URL}/api/heartbeat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ 
-          currentRoom: roomName,
-          userName: userName,
-          action: 'stop',
-          partnerId: otherUser?.id,
-          timestamp: Date.now()
-        }),
-      }).then(response => {
-        if (response.ok) {
-          console.log('✅ [MODELO] Servidor notificado exitosamente');
-        } else {
-          console.warn('⚠️ [MODELO] Error notificando servidor:', response.status);
-        }
-      }).catch(error => {
-        console.error('❌ [MODELO] Error notificando servidor:', error);
-      });
-
-      // 🔥 7. PEQUEÑO DELAY PARA QUE SE PROCESEN LOS CAMBIOS
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // 🔥 8. NAVEGAR INMEDIATAMENTE
-      console.log('🧭 [MODELO] Navegando a /homellamadas...');
-      navigate('/homellamadas', { replace: true });
-      
-    } catch (error) {
-      console.error('❌ [MODELO] Error finalizando chat:', error);
-      
-      // 🔥 FALLBACK: Limpiar y navegar aunque haya error
-      setModeloStoppedWorking(true);
-      clearUserCache();
-      sessionStorage.removeItem('roomName');
-      sessionStorage.removeItem('userName');
-      await sendHeartbeat('browsing');
-      navigate('/homellamadas', { replace: true });
-      
-    } finally {
-      setIsProcessingLeave(false);
+        body: JSON.stringify({
+          activity_type: 'videochat',
+          room: roomName
+        })
+      }).catch(() => {}); // 🔥 Ignorar errores
     }
-    }, [roomName, userName, otherUser, navigate, isProcessingLeave]);
+  }, 15000); // 15 segundos
 
-    // 🔥 TAMBIÉN AGREGAR este useEffect para DETENER heartbeats cuando modelo para de trabajar
+  return () => {
+    console.log('🧹 [HOOK] Cleanup useVideoChatHeartbeat');
+    clearInterval(interval);
+    
+    if (!modeloStoppedWorking) {
+      const token = sessionStorage.getItem('token');
+      if (token) {
+        fetch(`${API_BASE_URL}/api/heartbeat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            activity_type: 'browsing',
+            room: null
+          })
+        }).catch(() => {}); // 🔥 Ignorar errores
+      }
+    }
+  };
+}, [roomName, modeloStoppedWorking]);
+
+
+
+    useEffect(() => {
+      if (!roomName || !userName || !connected || modeloStoppedWorking) {
+        return;
+      }
+
+      console.log('🔔 [MODELO] Iniciando polling de notificaciones');
+
+      let isPolling = true;
+      let pollInterval = 3000; // 3 segundos
+      let consecutiveEmpty = 0;
+
+      const checkNotifications = async () => {
+        if (!isPolling || modeloStoppedWorking) return;
+
+        try {
+          const authToken = sessionStorage.getItem('token');
+          if (!authToken) return;
+
+          const response = await fetch(`${API_BASE_URL}/api/status/updates`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+           if (!response.ok) {
+              console.log(`⚠️ Response ${response.status} en polling - continuando`);
+              return; // Continuar polling sin detenerse
+            }
+
+
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.success && data.has_notifications) {
+              consecutiveEmpty = 0;
+              const notification = data.notification;
+              console.log('📨 [MODELO] Notificación recibida:', notification.type);
+              
+              // Detener polling al recibir notificación
+              isPolling = false;
+              
+              if (notification.type === 'partner_went_next') {
+                console.log('🔄 [MODELO] Cliente fue a siguiente - navegando');
+                
+                clearUserCache();
+                startSearching();
+                
+                const redirectParams = notification.data.redirect_params || {};
+                const urlParams = new URLSearchParams({
+                  role: 'modelo',
+                  from: 'partner_went_next',
+                  action: 'siguiente',
+                  excludeUser: redirectParams.excludeUser || '',
+                  excludeUserName: redirectParams.excludeUserName || '',
+                  selectedCamera: selectedCamera || '',
+                  selectedMic: selectedMic || ''
+                });
+                
+                navigate(`/usersearch?${urlParams}`, { replace: true });
+              }
+              
+            // 🔥 AGREGAR ESTA LÓGICA FALTANTE:
+
+            if (notification.type === 'partner_left_session') {
+              console.log('🛑 [MODELO] Cliente terminó sesión - navegando a búsqueda');
+              
+              // Limpiar datos de la sesión anterior
+              setModeloStoppedWorking(true);
+              setReceivedNotification(true);
+              clearUserCache();
+              
+              sessionStorage.removeItem('roomName');
+              sessionStorage.removeItem('userName');
+              sessionStorage.removeItem('currentRoom');
+              sessionStorage.removeItem('inCall');
+              sessionStorage.removeItem('videochatActive');
+              
+              startSearching();
+              
+              // Ir directo a usersearch para buscar nuevo cliente
+              const urlParams = new URLSearchParams({
+                role: 'modelo',
+                from: 'client_stopped_session',
+                action: 'find_new_client',
+                reason: 'previous_client_left',
+                selectedCamera: selectedCamera || '',
+                selectedMic: selectedMic || ''
+              });
+              
+              navigate(`/usersearch?${urlParams}`, { replace: true });
+            }
+              
+            } else {
+              consecutiveEmpty++;
+              // Aumentar intervalo si no hay notificaciones
+              if (consecutiveEmpty >= 3) {
+                pollInterval = Math.min(pollInterval + 1000, 8000); // Max 8s
+              }
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ [MODELO] Error en polling:', error);
+        }
+
+        // Programar siguiente verificación
+        if (isPolling && !modeloStoppedWorking) {
+          setTimeout(checkNotifications, pollInterval);
+        }
+      };
+
+      // Iniciar polling
+      checkNotifications();
+
+      return () => {
+        console.log('🛑 [MODELO] Deteniendo polling de notificaciones');
+        isPolling = false;
+      };
+    }, [roomName, userName, connected, modeloStoppedWorking, navigate, selectedCamera, selectedMic]);
+
+
+    // 🔥 DETENER heartbeats cuando modelo para de trabajar
     useEffect(() => {
       if (modeloStoppedWorking) {
         console.log('🛑 [MODELO] Modelo paró - deteniendo todos los heartbeats');
@@ -805,149 +915,90 @@
         };
         
         finalHeartbeat();
-        
-        // No más heartbeats después de esto
         return;
       }
     }, [modeloStoppedWorking]);
-
-
     useEffect(() => {
-    if (!roomName || modeloStoppedWorking) {
-      console.log('🛑 [MODELO] Heartbeat detenido por flag de stop');
-      return;
-    }
-
-    sendHeartbeat('videochat');
-
-    const heartbeatInterval = setInterval(() => {
-      if (modeloStoppedWorking) {
-        console.log('🛑 [MODELO] Deteniendo heartbeat interval por flag');
-        clearInterval(heartbeatInterval);
-        return;
-      }
-      sendHeartbeat('videochat');
-    }, 15000);
-
-    return () => {
-      clearInterval(heartbeatInterval);
-      if (!modeloStoppedWorking) {
-        sendHeartbeat('browsing');
-      }
-    };
-  }, [roomName, modeloStoppedWorking]);
-
-
-    useEffect(() => {
-      if (!userData.id || !roomName) return;
-
-      console.log('📡 [MODELO] Conectando a notificaciones...');
-      
-      // 🔥 CONECTAR A SERVER-SENT EVENTS
-      const eventSource = new EventSource(
-        `${API_BASE_URL}/api/notifications/${userData.id}`,
-        {
-          withCredentials: false,
-        }
-      );
-      
-      eventSource.onopen = () => {
-        console.log('✅ [MODELO] Notificaciones conectadas');
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('📨 [MODELO] Notificación recibida:', data);
-          
-          if (data.type === 'client_left') {
-            console.log(`👤 [MODELO] Cliente se fue (${data.action}) - buscando automáticamente...`);
-            
-            // 🔥 NAVEGAR AUTOMÁTICAMENTE A BÚSQUEDA
-            const urlParams = new URLSearchParams({
-              role: 'modelo',
-              currentRoom: roomName,
-              userName: userName,
-              selectedCamera: selectedCamera || '',
-              selectedMic: selectedMic || '',
-            });
-            
-            navigate(`/usersearch?${urlParams}`);
-          }
-        } catch (error) {
-          console.error('❌ [MODELO] Error procesando notificación:', error);
+      const handleClickOutside = (event) => {
+        if (showMainSettings && !event.target.closest('.settings-dropdown')) {
+          setShowMainSettings(false);
         }
       };
 
-      eventSource.onerror = (error) => {
-        console.error('❌ [MODELO] Error en notificaciones:', error);
-      };
-
+      document.addEventListener('mousedown', handleClickOutside);
       return () => {
-        console.log('🔌 [MODELO] Cerrando conexión de notificaciones');
-        eventSource.close();
+        document.removeEventListener('mousedown', handleClickOutside);
       };
-    }, [userData.id, roomName, navigate]);
+    }, [showMainSettings]);
+
+    // 🔥 SSE CONNECTION CON MEJOR MANEJO DE ERRORES
     useEffect(() => {
       if (!userData.id || !roomName) return;
 
       let eventSource = null;
       let reconnectTimer = null;
       let reconnectAttempts = 0;
-      const maxReconnectAttempts = 5;
+      const maxReconnectAttempts = 3;
 
       const connectSSE = () => {
-      console.log(`📡 [MODELO] Conectando SSE a Redis Cloud (intento ${reconnectAttempts + 1})`);
-      
-      // 🔥 OBTENER TOKEN DE SESSIONSTORAGE
-      const authToken = sessionStorage.getItem('token');
-      if (!authToken) {
+        console.log(`📡 [MODELO] Conectando SSE (intento ${reconnectAttempts + 1})`);
+        
+        const authToken = sessionStorage.getItem('token');
+        if (!authToken) {
           console.error('❌ [MODELO] No se encontró token de autenticación');
           return;
-      }
-      
-      // 🔥 USAR QUERY PARAMETER EN LUGAR DE PATH
-      eventSource = new EventSource(
+        }
+        
+        eventSource = new EventSource(
           `${API_BASE_URL}/api/notifications/${userData.id}?token=${encodeURIComponent(authToken)}`,
           { withCredentials: false }
-      );
-      
-      eventSource.onopen = () => {
-          console.log('✅ [MODELO] SSE conectado exitosamente a Redis Cloud');
+        );
+        
+        // 🚀 TIMEOUT PARA SSE
+        const sseTimeout = setTimeout(() => {
+          console.warn('⏰ [MODELO] SSE timeout - cerrando conexión');
+          if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+          }
+        }, 10000);
+        
+        eventSource.onopen = () => {
+          console.log('✅ [MODELO] SSE conectado exitosamente');
+          clearTimeout(sseTimeout);
           reconnectAttempts = 0;
-      };
+        };
 
         eventSource.onmessage = (event) => {
+          clearTimeout(sseTimeout);
           try {
             const data = JSON.parse(event.data);
-            console.log('📨 [MODELO] Notificación SSE recibida desde Redis Cloud:', data);
+            console.log('📨 [MODELO] Notificación SSE recibida:', data);
             
             if (data.type === 'connected') {
-              console.log('🔗 [MODELO] Confirmación de conexión SSE a Redis Cloud');
+              console.log('🔗 [MODELO] Confirmación de conexión SSE');
               return;
             }
             
             if (data.type === 'client_left') {
-              console.log(`👤 [MODELO] Cliente se fue (${data.data.action}) - redirigiendo via SSE desde Redis Cloud...`);
+              console.log(`👤 [MODELO] Cliente se fue via SSE - navegando INMEDIATAMENTE`);
               
-              // 🔥 CERRAR SSE ANTES DE NAVEGAR
               if (eventSource) {
                 eventSource.close();
                 eventSource = null;
               }
               
-              // Construir URL con parámetros de la notificación
               const urlParams = new URLSearchParams({
                 role: 'modelo',
                 currentRoom: roomName,
                 userName: userName,
                 selectedCamera: selectedCamera || '',
                 selectedMic: selectedMic || '',
-                ...data.data.redirect_params
+                ...data.data?.redirect_params
               });
               
-              console.log('🧭 [MODELO] Navegando via SSE a:', `/usersearch?${urlParams}`);
-              navigate(`/usersearch?${urlParams}`);
+              console.log('🧭 [MODELO] Navegando via SSE INMEDIATAMENTE');
+              navigate(`/usersearch?${urlParams}`, { replace: true });
             }
           } catch (error) {
             console.error('❌ [MODELO] Error procesando notificación SSE:', error);
@@ -955,34 +1006,33 @@
         };
 
         eventSource.onerror = (error) => {
-          console.error('❌ [MODELO] Error SSE con Redis Cloud:', error);
+          console.error('❌ [MODELO] Error SSE:', error);
+          clearTimeout(sseTimeout);
           
           if (eventSource) {
             eventSource.close();
             eventSource = null;
           }
           
-          // 🔥 RECONEXIÓN AUTOMÁTICA
+          // 🚀 RECONEXIÓN MÁS RÁPIDA O FALLAR
           if (reconnectAttempts < maxReconnectAttempts) {
             reconnectAttempts++;
-            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+            const delay = 1000 * reconnectAttempts;
             console.log(`🔄 [MODELO] Reconectando SSE en ${delay}ms... (${reconnectAttempts}/${maxReconnectAttempts})`);
             
             reconnectTimer = setTimeout(() => {
               connectSSE();
             }, delay);
           } else {
-            console.error('❌ [MODELO] Max intentos de reconexión SSE alcanzados');
+            console.error('❌ [MODELO] Max intentos SSE alcanzados - continuando sin SSE');
           }
         };
       };
 
-      // Iniciar conexión SSE
       connectSSE();
 
-      // Cleanup
       return () => {
-        console.log('🔌 [MODELO] Cerrando SSE con Redis Cloud');
+        console.log('🔌 [MODELO] Cerrando SSE');
         if (eventSource) {
           eventSource.close();
           eventSource = null;
@@ -993,7 +1043,7 @@
         }
       };
     }, [userData.id, roomName, navigate, userName, selectedCamera, selectedMic]);
-        
+          
     // 🔥 CARGAR USUARIO CON RATE LIMITING
     useEffect(() => {
       const fetchUser = async () => {
@@ -1034,15 +1084,14 @@
 
     // 🔥 NUEVO: Detener búsqueda cuando se conecta
     useEffect(() => {
-      // 🔥 CONDICIONES PARA QUITAR EL LOADING:
       const shouldStopLoading = 
         connected && 
         token && 
         chatFunctions && 
         (
-          chatFunctions.participantsCount > 1 || // Hay más de 1 participante (tú + cliente)
-          chatFunctions.hasOtherParticipant ||   // Detectó otro participante
-          !chatFunctions.isDetecting             // Ya no está detectando
+          chatFunctions.participantsCount > 1 ||
+          chatFunctions.hasOtherParticipant ||
+          !chatFunctions.isDetecting
         );
 
       if (shouldStopLoading) {
@@ -1112,8 +1161,7 @@
       }
     }, [roomName, userName]);
 
-
-    // Memmo
+    // Memoized values
     const memoizedRoomName = useMemo(() => {
       const room = getParam("roomName");
       return room && room !== 'null' && room !== 'undefined' ? room : null;
@@ -1124,121 +1172,7 @@
       return user && user !== 'null' && user !== 'undefined' ? user : null;
     }, [location.state, searchParams]);
 
-    const handleChatFunctions = useCallback((functions) => {
-      console.log('📡 Recibiendo chatFunctions:', {
-        hasOtherParticipant: !!functions.otherParticipant,
-        isDetecting: functions.isDetecting,
-        participantsCount: functions.participants?.length || 0
-      });
-      
-      setChatFunctions(functions);
-      
-      if (functions.otherParticipant && !otherUser) {
-        console.log('👥 Recibiendo participante desde chatFunctions:', functions.otherParticipant);
-        updateOtherUser(functions.otherParticipant);
-      }
-      
-      if (functions.isDetecting !== undefined) {
-        setIsDetectingUser(functions.isDetecting);
-      }
-    }, [otherUser]);
-
-
-  // 🔥 REEMPLAZAR EL useEffect PROBLEMÁTICO EN videochat.js (MODELO)
-    useEffect(() => {
-      if (modeloStoppedWorking || receivedNotification) {
-        console.log('🛑 [MODELO] No buscar - modelo paró o recibió notificación');
-        return;
-      }
-
-      if (!connected || !token || !chatFunctions) {
-        console.log('⏳ [MODELO] Aún no conectado completamente');
-        return;
-      }
-
-      console.log('🔍 [MODELO] Verificando participantes:', {
-        participantsCount: chatFunctions.participantsCount,
-        hasOtherParticipant: chatFunctions.hasOtherParticipant,
-        participants: chatFunctions.participants?.map(p => ({ identity: p.identity, isLocal: p.isLocal }))
-      });
-
-      // 🔥 DETECCIÓN MEJORADA: Solo la modelo queda en la sala
-      const soloLaModeloQueda = chatFunctions.participantsCount <= 1;
-      
-      if (soloLaModeloQueda) {
-        console.log('👤 [MODELO] ¡Cliente se fue! Navegando a UserSearch...');
-        
-        // 🔥 TIMEOUT CORTO PARA DAR TIEMPO A QUE SE ACTUALICE EL ESTADO
-        const timer = setTimeout(() => {
-          console.log('🔄 [MODELO] Ejecutando navegación a UserSearch...');
-          
-          // Limpiar cache del usuario anterior
-          clearUserCache();
-          
-          // 🔥 NAVEGAR INMEDIATAMENTE A USERSEARCH
-          const urlParams = new URLSearchParams({
-            role: 'modelo',
-            currentRoom: roomName,
-            userName: userName,
-            selectedCamera: selectedCamera || '',
-            selectedMic: selectedMic || '',
-            reason: 'cliente_se_fue' // Para debugging
-          });
-          
-          console.log('🧭 [MODELO] Navegando a:', `/usersearch?${urlParams}`);
-          navigate(`/usersearch?${urlParams}`);
-          
-        }, 2000); // 2 segundos de delay
-
-        return () => clearTimeout(timer);
-      } else {
-        console.log('👥 [MODELO] Cliente aún conectado, no hacer nada');
-      }
-
-    }, [
-      connected, 
-      token, 
-      chatFunctions?.participantsCount, // 🔥 DEPENDENCIA ESPECÍFICA
-      chatFunctions?.hasOtherParticipant,
-      modeloStoppedWorking, 
-      receivedNotification,
-      navigate,
-      roomName,
-      userName,
-      selectedCamera,
-      selectedMic
-    ]);
-    // 🔥 AÑADIR ESTE DEBUG EN videochat.js (MODELO)
-  // Justo después de configurar chatFunctions
-
-    useEffect(() => {
-      if (chatFunctions) {
-        console.log('👥 [MODELO] DEBUG Participantes:', {
-          count: chatFunctions.participantsCount,
-          hasOther: chatFunctions.hasOtherParticipant,
-          participants: chatFunctions.participants?.map(p => ({
-            identity: p.identity,
-            isLocal: p.isLocal,
-            sid: p.sid
-          })) || [],
-          timestamp: new Date().toLocaleTimeString()
-        });
-      }
-    }, [chatFunctions?.participantsCount, chatFunctions?.hasOtherParticipant]);
-
-    const handleParticipantsChange = useCallback((participants) => {
-      console.log('🔄 [MODELO] Participantes actualizados:', participants.length);
-    }, []);
-
-
-
-    // 🔥 TAMBIÉN RESETEAR EL FLAG CUANDO CAMBIE LA SALA
-    useEffect(() => {
-      setModeloStoppedWorking(false);
-      setReceivedNotification(false); // 🔥 RESETEAR TAMBIÉN ESTE
-    }, [roomName]);
-
-    // 🔥 FIX 4: Obtener token con rate limiting protection
+    // 🔥 FIX: Obtener token con rate limiting protection
     useEffect(() => {
       let isMounted = true;
       let retryCount = 0;
@@ -1334,16 +1268,18 @@
       };
     }, [memoizedRoomName, memoizedUserName, handleRateLimit]);
 
-    // 🔥 RESETEAR FLAG AL CAMBIAR DE SALA (para permitir trabajo en nueva sala)
+    // 🔥 RESETEAR FLAG AL CAMBIAR DE SALA
     useEffect(() => {
       setModeloStoppedWorking(false);
+      setReceivedNotification(false);
     }, [roomName]);
+
     // Timer
     useEffect(() => {
       const intervalo = setInterval(() => setTiempo((prev) => prev + 1), 1000);
       return () => clearInterval(intervalo);
     }, []);
-  
+
     useEffect(() => {
       if (messagesContainerRef.current) {
         messagesContainerRef.current.scrollTo({
@@ -1451,7 +1387,10 @@
           <div className="lg:hidden bg-[#1f2125] rounded-2xl overflow-hidden relative mt-4 h-[80vh]">
             <VideoDisplay onCameraSwitch={cambiarCamara} mainCamera={camaraPrincipal} />
             
-            <FloatingMessages messages={messages} />
+            <FloatingMessages 
+              messages={messages} 
+              translationSettings={translationSettings} 
+            />
             
             {/* Input de chat móvil */}
             <div className="absolute bottom-4 left-2 right-2 z-20">
@@ -1490,11 +1429,9 @@
               <span className="text-[#ff007a] font-bold">{formatoTiempo()}</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[#ff007a] font-bold text-xs">∞ Ilimitado</span>
               {connected && (
                 <span className="text-green-400 text-xs">🟢 Conectada</span>
               )}
-              <span className="text-blue-400 text-xs">👩‍💼 Modelo</span>
             </div>
           </div>
 
@@ -1517,9 +1454,6 @@
                       <div className="animate-spin rounded-full h-3 w-3 border-b border-[#ff007a]"></div>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400">
-                    {getDisplayRole()}
-                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={16} className="text-green-400" title="Verificado" />
@@ -1537,35 +1471,34 @@
                 ref={messagesContainerRef}
                 className="max-h-[360px] p-4 space-y-3 overflow-y-auto custom-scroll"
               >
-                {messages.filter(msg => msg.id > 2).reverse().map((msg, index) => (
-                  <div key={msg.id} className={msg.type === 'local' ? 'text-right' : 'text-xs sm:text-sm'}>
-                    {msg.type === 'local' ? (
-                      <p className="bg-[#ff007a] inline-block px-3 py-2 mt-1 rounded-xl text-white max-w-[280px] text-xs sm:text-sm break-words">
+              {messages.filter(msg => msg.id > 2).reverse().map((msg, index) => (
+                <div key={msg.id} className={msg.type === 'local' ? 'text-right' : 'text-xs sm:text-sm'}>
+                  {msg.type === 'local' ? (
+                    <p className="bg-[#ff007a] inline-block px-3 py-2 mt-1 rounded-xl text-white max-w-[280px] text-xs sm:text-sm break-words">
+                      <TranslatedMessage 
+                        message={msg} 
+                        settings={translationSettings}
+                        className="text-white"
+                      />
+                    </p>
+                  ) : msg.type === 'system' ? (
+                    <>
+                      <span className="font-bold text-green-400">🎰 Sistema</span>
+                      <p className="bg-[#1f2937] inline-block px-3 py-2 mt-1 rounded-xl border border-green-400/30 max-w-[280px] break-words text-white">
                         {msg.text}
                       </p>
-                    ) : msg.type === 'system' ? (
-                      <>
-                        <span className="font-bold text-green-400">🎰 Sistema</span>
-                        <p className="bg-[#1f2937] inline-block px-3 py-2 mt-1 rounded-xl border border-green-400/30 max-w-[280px] break-words">
-                          {msg.text}
-                        </p>
-                      </>
-                    ) : msg.type === 'remote' ? (
-                      <>
-                        <p className="bg-[#2b2d31] inline-block px-3 py-2 mt-1 rounded-xl max-w-[280px] break-words">
-                          {msg.text}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-bold text-blue-400"></span>
-                        <p className="bg-[#2b2d31] inline-block px-3 py-2 mt-1 rounded-xl max-w-[280px] break-words">
-                          {msg.text}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                ))}
+                    </>
+                  ) : (
+                    <p className="bg-[#2b2d31] inline-block px-3 py-2 mt-1 rounded-xl max-w-[280px] break-words text-white">
+                      <TranslatedMessage 
+                        message={msg} 
+                        settings={translationSettings}
+                        className="text-white"
+                      />
+                    </p>
+                  )}
+                </div>
+              ))}
               </div>
 
               {/* Modal de regalos */}
@@ -1630,61 +1563,135 @@
           </div>
 
           {/* CONTROLES RESPONSIVOS */}
-          <div className="flex justify-center items-center gap-4 sm:gap-6 lg:gap-10 mt-4 lg:mt-6 px-4">
-            <button 
-              className={`p-3 sm:p-4 rounded-full transition ${
-                micEnabled 
-                  ? 'bg-[#2b2d31] hover:bg-[#3a3d44]' 
-                  : 'bg-red-500 hover:bg-red-600'
-              }`}
+     <div className="flex justify-center items-center gap-4 sm:gap-6 lg:gap-10 mt-4 lg:mt-6 px-4 relative">
+          {/* MICRÓFONO */}
+          <div className="relative">
+            <button
+              className={`w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition`}
               onClick={() => setMicEnabled(!micEnabled)}
               title={micEnabled ? 'Silenciar micrófono' : 'Activar micrófono'}
             >
-              {micEnabled ? <Mic size={18} className="lg:hidden" /> : <MicOff size={18} className="lg:hidden" />}
-              {micEnabled ? <Mic size={22} className="hidden lg:block" /> : <MicOff size={22} className="hidden lg:block" />}
+              {micEnabled ? <Mic size={30} /> : <MicOff size={32} />}
             </button>
+          </div>
 
-            <button 
-              className={`p-3 sm:p-4 rounded-full transition ${
-                cameraEnabled 
-                  ? 'bg-[#2b2d31] hover:bg-[#3a3d44]' 
-                  : 'bg-red-500 hover:bg-red-600'
-              }`}
+          {/* CÁMARA */}
+          <div className="relative">
+            <button
+              className={`w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition`}
               onClick={() => setCameraEnabled(!cameraEnabled)}
               title={cameraEnabled ? 'Apagar cámara' : 'Encender cámara'}
             >
-              {cameraEnabled ? <Video size={18} className="lg:hidden" /> : <VideoOff size={18} className="lg:hidden" />}
-              {cameraEnabled ? <Video size={22} className="hidden lg:block" /> : <VideoOff size={22} className="hidden lg:block" />}
-            </button>
-
-            <button
-              className="bg-blue-500 hover:bg-blue-600 p-3 sm:p-4 rounded-full transition"
-              onClick={siguientePersona}
-              title="Siguiente persona"
-              disabled={loading}
-            >
-              <SkipForward size={18} className="lg:hidden" />
-              <SkipForward size={22} className="hidden lg:block" />
-            </button>
-
-            <button 
-              className="bg-red-500 hover:bg-red-600 px-4 sm:px-6 py-2 sm:py-3 rounded-full text-white text-sm sm:text-base lg:text-lg font-semibold transition flex items-center gap-2"
-              onClick={finalizarChat}
-              title="Finalizar chat"
-            >
-              <Square size={16} className="lg:hidden" />
-              <Square size={18} className="hidden lg:block" />
-              <span className="lg:hidden">Stop</span>
-              <span className="hidden lg:inline">🛑 Finalizar</span>
+              {cameraEnabled ? <Video size={32} /> : <VideoOff size={32} />}
             </button>
           </div>
-        </div>
 
-        {/* ❌ ELIMINAR ESTA LÍNEA: */}
-        {/* <SearchingUserLoading userRole={userData.role} isVisible={isSearchingUser} /> */}
+          {/* SIGUIENTE */}
+          <button
+            onClick={siguientePersona}
+            title="Siguiente persona"
+            disabled={loading}
+            className={`
+              w-16 h-16 rounded-full flex items-center justify-center
+              text-[#ff007a] hover:bg-[#ff007a] hover:text-white
+              transition duration-300 ease-in-out
+              ${loading ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <ArrowRight size={30} />
+          </button>
+
+          {/* FINALIZAR */}
+          <button
+            className="w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition"
+            onClick={finalizarChat}
+            title="Finalizar chat"
+          >
+            <Square size={30} />
+          </button>
+
+          {/* CONFIGURACIÓN */}
+          <div className="relative">
+            <button
+              className="w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition"
+              onClick={() => setShowMainSettings(!showMainSettings)}
+              title="Configuración"
+            >
+              <Settings size={30} />
+            </button>
+            
+            {/* DROPDOWN MENÚ DE CONFIGURACIÓN */}
+            {showMainSettings && (
+              <div className="settings-dropdown absolute bottom-16 right-0 bg-[#1f2125] rounded-xl p-4 shadow-2xl z-50 min-w-[240px] border border-[#ff007a]/20 animate-fadeIn">
+                <div className="space-y-1">
+                  <div className="px-2 py-1 text-xs text-gray-400 uppercase tracking-wide border-b border-gray-600 mb-3">
+                    Configuraciones
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setShowTranslationSettings(true);
+                      setShowMainSettings(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-[#2b2d31] rounded-lg transition text-left group"
+                  >
+                    <Globe className="text-[#ff007a] group-hover:scale-110 transition-transform" size={20} />
+                    <div className="flex-1">
+                      <span className="text-white text-sm font-medium">Traducción</span>
+                      <div className="text-xs text-gray-400">
+                        {translationSettings.enabled ? 
+                          `Activa (${languages[translationSettings.targetLanguage]?.name})` : 
+                          'Desactivada'
+                        }
+                      </div>
+                    </div>
+                    <ArrowRight className="text-gray-400 group-hover:text-white" size={16} />
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setShowCameraAudioModal(true); // ← Cambiar esta línea
+                      setShowMainSettings(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-[#2b2d31] rounded-lg transition text-left group"
+                  >
+                    <Camera className="text-[#ff007a] group-hover:scale-110 transition-transform" size={20} />
+                    <div className="flex-1">
+                      <span className="text-white text-sm font-medium">Cámara y Audio</span>
+                      <div className="text-xs text-gray-400">
+                        {cameraEnabled ? '📹' : '📹❌'} {micEnabled ? '🎤' : '🎤❌'}
+                      </div>
+                    </div>
+                    <ArrowRight className="text-gray-400 group-hover:text-white" size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+        <TranslationSettings
+          isOpen={showTranslationSettings}
+          onClose={() => setShowTranslationSettings(false)}
+          settings={translationSettings}
+          onSettingsChange={setTranslationSettings}
+          languages={languages}
+        />
+        <CameraAudioSettings
+          isOpen={showCameraAudioModal}
+          onClose={() => setShowCameraAudioModal(false)}
+          cameraEnabled={cameraEnabled}
+          micEnabled={micEnabled}
+          setCameraEnabled={setCameraEnabled}
+          setMicEnabled={setMicEnabled}
+        />
+ 
+
       </LiveKitRoom>
     );
   }
+  
 
   // ✅ COMPONENTE PARA CONTROLAR MEDIA - CONTINUACIÓN
   const MediaControls = ({ micEnabled, cameraEnabled, setMicEnabled, setCameraEnabled }) => {
