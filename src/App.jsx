@@ -34,7 +34,6 @@ import RateLimitWait from "./components/RateLimitWait";
 
 // 🔥 AGREGAR ESTOS DOS IMPORTS
 import { SearchingProvider } from './contexts/SearchingContext.jsx';
-import GlobalSearching from './components/globalSearch.jsx';
 
 function App() {
   useEffect(() => {
@@ -48,7 +47,6 @@ function App() {
         <SearchingProvider>
           
           {/* 🔥 AGREGAR EL COMPONENTE GLOBAL */}
-          <GlobalSearching />
           
           <Routes>
             {/* 🔓 RUTAS PÚBLICAS - FUERA del RouteGuard y sin protección */}

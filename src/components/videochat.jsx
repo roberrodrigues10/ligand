@@ -66,8 +66,8 @@
   };
 
   // ✅ COMPONENTE CON VIDEO REAL PARA LA MODELO - RESPONSIVE
-  const VideoDisplay = ({ onCameraSwitch, mainCamera }) => {
-    const participants = useParticipants();
+    const VideoDisplay = ({ onCameraSwitch, mainCamera, connected, hadRemoteParticipant }) => {
+      const participants = useParticipants();
     const localParticipant = participants.find(p => p.isLocal);
     const remoteParticipant = participants.find(p => !p.isLocal);
     
@@ -109,23 +109,48 @@
         console.log("Error rendering main video:", error);
       }
 
+      // 🔥 FUNCIÓN PARA DETERMINAR EL ESTADO DE CONEXIÓN (FUERA DEL TRY-CATCH)
+      const getConnectionStatus = () => {
+
+        if (participants.length === 1 && localParticipant && !remoteParticipant && !hadRemoteParticipant) {
+          return {
+            icon: '👤',
+            title: 'Esperando cliente',
+            message: 'Sala lista para recibir cliente',
+            submessage: 'Esperando conexión...',
+            bgColor: 'bg-blue-600/20',
+            borderColor: 'border-blue-500/40',
+            textColor: 'text-blue-200',
+            submessageColor: 'text-blue-300'
+          };
+        }
+        
+        // Estado 2: Ya había un cliente y ahora no está - DESCONEXIÓN
+        return {
+          icon: '⚠️',
+          title: 'Esperando conexión',
+          message: 'Puede que el usuario te haya saltado o se desconectó',
+          submessage: 'Verificando en tiempo real...',
+          bgColor: 'bg-yellow-600/20',
+          borderColor: 'border-yellow-500/40',
+          textColor: 'text-yellow-200',
+          submessageColor: 'text-yellow-300'
+        };
+      };
+
+      const status = getConnectionStatus();
+
       return (
         <div className="w-full h-full flex items-center justify-center bg-gray-800 text-white p-4">
           <div className="text-center max-w-sm mx-auto">
-            <div className="animate-pulse text-4xl sm:text-6xl mb-4">👩‍💼</div>
-            <p className="text-lg sm:text-xl mb-2">Vista de la Modelo</p>
-            <div className="space-y-2 text-xs sm:text-sm">
-              <p className="text-green-400">✅ Conectada al servidor LiveKit</p>
-              <p className="text-gray-400">👥 Participantes: {participants.length}</p>
-              {localParticipant && (
-                <p className="text-blue-400">🟦 Tú (Modelo): {localParticipant.identity}</p>
-              )}
-              {remoteParticipant && (
-                <p className="text-pink-400">🟪 Cliente: {remoteParticipant.identity}</p>
-              )}
-              {!remoteParticipant && participants.length === 1 && (
-                <p className="text-yellow-400">⏳ Esperando que se conecte el cliente...</p>
-              )}
+            <div className="animate-pulse text-4xl sm:text-6xl mb-4">{status.icon}</div>
+            <p className="text-lg sm:text-xl mb-2">{status.title}</p>
+            <div className={`${status.bgColor} border ${status.borderColor} rounded-xl p-4 mt-4`}>
+              <p className={`${status.textColor} text-sm text-center`}>
+                {status.message}
+                <br />
+                <span className={`text-xs ${status.submessageColor}`}>{status.submessage}</span>
+              </p>
             </div>
           </div>
         </div>
@@ -261,6 +286,11 @@
       languages 
     } = useTranslation();
     const [showCameraAudioModal, setShowCameraAudioModal] = useState(false);
+    const [clientDisconnected, setClientDisconnected] = useState(false);
+    const [clientWentNext, setClientWentNext] = useState(false);
+    const [disconnectionReason, setDisconnectionReason] = useState('');
+    const [disconnectionType, setDisconnectionType] = useState(''); // 'stop', 'next', 'left'
+    const [redirectCountdown, setRedirectCountdown] = useState(0);
 
 
 
@@ -417,27 +447,56 @@
       }
       
       return "Esperando usuario...";
-    };
+      };
 
-    const getDisplayRole = () => {
-      if (!roomName || !userName) return "Configurando...";
+        const handleClientDisconnected = (reason = 'stop', customMessage = '') => {
+          console.log('🛑 Cliente se desconectó:', reason);
+          
+          // Detener loading normal
+          setLoading(false);
+          setConnected(false);
+          console.log('🛑 [DEBUG] Estados después:', { 
+            loading: false, 
+            clientDisconnected: reason !== 'next',
+            clientWentNext: reason === 'next' 
+          });
+          
+          if (reason === 'next' || reason === 'partner_went_next') {
+            setClientWentNext(true);
+            setDisconnectionType('next');
+            setDisconnectionReason(customMessage || 'El usuario te saltó y fue a la siguiente persona');
+          } else if (reason === 'stop' || reason === 'partner_left_session') {
+            setClientDisconnected(true);
+            setDisconnectionType('stop');
+            setDisconnectionReason(customMessage || 'El usuario se desconectó de la videollamada');
+          } else if (reason === 'left' || reason === 'client_left') {
+            setClientDisconnected(true);
+            setDisconnectionType('left');
+            setDisconnectionReason(customMessage || 'El usuario salió de la sesión');
+          } else {
+            setClientDisconnected(true);
+            setDisconnectionType('unknown');
+            setDisconnectionReason(customMessage || 'El usuario finalizó la sesión');
+          }
+          
+          // Iniciar countdown para redirección
+          startRedirectCountdown();
+        };
+
+// 🔥 FUNCIÓN PARA COUNTDOWN DE REDIRECCIÓN
+    const startRedirectCountdown = () => {
+      let timeLeft = 3; // 3 segundos
+      setRedirectCountdown(timeLeft);
       
-      const cacheKey = getRoomCacheKey(roomName, userName);
-      const cached = USER_CACHE.get(cacheKey);
-      
-      if (cached) {
-        return cached.role === 'modelo' ? 'Modelo' : 'Cliente';
-      }
-      
-      if (otherUser) {
-        return otherUser.role === 'modelo' ? 'Modelo' : 'Cliente';
-      }
-      
-      if (isDetectingUser) {
-        return "Buscando usuario";
-      }
-      
-      return "Sin conexión";
+      const countdownInterval = setInterval(() => {
+        timeLeft--;
+        setRedirectCountdown(timeLeft);
+        
+        if (timeLeft <= 0) {
+          clearInterval(countdownInterval);
+          // La redirección ya se maneja en los useEffect existentes
+        }
+      }, 1000);
     };
 
     const shouldShowSpinner = () => {
@@ -821,7 +880,10 @@ useEffect(() => {
               isPolling = false;
               
               if (notification.type === 'partner_went_next') {
-                console.log('🔄 [MODELO] Cliente fue a siguiente - navegando');
+                console.log('🔄 [MODELO] Cliente fue a siguiente - mostrando mensaje');
+                
+                // 🔥 MOSTRAR MENSAJE ESPECÍFICO INMEDIATAMENTE
+                handleClientDisconnected('next', 'El cliente fue a la siguiente modelo');
                 
                 clearUserCache();
                 startSearching();
@@ -837,38 +899,48 @@ useEffect(() => {
                   selectedMic: selectedMic || ''
                 });
                 
-                navigate(`/usersearch?${urlParams}`, { replace: true });
+                // 🔥 DELAY PARA MOSTRAR EL MENSAJE (3 segundos)
+                setTimeout(() => {
+                  navigate(`/usersearch?${urlParams}`, { replace: true });
+                }, 3000);
               }
               
             // 🔥 AGREGAR ESTA LÓGICA FALTANTE:
 
             if (notification.type === 'partner_left_session') {
-              console.log('🛑 [MODELO] Cliente terminó sesión - navegando a búsqueda');
+              console.log('🛑 [MODELO] Cliente terminó sesión - mostrando mensaje');
               
-              // Limpiar datos de la sesión anterior
-              setModeloStoppedWorking(true);
-              setReceivedNotification(true);
-              clearUserCache();
+              // 🔥 MOSTRAR MENSAJE ESPECÍFICO INMEDIATAMENTE
+              handleClientDisconnected('stop', 'El cliente finalizó la videollamada');
               
-              sessionStorage.removeItem('roomName');
-              sessionStorage.removeItem('userName');
-              sessionStorage.removeItem('currentRoom');
-              sessionStorage.removeItem('inCall');
-              sessionStorage.removeItem('videochatActive');
-              
-              startSearching();
-              
-              // Ir directo a usersearch para buscar nuevo cliente
-              const urlParams = new URLSearchParams({
-                role: 'modelo',
-                from: 'client_stopped_session',
-                action: 'find_new_client',
-                reason: 'previous_client_left',
-                selectedCamera: selectedCamera || '',
-                selectedMic: selectedMic || ''
-              });
-              
-              navigate(`/usersearch?${urlParams}`, { replace: true });
+              // 🔥 AGREGAR UN PEQUEÑO DELAY ANTES DE LIMPIAR
+              setTimeout(() => {
+                setModeloStoppedWorking(true);
+                setReceivedNotification(true);
+                clearUserCache();
+                
+                sessionStorage.removeItem('roomName');
+                sessionStorage.removeItem('userName');
+                sessionStorage.removeItem('currentRoom');
+                sessionStorage.removeItem('inCall');
+                sessionStorage.removeItem('videochatActive');
+                
+                startSearching();
+                
+                const urlParams = new URLSearchParams({
+                  role: 'modelo',
+                  from: 'client_stopped_session',
+                  action: 'find_new_client',
+                  reason: 'previous_client_left',
+                  selectedCamera: selectedCamera || '',
+                  selectedMic: selectedMic || ''
+                });
+                
+                // 🔥 DELAY PARA MOSTRAR EL MENSAJE (3 segundos)
+                setTimeout(() => {
+                  navigate(`/usersearch?${urlParams}`, { replace: true });
+                }, 3000);
+              }, 100); // 🔥 100ms de delay para que se actualice el render
             }
               
             } else {
@@ -981,7 +1053,10 @@ useEffect(() => {
             }
             
             if (data.type === 'client_left') {
-              console.log(`👤 [MODELO] Cliente se fue via SSE - navegando INMEDIATAMENTE`);
+              console.log(`👤 [MODELO] Cliente se fue via SSE - mostrando mensaje`);
+              
+              // 🔥 MOSTRAR MENSAJE ESPECÍFICO INMEDIATAMENTE
+              handleClientDisconnected('left', 'El cliente se desconectó inesperadamente');
               
               if (eventSource) {
                 eventSource.close();
@@ -997,8 +1072,11 @@ useEffect(() => {
                 ...data.data?.redirect_params
               });
               
-              console.log('🧭 [MODELO] Navegando via SSE INMEDIATAMENTE');
-              navigate(`/usersearch?${urlParams}`, { replace: true });
+              console.log('🧭 [MODELO] Navegando via SSE con delay');
+              // 🔥 DELAY PARA MOSTRAR EL MENSAJE (3 segundos)
+              setTimeout(() => {
+                navigate(`/usersearch?${urlParams}`, { replace: true });
+              }, 3000);
             }
           } catch (error) {
             console.error('❌ [MODELO] Error procesando notificación SSE:', error);
@@ -1269,9 +1347,16 @@ useEffect(() => {
     }, [memoizedRoomName, memoizedUserName, handleRateLimit]);
 
     // 🔥 RESETEAR FLAG AL CAMBIAR DE SALA
+    // 🔥 RESETEAR FLAGS Y ESTADOS AL CAMBIAR DE SALA
     useEffect(() => {
       setModeloStoppedWorking(false);
       setReceivedNotification(false);
+      // 🔥 RESET ESTADOS DE DESCONEXIÓN
+      setClientDisconnected(false);
+      setClientWentNext(false);
+      setDisconnectionReason('');
+      setDisconnectionType('');
+      setRedirectCountdown(0);
     }, [roomName]);
 
     // Timer
@@ -1299,22 +1384,83 @@ useEffect(() => {
     }, [messages]);
 
     // Estados de carga y error
-    if (loading) {
+// 🔥 SOLO MOSTRAR LOADING SI NO HAY DESCONEXIÓN Y REALMENTE ESTÁ LOADING
+    if ((loading && !clientDisconnected && !clientWentNext) || clientDisconnected || clientWentNext) {
+        console.log('🖼️ [RENDER DEBUG]:', {
+        loading,
+        clientDisconnected,
+        clientWentNext,
+        disconnectionType,
+        disconnectionReason,
+        shouldShowDisconnection: clientDisconnected || clientWentNext,
+        willShowLoading: loading && !clientDisconnected && !clientWentNext
+      });
+
       return (
-        <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex items-center justify-center p-4">
+        <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
           <div className="text-center max-w-sm mx-auto">
-            <div className="animate-spin rounded-full h-20 w-20 sm:h-32 sm:w-32 border-b-2 border-[#ff007a] mx-auto mb-4"></div>
-            <p className="text-lg sm:text-xl">Conectando a la videollamada...</p>
-            <p className="text-sm text-gray-400 mt-2">👩‍💼 Modo Modelo</p>
-            {modelo && (
-              <div className="mt-4 text-sm text-gray-400">
-                <p>Eres: {modelo.nombre} {modelo.pais}</p>
-              </div>
-            )}
+            
+            {/* SOLO MOSTRAR DESCONEXIÓN SI HAY DESCONEXIÓN */}
+            {(clientDisconnected || clientWentNext) && (
+              <div className="space-y-6">
+                {/* 🔥 AGREGAR LOG AQUÍ TAMBIÉN */}
+                {console.log('🖼️ [RENDER] Mostrando mensaje de desconexión:', disconnectionType)}
+                
+                {/* Icono según el tipo de desconexión */}
+                <div className="text-8xl mb-4">
+                  {disconnectionType === 'next' ? '⏭️' : 
+                  disconnectionType === 'stop' ? '🛑' : 
+                  disconnectionType === 'left' ? '👋' : '💔'}
+                </div>
+            
+            {/* Mensaje principal */}
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-white">
+                {disconnectionType === 'next' ? '¡Te saltaron!' : 
+                 disconnectionType === 'stop' ? '¡Cliente se fue!' : 
+                 disconnectionType === 'left' ? '¡Se desconectó!' : '¡Sesión terminada!'}
+              </h2>
+              
+              <p className="text-lg text-gray-300">
+                {disconnectionReason}
+              </p>
+            </div>
+            
+            {/* Mensaje de acción */}
+            <div className="bg-[#1f2125] rounded-xl p-4 border border-[#ff007a]/20">
+              <p className="text-sm text-gray-400 mb-2">
+                No te preocupes, te conectaremos con alguien más
+              </p>
+              
+              {/* Countdown */}
+              {redirectCountdown > 0 && (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ff007a]"></div>
+                  <span className="text-[#ff007a] font-bold">
+                    Redirigiendo en {redirectCountdown}s...
+                  </span>
+                </div>
+              )}
+              
+              {redirectCountdown === 0 && (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ff007a]"></div>
+                  <span className="text-[#ff007a] font-bold">
+                    Conectando...
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      );
-    }
+        )}
+        
+        {/* LOADING NORMAL - SOLO SI NO HAY DESCONEXIÓN */}
+       
+        
+      </div>
+    </div>
+  );
+}
 
     if (error) {
       return (
@@ -1385,8 +1531,12 @@ useEffect(() => {
 
           {/* MÓVIL/TABLET - Video pantalla completa */}
           <div className="lg:hidden bg-[#1f2125] rounded-2xl overflow-hidden relative mt-4 h-[80vh]">
-            <VideoDisplay onCameraSwitch={cambiarCamara} mainCamera={camaraPrincipal} />
-            
+            <VideoDisplay 
+              onCameraSwitch={cambiarCamara} 
+              mainCamera={camaraPrincipal}
+              connected={connected}
+              hadRemoteParticipant={otherUser !== null}
+            />            
             <FloatingMessages 
               messages={messages} 
               translationSettings={translationSettings} 
