@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, Mic, X, RotateCcw, Volume2, Settings, Check, RefreshCw } from 'lucide-react';
 import { useLocalParticipant, useRoomContext } from '@livekit/components-react';
 
@@ -6,13 +6,72 @@ import { useLocalParticipant, useRoomContext } from '@livekit/components-react';
  * Componente de configuración de cámara y audio
  * Se integra con LiveKit para cambiar dispositivos en tiempo real
  */
+
+
+ const applyMirrorToAllVideos = (shouldMirror) => {
+  console.log('🪞 Aplicando espejo global:', shouldMirror);
+  
+  const selectors = [
+    '[data-lk-participant-video]',
+    'video[data-participant="local"]',
+    '.local-video video',
+    '[data-testid="participant-video"]',
+    'video[autoplay][muted]',
+    '.participant-video video'
+  ];
+  
+  selectors.forEach(selector => {
+    const videos = document.querySelectorAll(selector);
+    videos.forEach(video => {
+      if (video && video.style) {
+        video.style.transform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+        video.style.webkitTransform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+      }
+    });
+  });
+};
+let mirrorObserver = null;
+
+const setupMirrorObserver = (shouldMirror) => {
+  if (mirrorObserver) {
+    mirrorObserver.disconnect();
+  }
+  
+  mirrorObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) {
+          if (node.tagName === 'VIDEO') {
+            node.style.transform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+            node.style.webkitTransform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+          }
+          
+          const videos = node.querySelectorAll ? node.querySelectorAll('video') : [];
+          videos.forEach(video => {
+            video.style.transform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+            video.style.webkitTransform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+          });
+        }
+      });
+    });
+  });
+  
+  mirrorObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+};
+
 const CameraAudioSettings = ({ 
   isOpen, 
   onClose, 
   cameraEnabled, 
   micEnabled, 
   setCameraEnabled, 
-  setMicEnabled 
+  setMicEnabled, 
+  mirrorMode,
+  setMirrorMode,
+  onMirrorToggle
 }) => {
   // Hooks de LiveKit
   const { localParticipant } = useLocalParticipant();
@@ -29,7 +88,8 @@ const CameraAudioSettings = ({
   const [selectedCamera, setSelectedCamera] = useState('');
   const [selectedMicrophone, setSelectedMicrophone] = useState('');
   const [selectedSpeaker, setSelectedSpeaker] = useState('');
-  const [isFlipped, setIsFlipped] = useState(false);
+  const isFlipped = mirrorMode;
+  const setIsFlipped = setMirrorMode;
   const [volume, setVolume] = useState(80);
   const [isTesting, setIsTesting] = useState({ mic: false, speaker: false });
   const [countdown, setCountdown] = useState(0); // Nuevo estado para mostrar countdown
@@ -142,6 +202,12 @@ const CameraAudioSettings = ({
         
         previewStreamRef.current = stream;
         videoRef.current.srcObject = stream;
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.style.transform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+            videoRef.current.style.webkitTransform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+          }
+        }, 100);
         
         console.log('✅ Preview INMEDIATO iniciado correctamente');
       } else if (videoRef.current) {
@@ -180,7 +246,13 @@ const CameraAudioSettings = ({
         
         previewStreamRef.current = stream;
         videoRef.current.srcObject = stream;
-        
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.style.transform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+            videoRef.current.style.webkitTransform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+          }
+        }, 100);
+                
         console.log('✅ Preview iniciado correctamente');
       } else if (videoRef.current) {
         videoRef.current.srcObject = null;
@@ -522,19 +594,17 @@ const CameraAudioSettings = ({
       setIsTesting(prev => ({ ...prev, speaker: false }));
     }
   };
+ 
+
+
 
   // Alternar cámara invertida
-  const toggleFlipCamera = () => {
-    setIsFlipped(!isFlipped);
-    
-    // Aplicar transformación CSS al video principal
-    const mainVideoElements = document.querySelectorAll('[data-lk-participant-video]');
-    mainVideoElements.forEach(video => {
-      if (video.style) {
-        video.style.transform = !isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
-      }
-    });
-  };
+const toggleFlipCamera = () => {
+  if (onMirrorToggle) {
+    onMirrorToggle(); // Usar la función del VideoChat
+  }
+};
+
 
   // Guardar configuraciones (sin localStorage para artifacts)
   const saveSettings = async () => {
@@ -613,25 +683,15 @@ const CameraAudioSettings = ({
     return cleanup;
   }, [isOpen]);
 
+
+
+// Aplicar espejo cuando cambie isFlipped
   useEffect(() => {
-    if (isOpen && selectedCamera && !isChangingDeviceRef.current && !previewApplied) {
-      // Solo iniciar preview automático si no se ha aplicado ya un cambio
-      if (cameraEnabled) {
-        const timer = setTimeout(() => {
-          startCameraPreview();
-        }, 300);
-        
-        return () => clearTimeout(timer);
-      } else {
-        // Si la cámara está deshabilitada, aún mostrar preview para selección
-        const timer = setTimeout(() => {
-          startCameraPreviewImmediate(selectedCamera);
-        }, 300);
-        
-        return () => clearTimeout(timer);
-      }
+    if (videoRef.current) {
+      videoRef.current.style.transform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+      videoRef.current.style.webkitTransform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
     }
-  }, [selectedCamera, cameraEnabled, isOpen, previewApplied]);
+  }, [isFlipped]);
 
   // Aplicar flip cuando cambie
   useEffect(() => {
@@ -646,6 +706,8 @@ const CameraAudioSettings = ({
   }, [isFlipped]);
 
   if (!isOpen) return null;
+
+
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">

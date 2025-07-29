@@ -185,31 +185,67 @@
     "start_button": "Iniciar",
     "searching_user": "Buscando usuario...",
     "random_user_notice": "🔗 Te conectarás con un usuario aleatorio"
+  },"roulette_cliente": {
+    "titulo": "✨ Listo para empezar",
+    "estado": "👨‍💻 Chico conectado",
+    "camera_label": "Cámara",
+    "mic_label": "Micrófono", 
+    "start_button": "Iniciar",
+    "searching_user": "Buscando chica...",
+    "random_user_notice": "🔗 Te conectarás con una chica aleatoria",
+    "flip_camera": "Voltear cámara",
+    "waiting_permissions": "Esperando permisos..."
   },
-  "userSearch": {
-    "waiting_users": "Esperando usuarios",
-    "waiting_guy": "Esperando chico",
-    "waiting_girl": "Esperando chica",
-    "rouletting": "Ruleteando",
-    "connecting": "¡Conectando!",
-    "searching_new_guy": "Buscando nuevo chico...",
-    "searching_new_girl": "Buscando nueva chica...",
-    "reconnecting": "Reconectando...",
-    "starting_roulette": "Iniciando ruleta...",
-    "user_found_connecting": "¡Usuario encontrado! Conectando...",
-    "preparing_connection": "Preparando conexión segura...",
-    "time": "Tiempo:",
-    "checks": "Checks:",
-    "automatic_verification": "⚡ Verificación automática cada 7 segundos",
-    "cancel_search": "← Cancelar búsqueda",
-    "cancel_wait": "← Cancelar espera",
-    "back": "← Volver",
-    "error_connecting": "Error al conectar",
-    "try_again": "Intenta crear una nueva sala",
-    "try_another_user": "Intenta buscar otro usuario",
-    "timeout_message": "No se conectó ningún usuario después de 3 minutos. Intenta más tarde.",
-    "timeout_status": "Tiempo de espera agotado"
+  "usersearch": {
+    "iniciando_llamada": "Iniciando llamada...",
+    "conectando": "🎉 Conectando...",
+    "finalizando": "🛑 Finalizando...", 
+    "cambiando": "⏭️ Cambiando...",
+    "esperando_chico": "Esperando chico...",
+    "esperando_chica": "Esperando chica...",
+    "buscando_nuevo_chico": "Buscando nuevo chico",
+    "buscando_nueva_chica": "Buscando nueva chica",
+    "tiempo_espera": "Tiempo de espera",
+    "verificaciones": "Verificaciones",
+    "esperando_match_real": "Esperando match real",
+    "volver": "Volver",
+    "red": "Red",
+    "red_excelente": "Excelente",
+    "red_buena": "Buena", 
+    "red_mala": "Mala",
+    "red_verificando": "Verificando..."
+  },
+  "videochat": {
+    "userSkippedYou": "¡Te saltaron!",
+    "clientDisconnected": "¡El chico se fue!",
+    "userLeft": "¡Se desconectó!",
+    "sessionEnded": "¡Sesión terminada!",
+    "connecting": "Conectando...",
+    "redirectingIn": "Redirigiendo en {{seconds}}s...",
+    "dontWorry": "No te preocupes, te conectaremos con otro chico"
+  },
+  "time": {
+    "callDuration": "Tiempo"
+  },
+  "status": {
+    "online": "Conectada"
+  },
+  "navigation": {
+    "settings": "Configuraciones"
+  },
+  "translation": {
+    "title": "Traducción",
+    "translationActive": "Activa",
+    "translationInactive": "Desactivada"
+  },
+  "controls": {
+    "camera": "Cámara",
+    "microphone": "Micrófono"
+  },
+    "chat": {
+    "respondToClient": "Responde al chico..."
   }
+
 }
   
 

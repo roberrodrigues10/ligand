@@ -17,7 +17,7 @@ const UserSearch = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState(null);
-  const [searchStatus, setSearchStatus] = useState('Iniciando...');
+  const [searchStatus, setSearchStatus] = useState(t("usersearch.iniciando_llamada", "Iniciando llamada..."));
   const [roomData, setRoomData] = useState(null);
   const [waitTime, setWaitTime] = useState(0);
   const [checkCount, setCheckCount] = useState(0);
@@ -166,18 +166,18 @@ const UserSearch = () => {
     setHasProcessedResponse(true);
 
     try {
-      setSearchStatus('Creando sala...');
+      setSearchStatus(t("usersearch.creando_sala", "Creando sala..."));
       console.log('🏗️ [USERSEARCH] Creando sala ÚNICA');
 
       // 🌐 VERIFICAR RED ANTES DE CONTINUAR
       const networkCheck = await checkNetworkQuality();
       if (!networkCheck.isOnline) {
-        throw new Error('Sin conexión a internet');
+        throw new Error(t("usersearch.sin_conexion", "Sin conexión a internet"));
       }
 
       const authToken = sessionStorage.getItem('token');
       if (!authToken) {
-        throw new Error('No hay token de autenticación');
+        throw new Error(t("usersearch.sin_token", "No hay token de autenticación"));
       }
 
       // 🔥 ENDPOINT Y BODY SEGÚN CONTEXTO
@@ -215,9 +215,9 @@ const UserSearch = () => {
 
       if (!response.ok) {
         if (response.status === 429) {
-          throw new Error('Servidor ocupado');
+          throw new Error(t("usersearch.servidor_ocupado", "Servidor ocupado"));
         }
-        throw new Error(`Error ${response.status}`);
+        throw new Error(`${t("usersearch.error", "Error")} ${response.status}`);
       }
 
       const data = await response.json();
@@ -229,7 +229,7 @@ const UserSearch = () => {
     } catch (error) {
       console.error('❌ [USERSEARCH] Error:', error);
       setError(error.message);
-      setSearchStatus('Error conectando');
+      setSearchStatus(t("usersearch.error_conectando", "Error conectando"));
       
       // Reset flags en caso de error
       setIsCreatingRoom(false);
@@ -240,7 +240,7 @@ const UserSearch = () => {
   // 🚨 FUNCIÓN CRÍTICA: PROCESAR RESPUESTA DEL SERVIDOR
   const processServerResponse = async (data) => {
     if (!data.success) {
-      throw new Error('Respuesta del servidor no exitosa');
+      throw new Error(t("usersearch.respuesta_no_exitosa", "Respuesta del servidor no exitosa"));
     }
 
     console.log('🔍 [USERSEARCH] Procesando tipo:', data.type);
@@ -250,7 +250,7 @@ const UserSearch = () => {
       console.log('🎉 [USERSEARCH] MATCH ENCONTRADO - REDIRIGIENDO INMEDIATAMENTE');
       
       if (!data.roomName || !data.userName) {
-        throw new Error('Datos de match incompletos');
+        throw new Error(t("usersearch.datos_match_incompletos", "Datos de match incompletos"));
       }
 
       await redirectToVideoChat(data.roomName, data.userName, data, true);
@@ -265,7 +265,7 @@ const UserSearch = () => {
       const finalUserName = data.userName;
 
       if (!roomName || !finalUserName) {
-        throw new Error('Datos de sala incompletos');
+        throw new Error(t("usersearch.datos_sala_incompletos", "Datos de sala incompletos"));
       }
 
       const newRoomData = {
@@ -275,14 +275,20 @@ const UserSearch = () => {
       };
       
       setRoomData(newRoomData);
-      setSearchStatus(role === 'modelo' ? 'Esperando cliente...' : 'Esperando modelo...');
+      
+      // 🔥 TEXTO SEGÚN ROL: chico/chica esperando pareja
+      const waitingText = role === 'modelo' ? 
+        t("usersearch.esperando_chico", "Esperando chico...") : 
+        t("usersearch.esperando_chica", "Esperando chica...");
+      
+      setSearchStatus(waitingText);
       
       // 🚀 INICIAR VERIFICACIÓN OPTIMIZADA
       startOptimizedWaiting(roomName, finalUserName, newRoomData);
       return;
     }
 
-    throw new Error(`Tipo de respuesta no reconocida: ${data.type}`);
+    throw new Error(`${t("usersearch.tipo_respuesta_no_reconocida", "Tipo de respuesta no reconocida")}: ${data.type}`);
   };
 
   // 🚨 FUNCIÓN: ESPERA OPTIMIZADA CON DETECCIÓN DE ACCIONES
@@ -310,7 +316,7 @@ const UserSearch = () => {
         
         // Si es stop, redirigir inmediatamente a home
         if (action.type === 'stop') {
-          console.log('🛑 [ACTION] STOP detectado - redirigiendo a home');
+          console.log('🛑 [ACTION] STOP detectado - redirigiendo a esperarcall');
           handleStopAction();
           return;
         }
@@ -384,10 +390,13 @@ const UserSearch = () => {
     window.__USERSEARCH_ACTIVE = null;
     sessionStorage.removeItem('inCall');
     sessionStorage.removeItem('videochatActive');
+    sessionStorage.removeItem('roomName');
+    sessionStorage.removeItem('userName');
+    sessionStorage.removeItem('currentRoom');
     
-    // Redirigir según rol
-    const homeRoute = role === 'modelo' ? '/homellamadas' : '/homecliente';
-    navigate(homeRoute, { replace: true });
+    // 🔥 REDIRECCIONAR A ESPERARCALL SEGÚN ROL
+    const esperarRoute = role === 'modelo' ? '/esperandocall' : '/esperandocallcliente';
+    navigate(esperarRoute, { replace: true });
   };
 
   // ⏭️ FUNCIÓN: MANEJAR ACCIÓN DE SIGUIENTE (NUEVA)
@@ -402,6 +411,7 @@ const UserSearch = () => {
     sessionStorage.removeItem('inCall');
     sessionStorage.removeItem('videochatActive');
     sessionStorage.removeItem('roomName');
+    sessionStorage.removeItem('userName');
     sessionStorage.removeItem('currentRoom');
     
     // 🚀 REDIRECCIÓN FORZADA A USERSEARCH CON PARÁMETROS
@@ -498,7 +508,7 @@ const UserSearch = () => {
         role
       });
 
-      setSearchStatus('Conectando...');
+      setSearchStatus(t("usersearch.conectando", "Conectando..."));
       clearAllIntervals();
 
       // 🔥 GUARDAR EN SESSIONSTORAGE PARA VIDEOCHAT
@@ -508,6 +518,7 @@ const UserSearch = () => {
       sessionStorage.setItem('inCall', 'true');
       sessionStorage.setItem('videochatActive', 'true');
 
+      // 🔥 CORREGIDO: chico/chica en lugar de cliente/modelo
       const targetRoute = role === 'modelo' ? '/videochat' : '/videochatclient';
       
       console.log(`🧭 [REDIRECT] Navegando a: ${targetRoute}`);
@@ -522,7 +533,8 @@ const UserSearch = () => {
           ruletaData,
           fromMatch,
           from: 'usersearch',
-          modelo: ruletaData?.modelo || null
+          chica: ruletaData?.chica || null, // 🔥 CAMBIADO: chica en lugar de modelo
+          chico: ruletaData?.chico || null   // 🔥 AGREGADO: chico
         },
         replace: true
       });
@@ -557,7 +569,7 @@ const UserSearch = () => {
 
     } catch (error) {
       console.error('❌ [REDIRECT] Error:', error);
-      setError('Error conectando');
+      setError(t("usersearch.error_conectando", "Error conectando"));
       setIsRedirecting(false);
       
       // 🔥 FALLBACK EN CASO DE ERROR
@@ -625,41 +637,43 @@ const UserSearch = () => {
   // 🚨 TIMEOUT DE SEGURIDAD CORREGIDO (SOLO PARA CASOS EXTREMOS)
   useEffect(() => {
     const safetyTimeout = setTimeout(() => {
-      console.log('🚨 [SAFETY] Timeout de seguridad (5 min) - REGRESANDO AL HOME');
+      console.log('🚨 [SAFETY] Timeout de seguridad (5 min) - REGRESANDO AL ESPERARCALL');
       
       clearAllIntervals();
       
       if (!isRedirecting) {
-        // 🔥 LIMPIAR TODO Y REGRESAR AL HOME (NO AL VIDEOCHAT)
+        // 🔥 LIMPIAR TODO Y REGRESAR AL ESPERARCALL (NO AL VIDEOCHAT)
         isMountedRef.current = false;
         window.__USERSEARCH_ACTIVE = null;
         sessionStorage.removeItem('inCall');
         sessionStorage.removeItem('videochatActive');
         sessionStorage.removeItem('roomName');
+        sessionStorage.removeItem('userName');
         sessionStorage.removeItem('currentRoom');
         
-        setError('Tiempo de espera agotado - regresando al inicio');
+        setError(t("usersearch.tiempo_agotado", "Tiempo de espera agotado - regresando al inicio"));
         
         setTimeout(() => {
-          const homeRoute = role === 'modelo' ? '/homellamadas' : '/homecliente';
-          console.log('🏠 [SAFETY] Redirigiendo a:', homeRoute);
+          // 🔥 CORREGIDO: esperarcall/esperarcallcliente
+          const esperarRoute = role === 'modelo' ? '/esperandocall' : '/esperandocallcliente';
+          console.log('🏠 [SAFETY] Redirigiendo a:', esperarRoute);
           
-          // 🚀 MÚLTIPLES MÉTODOS PARA ASEGURAR REDIRECCIÓN AL HOME
-          navigate(homeRoute, { replace: true });
+          // 🚀 MÚLTIPLES MÉTODOS PARA ASEGURAR REDIRECCIÓN AL ESPERARCALL
+          navigate(esperarRoute, { replace: true });
           
           // Backup 1
           setTimeout(() => {
-            if (window.location.pathname !== homeRoute) {
+            if (window.location.pathname !== esperarRoute) {
               console.log('🔄 [SAFETY] Backup 1 - window.location');
-              window.location.href = homeRoute;
+              window.location.href = esperarRoute;
             }
           }, 500);
           
           // Backup 2
           setTimeout(() => {
-            if (window.location.pathname !== homeRoute) {
-              console.log('🚨 [SAFETY] Backup 2 - forzando home');
-              window.location.replace(homeRoute);
+            if (window.location.pathname !== esperarRoute) {
+              console.log('🚨 [SAFETY] Backup 2 - forzando esperarcall');
+              window.location.replace(esperarRoute);
             }
           }, 1500);
           
@@ -678,14 +692,16 @@ const UserSearch = () => {
     isMountedRef.current = false;
     window.__USERSEARCH_ACTIVE = null;
     
-    // 🔥 LIMPIAR DATOS DE SESIÓN
+    // 🔥 LIMPIAR DATOS DE SESIÓN COMPLETAMENTE
     sessionStorage.removeItem('inCall');
     sessionStorage.removeItem('videochatActive');
     sessionStorage.removeItem('roomName');
+    sessionStorage.removeItem('userName');
     sessionStorage.removeItem('currentRoom');
     
-    const fallbackRoute = role === 'modelo' ? '/esperandocall' : '/esperandocallcliente';
-    navigate(fallbackRoute, { replace: true });
+    // 🔥 CORREGIDO: Siempre ir a esperarcall/esperarcallcliente
+    const esperarRoute = role === 'modelo' ? '/esperandocall' : '/esperandocallcliente';
+    navigate(esperarRoute, { replace: true });
   };
 
   // 🔥 FORMATEAR TIEMPO
@@ -705,6 +721,16 @@ const UserSearch = () => {
     }
   };
 
+  // 🌐 OBTENER TEXTO DE CALIDAD DE RED
+  const getNetworkText = (quality) => {
+    switch (quality) {
+      case 'excellent': return t("usersearch.red_excelente", "Excelente");
+      case 'good': return t("usersearch.red_buena", "Buena");
+      case 'poor': return t("usersearch.red_mala", "Mala");
+      default: return t("usersearch.red_verificando", "Verificando...");
+    }
+  };
+
   // 🎯 OBTENER ICONO DE ACCIÓN
   const getActionIcon = (actionType) => {
     switch (actionType) {
@@ -712,6 +738,19 @@ const UserSearch = () => {
       case 'siguiente': return '⏭️';
       default: return '👁️';
     }
+  };
+
+  // 🎯 OBTENER TÍTULO PRINCIPAL
+  const getMainTitle = () => {
+    if (isRedirecting) return t("usersearch.conectando", "🎉 Conectando...");
+    if (actionDetection.actionType === 'stop') return t("usersearch.finalizando", "🛑 Finalizando...");
+    if (actionDetection.actionType === 'siguiente') return t("usersearch.cambiando", "⏭️ Cambiando...");
+    if (action === 'siguiente') {
+      return role === 'modelo' ? 
+        t("usersearch.buscando_nuevo_chico", "Buscando nuevo chico") : 
+        t("usersearch.buscando_nueva_chica", "Buscando nueva chica");
+    }
+    return t("usersearch.iniciando_llamada", "Iniciando llamada...");
   };
 
   // 🚨 RENDER MEJORADO
@@ -725,19 +764,14 @@ const UserSearch = () => {
             <div className="text-4xl animate-pulse">
               {isRedirecting ? '🎉' : 
                actionDetection.actionType === 'stop' ? '🛑' : 
-               actionDetection.actionType === 'siguiente' ? '⏭️' : '🎰'}
+               actionDetection.actionType === 'siguiente' ? '⏭️' : '📞'}
             </div>
           </div>
         </div>
 
         {/* Título */}
         <h2 className="text-2xl font-bold mb-4 text-white">
-          {isRedirecting ? '🎉 Conectando...' : 
-           actionDetection.actionType === 'stop' ? '🛑 Finalizando...' :
-           actionDetection.actionType === 'siguiente' ? '⏭️ Cambiando...' :
-           action === 'siguiente' ? 
-             (role === 'modelo' ? 'Buscando nuevo cliente' : 'Buscando nueva modelo') :
-             'Iniciando ruleta...'}
+          {getMainTitle()}
         </h2>
 
         {/* Estado */}
@@ -748,14 +782,12 @@ const UserSearch = () => {
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center space-x-2">
               <span>{getNetworkIcon(networkStatus.quality)}</span>
-              <span className="text-gray-400">Red:</span>
+              <span className="text-gray-400">{t("usersearch.red", "Red")}:</span>
               <span className={`font-bold ${
                 networkStatus.quality === 'excellent' ? 'text-green-400' :
                 networkStatus.quality === 'good' ? 'text-yellow-400' : 'text-red-400'
               }`}>
-                {networkStatus.quality === 'excellent' ? 'Excelente' :
-                 networkStatus.quality === 'good' ? 'Buena' :
-                 networkStatus.quality === 'poor' ? 'Mala' : 'Verificando...'}
+                {getNetworkText(networkStatus.quality)}
               </span>
             </div>
             {networkStatus.latency && (
@@ -764,7 +796,7 @@ const UserSearch = () => {
           </div>
           {networkStatus.lastCheck && (
             <div className="text-[10px] text-gray-500 mt-1">
-              Última verificación: {networkStatus.lastCheck}
+              {t("usersearch.ultima_verificacion", "Última verificación")}: {networkStatus.lastCheck}
             </div>
           )}
         </div>
@@ -774,11 +806,11 @@ const UserSearch = () => {
           <div className="mb-4 p-3 bg-[#1f1521] rounded-lg border border-purple-500/30">
             <div className="flex items-center justify-center space-x-2 text-xs">
               <span>{getActionIcon(actionDetection.actionType)}</span>
-              <span className="text-purple-400">Detectando acciones del usuario</span>
+              <span className="text-purple-400">{t("usersearch.detectando_acciones", "Detectando acciones del usuario")}</span>
             </div>
             {actionDetection.detectedAt && (
               <div className="text-[10px] text-gray-500 mt-1">
-                Última detección: {actionDetection.detectedAt.toLocaleTimeString()}
+                {t("usersearch.ultima_deteccion", "Última detección")}: {actionDetection.detectedAt.toLocaleTimeString()}
               </div>
             )}
           </div>
@@ -789,12 +821,12 @@ const UserSearch = () => {
           <div className="mb-6 p-4 bg-[#1f2125] rounded-lg border border-[#ff007a]/30">
             <div className="text-xs space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-gray-500">Tiempo de espera:</span>
+                <span className="text-gray-500">{t("usersearch.tiempo_espera", "Tiempo de espera")}:</span>
                 <span className="text-white font-bold text-lg">{formatWaitTime(waitTime)}</span>
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-gray-500">Verificaciones:</span>
+                <span className="text-gray-500">{t("usersearch.verificaciones", "Verificaciones")}:</span>
                 <span className="text-blue-400">{checkCount} checks</span>
               </div>
               
@@ -806,7 +838,7 @@ const UserSearch = () => {
               </div>
               
               <p className="text-green-400 text-center mt-2">
-                ✨ Esperando match real - Sin límite de tiempo
+                ✨ {t("usersearch.esperando_match_real", "Esperando match real")}
               </p>
             </div>
           </div>
@@ -825,7 +857,7 @@ const UserSearch = () => {
             onClick={handleGoBack}
             className="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-full text-white text-sm transition"
           >
-            ← Volver
+            ← {t("usersearch.volver", "Volver")}
           </button>
         )}
 
@@ -841,13 +873,13 @@ const UserSearch = () => {
               sessionStorage.clear();
               localStorage.clear();
               
-              // 🏠 REDIRIGIR AL HOME (NO AL VIDEOCHAT)
-              const homeRoute = role === 'modelo' ? '/homellamadas' : '/homecliente';
-              navigate(homeRoute, { replace: true });
+              // 🏠 REDIRIGIR AL ESPERARCALL (NO AL VIDEOCHAT)
+              const esperarRoute = role === 'modelo' ? '/esperandocall' : '/esperandocallcliente';
+              navigate(esperarRoute, { replace: true });
               
               setTimeout(() => {
-                if (window.location.pathname !== homeRoute) {
-                  window.location.href = homeRoute;
+                if (window.location.pathname !== esperarRoute) {
+                  window.location.href = esperarRoute;
                 }
               }, 500);
             }}

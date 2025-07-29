@@ -186,6 +186,18 @@
     "searching_user": "Searching for user...",
     "random_user_notice": "🔗 You will connect with a random user"
   },
+  "roulette_cliente": {
+    "titulo": "✨ Ready to start",
+    "estado": "👨‍💻 Guy connected",
+    "camera_label": "Camera",
+    "mic_label": "Microphone",
+    "start_button": "Start",
+    "searching_user": "Looking for girl...",
+    "random_user_notice": "🔗 You'll connect with a random girl",
+    "flip_camera": "Flip camera",
+    "waiting_permissions": "Waiting for permissions..."
+  },
+  "permission_alert": "You need to allow camera and microphone access to continue.",  
   "userSearch": {
     "waiting_users": "Waiting for users",
     "waiting_guy": "Waiting for guy",
@@ -209,6 +221,36 @@
     "try_another_user": "Try searching for another user",
     "timeout_message": "No user connected after 3 minutes. Try again later.",
     "timeout_status": "Wait time expired"
+  },
+  "videochat": {
+    "userSkippedYou": "You got skipped!",
+    "clientDisconnected": "The guy left!",
+    "userLeft": "He disconnected!",
+    "sessionEnded": "Session ended!",
+    "connecting": "Connecting...",
+    "redirectingIn": "Redirecting in {{seconds}}s...",
+    "dontWorry": "Don't worry, we'll connect you with another guy"
+  },
+  "time": {
+    "callDuration": "Time"
+  },
+  "status": {
+    "online": "Connected"
+  },
+  "navigation": {
+    "settings": "Settings"
+  },
+  "translation": {
+    "title": "Translation",
+    "translationActive": "Active",
+    "translationInactive": "Inactive"
+  },
+  "controls": {
+    "camera": "Camera",
+    "microphone": "Microphone"
+  },
+    "chat": {
+    "respondToClient": "Reply to the guy..."
   }
 }
 

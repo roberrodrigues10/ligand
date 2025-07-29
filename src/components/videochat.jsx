@@ -1,5 +1,6 @@
   import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
   import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
+  import { useTranslation } from 'react-i18next';  
   import {
     LiveKitRoom,
     RoomAudioRenderer,
@@ -44,7 +45,7 @@
   import { getUser } from "../utils/auth";
   import { useSessionCleanup } from './closesession';
   import { 
-    useTranslation, 
+    useTranslation as useCustomTranslation, 
     TranslationSettings, 
     TranslatedMessage 
   } from '../utils/translationSystem.jsx';
@@ -67,9 +68,10 @@
 
   // ✅ COMPONENTE CON VIDEO REAL PARA LA MODELO - RESPONSIVE
     const VideoDisplay = ({ onCameraSwitch, mainCamera, connected, hadRemoteParticipant }) => {
-      const participants = useParticipants();
+    const participants = useParticipants();
     const localParticipant = participants.find(p => p.isLocal);
     const remoteParticipant = participants.find(p => !p.isLocal);
+    const { t } = useTranslation();
     
     // Obtener tracks de video
     const tracks = useTracks([
@@ -252,12 +254,105 @@
     </div>
   );
 };
+  const applyMirrorToAllVideos = (shouldMirror) => {
+    console.log('🪞 Aplicando espejo global en videochat:', shouldMirror);
+    
+    // Selectores específicos para LiveKit
+    const selectors = [
+      '[data-lk-participant-video]', // Videos principales de LiveKit
+      'video[data-participant="local"]', // Videos locales
+      '.lk-participant-tile video', // Videos en tiles
+      '.lk-video-track video', // Videos en tracks
+      'video[autoplay][muted]', // Videos de preview
+      'video[class*="object-cover"]', // Videos con clases de objeto
+      '.VideoTrack video', // Videos del componente VideoTrack
+      '[class*="VideoDisplay"] video' // Videos en el componente VideoDisplay
+    ];
+    
+    selectors.forEach(selector => {
+      const videos = document.querySelectorAll(selector);
+      videos.forEach(video => {
+        if (video && video.style) {
+          video.style.transform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+          video.style.webkitTransform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+          
+          // Agregar clase para identificar videos con espejo
+          if (shouldMirror) {
+            video.classList.add('mirror-video');
+            video.classList.remove('normal-video');
+          } else {
+            video.classList.add('normal-video');
+            video.classList.remove('mirror-video');
+          }
+        }
+      });
+    });
+    
+    // También aplicar a contenedores padre
+    const parentSelectors = [
+      '[data-lk-participant]',
+      '.lk-participant-tile',
+      '.participant-container'
+    ];
+    
+    parentSelectors.forEach(selector => {
+      const containers = document.querySelectorAll(selector);
+      containers.forEach(container => {
+        const videos = container.querySelectorAll('video');
+        videos.forEach(video => {
+          if (video && video.style) {
+            video.style.transform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+            video.style.webkitTransform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+          }
+        });
+      });
+    });
+  };
+
+  // Observer para videos que se crean dinámicamente
+  let mirrorObserver = null;
+
+  const setupMirrorObserver = (shouldMirror) => {
+    // Limpiar observer anterior
+    if (mirrorObserver) {
+      mirrorObserver.disconnect();
+    }
+    
+    mirrorObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === 1) { // Solo elementos
+            // Si el nodo agregado es un video
+            if (node.tagName === 'VIDEO') {
+              node.style.transform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+              node.style.webkitTransform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+            }
+            
+            // Si el nodo contiene videos
+            const videos = node.querySelectorAll ? node.querySelectorAll('video') : [];
+            videos.forEach(video => {
+              video.style.transform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+              video.style.webkitTransform = shouldMirror ? 'scaleX(-1)' : 'scaleX(1)';
+            });
+          }
+        });
+      });
+    });
+    
+    // Observar todo el documento
+    mirrorObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  };
+
 
   // 🔥 COMPONENTE PRINCIPAL COMPLETAMENTE CORREGIDO
   export default function VideoChat() {
     const location = useLocation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { t } = useTranslation();
 
     // 🔥 HOOK DE SEARCHING CONTEXT
     const { startSearching, stopSearching, forceStopSearching } = useSearching();
@@ -279,12 +374,16 @@
     const [showTranslationSettings, setShowTranslationSettings] = useState(false);
     const [showMainSettings, setShowMainSettings] = useState(false);
     const { 
-      settings: translationSettings, 
+      settings: translationSettings = { enabled: false }, 
       setSettings: setTranslationSettings,
-      translateMessage,  // ← Cambio importante
+      translateMessage,
       clearProcessedMessages,
-      languages 
-    } = useTranslation();
+      languages = {}
+    } = useCustomTranslation() || {};
+    const [mirrorMode, setMirrorMode] = useState(() => {
+      const saved = localStorage.getItem("mirrorMode");
+      return saved ? JSON.parse(saved) : true;
+    });
     const [showCameraAudioModal, setShowCameraAudioModal] = useState(false);
     const [clientDisconnected, setClientDisconnected] = useState(false);
     const [clientWentNext, setClientWentNext] = useState(false);
@@ -535,6 +634,72 @@
     const cambiarCamara = () => {
       setCamaraPrincipal(prev => prev === "remote" ? "local" : "remote");
     };
+    const toggleMirrorMode = useCallback(() => {
+  const newMirrorMode = !mirrorMode;
+  setMirrorMode(newMirrorMode);
+  localStorage.setItem("mirrorMode", JSON.stringify(newMirrorMode));
+  
+  // Aplicar inmediatamente a todos los videos
+  applyMirrorToAllVideos(newMirrorMode);
+  setupMirrorObserver(newMirrorMode);
+  
+  console.log('🪞 Espejo cambiado a:', newMirrorMode);
+}, [mirrorMode]);
+
+// Función para forzar aplicar espejo
+const forceApplyMirror = useCallback(() => {
+  console.log('🔄 Forzando aplicación de espejo:', mirrorMode);
+  applyMirrorToAllVideos(mirrorMode);
+  setupMirrorObserver(mirrorMode);
+}, [mirrorMode]);
+
+// 5. AGREGAR ESTOS USEEFFECTS después de los existentes
+
+// Cargar estado del espejo al inicializar
+useEffect(() => {
+  const savedMirrorMode = localStorage.getItem("mirrorMode");
+  const shouldMirror = savedMirrorMode ? JSON.parse(savedMirrorMode) : true;
+  
+  setMirrorMode(shouldMirror);
+  
+  // Aplicar al cargar (con delay para que los videos estén listos)
+  const timer = setTimeout(() => {
+    applyMirrorToAllVideos(shouldMirror);
+    setupMirrorObserver(shouldMirror);
+  }, 2000);
+  
+  return () => {
+    clearTimeout(timer);
+    if (mirrorObserver) {
+      mirrorObserver.disconnect();
+    }
+  };
+}, []);
+
+// Aplicar espejo cuando esté conectado y tenga participantes
+useEffect(() => {
+  if (connected && token) {
+    const timer = setTimeout(() => {
+      console.log('🔄 Aplicando espejo después de conexión');
+      applyMirrorToAllVideos(mirrorMode);
+      setupMirrorObserver(mirrorMode);
+    }, 3000); // 3 segundos para asegurar que LiveKit esté listo
+    
+    return () => clearTimeout(timer);
+  }
+}, [connected, token, mirrorMode]);
+
+// Re-aplicar espejo cuando cambien los participantes o tracks
+useEffect(() => {
+  if (chatFunctions && chatFunctions.participantsCount > 0) {
+    const timer = setTimeout(() => {
+      console.log('🔄 Re-aplicando espejo por cambio de participantes');
+      forceApplyMirror();
+    }, 1500);
+    
+    return () => clearTimeout(timer);
+  }
+}, [chatFunctions?.participantsCount, forceApplyMirror]);
 
     const handleRoomConnected = () => {
       console.log("🟢 MODELO - Conectada a LiveKit!");
@@ -600,8 +765,7 @@
     useEffect(() => {
       // Procesar mensajes para traducción automática
       const processMessagesForTranslation = async () => {
-        if (!translationSettings.enabled) return;
-        
+        if (!translationSettings?.enabled) return;        
         for (const message of messages) {
           if (!message.processed) {
             try {
@@ -1416,9 +1580,9 @@ useEffect(() => {
             {/* Mensaje principal */}
             <div className="space-y-2">
               <h2 className="text-2xl font-bold text-white">
-                {disconnectionType === 'next' ? '¡Te saltaron!' : 
-                 disconnectionType === 'stop' ? '¡Cliente se fue!' : 
-                 disconnectionType === 'left' ? '¡Se desconectó!' : '¡Sesión terminada!'}
+                {disconnectionType === 'next' ? t('videochat.userSkippedYou') : 
+                 disconnectionType === 'stop' ? t('videochat.clientDisconnected') : 
+                 disconnectionType === 'left' ? t('videochat.userLeft') : t('videochat.sessionEnded')}
               </h2>
               
               <p className="text-lg text-gray-300">
@@ -1429,7 +1593,7 @@ useEffect(() => {
             {/* Mensaje de acción */}
             <div className="bg-[#1f2125] rounded-xl p-4 border border-[#ff007a]/20">
               <p className="text-sm text-gray-400 mb-2">
-                No te preocupes, te conectaremos con alguien más
+                {t('videochat.dontWorry')}
               </p>
               
               {/* Countdown */}
@@ -1437,7 +1601,7 @@ useEffect(() => {
                 <div className="flex items-center justify-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ff007a]"></div>
                   <span className="text-[#ff007a] font-bold">
-                    Redirigiendo en {redirectCountdown}s...
+                    {t('videochat.redirectingIn', { seconds: redirectCountdown })}
                   </span>
                 </div>
               )}
@@ -1575,12 +1739,12 @@ useEffect(() => {
           <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs sm:text-sm text-white/70 mt-4 mb-2 font-mono gap-2">
             <div className="flex items-center gap-2">
               <Clock size={14} className="text-[#ff007a]" />
-              <span>Tiempo: </span>
+                <span>{t('time.callDuration')}: </span>
               <span className="text-[#ff007a] font-bold">{formatoTiempo()}</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {connected && (
-                <span className="text-green-400 text-xs">🟢 Conectada</span>
+                <span className="text-green-400 text-xs">🟢 {t('status.online')}</span>
               )}
             </div>
           </div>
@@ -1699,8 +1863,7 @@ useEffect(() => {
                   value={mensaje}
                   onChange={(e) => setMensaje(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Responde al cliente..."
-                  className="flex-1 bg-[#131418] px-3 sm:px-4 py-2 rounded-full outline-none text-white text-xs sm:text-sm"
+                  placeholder={t('chat.respondToClient')}                  className="flex-1 bg-[#131418] px-3 sm:px-4 py-2 rounded-full outline-none text-white text-xs sm:text-sm"
                 />
                 <button 
                   className="text-[#ff007a] hover:text-white transition"
@@ -1775,7 +1938,7 @@ useEffect(() => {
               <div className="settings-dropdown absolute bottom-16 right-0 bg-[#1f2125] rounded-xl p-4 shadow-2xl z-50 min-w-[240px] border border-[#ff007a]/20 animate-fadeIn">
                 <div className="space-y-1">
                   <div className="px-2 py-1 text-xs text-gray-400 uppercase tracking-wide border-b border-gray-600 mb-3">
-                    Configuraciones
+                    {t('navigation.settings')}
                   </div>
                   
                   <button
@@ -1787,11 +1950,11 @@ useEffect(() => {
                   >
                     <Globe className="text-[#ff007a] group-hover:scale-110 transition-transform" size={20} />
                     <div className="flex-1">
-                      <span className="text-white text-sm font-medium">Traducción</span>
+                      <span className="text-white text-sm font-medium">{t('translation.title')}</span>
                       <div className="text-xs text-gray-400">
                         {translationSettings.enabled ? 
-                          `Activa (${languages[translationSettings.targetLanguage]?.name})` : 
-                          'Desactivada'
+                          `${t('translation.translationActive')} (${languages[translationSettings.targetLanguage]?.name})` : 
+                             t('translation.translationInactive')
                         }
                       </div>
                     </div>
@@ -1807,9 +1970,8 @@ useEffect(() => {
                   >
                     <Camera className="text-[#ff007a] group-hover:scale-110 transition-transform" size={20} />
                     <div className="flex-1">
-                      <span className="text-white text-sm font-medium">Cámara y Audio</span>
+                      <span className="text-white text-sm font-medium">{t('controls.camera')} y {t('controls.microphone')}</span>
                       <div className="text-xs text-gray-400">
-                        {cameraEnabled ? '📹' : '📹❌'} {micEnabled ? '🎤' : '🎤❌'}
                       </div>
                     </div>
                     <ArrowRight className="text-gray-400 group-hover:text-white" size={16} />
@@ -1835,6 +1997,9 @@ useEffect(() => {
           micEnabled={micEnabled}
           setCameraEnabled={setCameraEnabled}
           setMicEnabled={setMicEnabled}
+          mirrorMode={mirrorMode}
+          setMirrorMode={setMirrorMode}
+          onMirrorToggle={toggleMirrorMode}
         />
  
 

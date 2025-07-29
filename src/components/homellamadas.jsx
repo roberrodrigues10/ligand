@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "./header";
 import { useTranslation } from "react-i18next";
 import { ProtectedPage } from './usePageAccess';
+import { getUser } from "../utils/auth"; // Asegúrate de que esta ruta sea correcta
 
 export default function InterfazCliente() {
   const { t } = useTranslation();
@@ -20,6 +21,19 @@ export default function InterfazCliente() {
     { nombre: "ValePink", accion: "Mensaje enviado", hora: "Ayer, 9:13 PM" },
     { nombre: "Nico21", accion: "Te agregó a favoritos", hora: "Ayer, 7:30 PM" },
   ];
+  const [user, setUser] = React.useState(null);
+  
+    React.useEffect(() => {
+      const fetchUser = async () => {
+        try {
+          const userData = await getUser();
+          setUser(userData);
+        } catch (err) {
+          console.error("Error al obtener usuario:", err);
+        }
+      };
+      fetchUser();
+    }, []);
 
   return (
     <ProtectedPage requiredConditions={{
@@ -36,7 +50,7 @@ export default function InterfazCliente() {
           {/* Panel central */}
           <main className="lg:col-span-3 bg-[#1f2125] rounded-2xl p-8 shadow-xl flex flex-col items-center">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-6 mt-16">
-              {t("client.greeting", { name: "Mariana" })}
+              {t("client.greeting", { name: user?.name || "Usuario" })}
             </h2>
             <p className="text-center text-white/70 mb-8 max-w-md">
               {t("client.instructions")}

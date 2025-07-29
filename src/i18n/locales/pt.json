@@ -185,7 +185,18 @@
     "start_button": "Iniciar",
     "searching_user": "Procurando usuário...",
     "random_user_notice": "🔗 Você se conectará com um usuário aleatório"
+  },"roulette_cliente": {
+    "titulo": "✨ Pronto para começar",
+    "estado": "👨‍💻 Cara conectado",
+    "camera_label": "Câmera",
+    "mic_label": "Microfone",
+    "start_button": "Iniciar",
+    "searching_user": "Procurando garota...",
+    "random_user_notice": "🔗 Você se conectará com uma garota aleatória",
+    "flip_camera": "Virar câmera",
+    "waiting_permissions": "Aguardando permissões..."
   },
+  "permission_alert": "Você precisa permitir acesso à câmera e microfone para continuar.",
   "userSearch": {
     "waiting_users": "Esperando usuários",
     "waiting_guy": "Esperando cara",
@@ -209,5 +220,35 @@
     "try_another_user": "Tente procurar outro usuário",
     "timeout_message": "Nenhum usuário se conectou após 3 minutos. Tente mais tarde.",
     "timeout_status": "Tempo limite esgotado"
+  },
+  "videochat": {
+    "userSkippedYou": "Você foi pulada!",
+    "clientDisconnected": "O cara foi embora!",
+    "userLeft": "Ele desconectou!",
+    "sessionEnded": "Sessão encerrada!",
+    "connecting": "Conectando...",
+    "redirectingIn": "Redirecionando em {{seconds}}s...",
+    "dontWorry": "Não se preocupe, te conectaremos com outro cara"
+  },
+  "time": {
+    "callDuration": "Tempo"
+  },
+  "status": {
+    "online": "Conectada"
+  },
+  "navigation": {
+    "settings": "Configurações"
+  },
+  "translation": {
+    "title": "Tradução",
+    "translationActive": "Ativa",
+    "translationInactive": "Inativa"
+  },
+  "controls": {
+    "camera": "Câmera",
+    "microphone": "Microfone"
+  },
+    "chat": {
+    "respondToClient": "Responda ao cara..."
   }
 }

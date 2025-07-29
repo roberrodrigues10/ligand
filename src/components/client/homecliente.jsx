@@ -3,6 +3,7 @@ import { MessageSquare, Star, Home, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "./headercliente";
 import { ProtectedPage } from '../usePageAccess'; // Asegúrate de que esta ruta sea correcta
+import { getUser } from "../../utils/auth";
 
 export default function InterfazCliente() {
   const usuarios = [
@@ -18,6 +19,20 @@ export default function InterfazCliente() {
   ];
 
   const navigate = useNavigate();
+  const [user, setUser] = React.useState(null);
+
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const userData = await getUser();
+        setUser(userData);
+      } catch (err) {
+        console.error("Error al obtener usuario:", err);
+      }
+    };
+    fetchUser();
+  }, []);
+
 
   return (
     <ProtectedPage requiredConditions={{
@@ -34,7 +49,7 @@ export default function InterfazCliente() {
         {/* Panel central */}
         <main className="lg:col-span-3 bg-[#1f2125] rounded-2xl p-8 shadow-xl flex flex-col items-center">
           <h2 className="text-2xl md:text-3xl font-bold text-center mb-6 mt-16">
-            ¡Hola! ¿Listo para tu próxima conexión?
+            ¡Hola! {user?.name} ¿Listo para tu próxima conexión?
           </h2>
           <p className="text-center text-white/70 mb-8 max-w-md">
             Da click en el botón de abajo para comenzar una videollamada aleatoria con una modelo en línea.
