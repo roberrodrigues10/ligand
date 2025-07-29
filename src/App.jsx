@@ -16,6 +16,7 @@ import RutaProtegida from "./routes/protegerruta";
 import Logout from "./components/verificacion/login/logout";
 import Genero from "./components/verificacion/register/genero";
 import VerificarCodigo from "./components/verificacion/register/verificarcodigo";
+import VideoRecorderUpload from "./components/VideoRecorderUpload"; // 🆕 Importa el componente de grabación de video
 
 // 🆕 Importa el componente de reset de contraseña
 import ResetPassword from "./components/verificacion/register/ResetPassword"; // asegúrate de que exista
@@ -46,6 +47,7 @@ function App() {
           <Route path="/esperandocall" element={<EsperancoCall />} />
           <Route path="/videochat" element={<Videochat />} />
           <Route path="/configuracion" element={<ConfiPerfil />} />
+          <Route path="/VideoRecorderUpload" element={<VideoRecorderUpload />} />
         </Route>
       </Routes>
     </BrowserRouter>

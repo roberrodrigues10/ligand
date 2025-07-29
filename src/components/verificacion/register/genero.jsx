@@ -65,7 +65,7 @@ export default function SeleccionGenero() {
     try {
       await api.get("/sanctum/csrf-cookie");
       await api.post("/api/asignar-rol", {
-        rol: "model",
+        rol: "modelo",
         name: nombre.trim(),
       });
 
