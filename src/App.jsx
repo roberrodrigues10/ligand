@@ -21,6 +21,7 @@ import EsperandoCallCliente from "./components/client/esperacallclient";
 import Videochat from "./components/videochat";
 import VideochatClient from "./components/client/videochatclient";
 import ConfiPerfil from "./components/confiperfil";
+import MessageClient from "./components/client/message.jsx"
 
 import RouteGuard from "./routes/blockchat";
 import VerificacionesAdmin from "./components/admin/adminverification";
@@ -104,6 +105,8 @@ function App() {
                   <Route path="/homecliente" element={<Homecliente />} />
                   <Route path="/esperandocallcliente" element={<EsperandoCallCliente />} />
                   <Route path="/videochatclient" element={<VideochatClient />} />
+                  <Route path="/messageclient" element={<MessageClient />} />
+
 
                   {/* Área de la modelo */}
                   <Route path="/homellamadas" element={<HomeLlamadas />} />

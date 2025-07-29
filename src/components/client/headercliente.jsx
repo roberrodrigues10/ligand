@@ -171,7 +171,7 @@ useEffect(() => {
         
         <button
           className="hover:scale-110 transition p-2"
-          onClick={() => navigate("/mensajes")}
+          onClick={() => navigate("/messageclient")}
           title="Mensajes"
         >
           <MessageSquare className="text-[#ff007a]" size={24} />
