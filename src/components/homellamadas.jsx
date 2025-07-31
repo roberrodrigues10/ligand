@@ -39,15 +39,28 @@ export default function InterfazCliente() {
   ];
 
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TOKEN
-  const getAuthHeaders = () => {
-    const token = sessionStorage.getItem("token");
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-      'Authorization': token ? `Bearer ${token}` : ''
-    };
+ const getAuthHeaders = () => {
+  const token = sessionStorage.getItem("token");
+  
+  // 🔍 DEBUG: Verificar el token
+  console.log('🔑 Token completo:', token);
+  console.log('🔑 Token length:', token?.length);
+  console.log('🔑 Token válido:', token && token !== 'null' && token !== 'undefined');
+  
+  if (!token || token === 'null' || token === 'undefined') {
+    console.error('❌ TOKEN INVÁLIDO - Redirigiendo a login');
+    // Opcional: redirigir automáticamente al login
+    // window.location.href = '/login';
+    return {};
+  }
+  
+  return {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    'Authorization': `Bearer ${token}`
   };
+};
 
   // 🔥 FUNCIÓN PARA OBTENER INICIAL DEL NOMBRE
   const getInitial = (name) => {
@@ -64,9 +77,20 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
     
     console.log('🔍 Cargando usuarios activos...');
     
+    const headers = getAuthHeaders();
+    
+    // Verificar que tenemos headers válidos
+    if (!headers.Authorization) {
+      console.error('❌ No hay token válido, saltando carga de usuarios');
+      if (initialLoad) {
+        await handleFallbackData();
+      }
+      return;
+    }
+    
     const response = await fetch('/api/chat/users/my-contacts', {
       method: 'GET',
-      headers: getAuthHeaders()
+      headers: headers
     });
     
     console.log('📊 Response status:', response.status);
@@ -80,6 +104,14 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
       // Leer como texto para debug
       const textResponse = await response.text();
       console.error('❌ Respuesta recibida:', textResponse.substring(0, 200));
+      
+      // Si es un 401, el token es inválido
+      if (response.status === 401) {
+        console.error('🚨 TOKEN EXPIRADO - Limpiando sesión');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        // window.location.href = '/login'; // Descomentar para redirigir automáticamente
+      }
       
       if (initialLoad) {
         await handleFallbackData();
@@ -112,10 +144,6 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
       } catch (jsonError) {
         console.error('❌ Error parseando JSON:', jsonError);
         
-        // Intentar leer como texto para debug
-        const textResponse = await response.text();
-        console.error('❌ Respuesta que causó error:', textResponse.substring(0, 200));
-        
         if (initialLoad) {
           await handleFallbackData();
         }
@@ -123,12 +151,11 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
     } else {
       console.error('❌ Error HTTP:', response.status);
       
-      // Leer respuesta de error
-      try {
-        const errorText = await response.text();
-        console.error('❌ Error response:', errorText.substring(0, 200));
-      } catch (e) {
-        console.error('❌ No se pudo leer respuesta de error');
+      // Manejar específicamente el 401
+      if (response.status === 401) {
+        console.error('🚨 UNAUTHORIZED - Token inválido');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
       }
       
       if (initialLoad) {
@@ -149,7 +176,6 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
     }
   }
 };
-
   // Función para manejar datos de fallback - SIN CAMBIOS
   const handleFallbackData = async () => {
     try {
