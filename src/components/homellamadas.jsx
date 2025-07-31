@@ -55,20 +55,40 @@ export default function InterfazCliente() {
   };
 
   // 🔥 CARGAR USUARIOS ACTIVOS/ONLINE - SIN CAMBIOS
-  const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
-    try {
-      if (!isBackgroundUpdate) {
-        setLoadingUsers(true);
+  // 🔥 FUNCIÓN PARA OBTENER USUARIOS ACTIVOS - VERSIÓN CORREGIDA
+const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
+  try {
+    if (!isBackgroundUpdate) {
+      setLoadingUsers(true);
+    }
+    
+    console.log('🔍 Cargando usuarios activos...');
+    
+    const response = await fetch('/api/chat/users/my-contacts', {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    console.log('📊 Response status:', response.status);
+    console.log('📊 Response headers:', response.headers.get('content-type'));
+    
+    // 🔥 VERIFICAR SI LA RESPUESTA ES REALMENTE JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('❌ La respuesta no es JSON:', contentType);
+      
+      // Leer como texto para debug
+      const textResponse = await response.text();
+      console.error('❌ Respuesta recibida:', textResponse.substring(0, 200));
+      
+      if (initialLoad) {
+        await handleFallbackData();
       }
-      
-      console.log('🔍 Cargando usuarios activos...');
-      
-      const response = await fetch('/api/chat/users/my-contacts', {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (response.ok) {
+      return;
+    }
+    
+    if (response.ok) {
+      try {
         const data = await response.json();
         console.log('✅ Usuarios activos recibidos:', data);
         
@@ -89,26 +109,46 @@ export default function InterfazCliente() {
           });
         });
         
-      } else {
-        console.error('❌ Error cargando contactos:', response.status);
+      } catch (jsonError) {
+        console.error('❌ Error parseando JSON:', jsonError);
+        
+        // Intentar leer como texto para debug
+        const textResponse = await response.text();
+        console.error('❌ Respuesta que causó error:', textResponse.substring(0, 200));
+        
         if (initialLoad) {
           await handleFallbackData();
         }
       }
-    } catch (error) {
-      console.error('❌ Error cargando usuarios activos:', error);
+    } else {
+      console.error('❌ Error HTTP:', response.status);
+      
+      // Leer respuesta de error
+      try {
+        const errorText = await response.text();
+        console.error('❌ Error response:', errorText.substring(0, 200));
+      } catch (e) {
+        console.error('❌ No se pudo leer respuesta de error');
+      }
+      
       if (initialLoad) {
         await handleFallbackData();
       }
-    } finally {
-      if (!isBackgroundUpdate) {
-        setLoadingUsers(false);
-      }
-      if (initialLoad) {
-        setInitialLoad(false);
-      }
     }
-  };
+  } catch (error) {
+    console.error('❌ Error cargando usuarios activos:', error);
+    if (initialLoad) {
+      await handleFallbackData();
+    }
+  } finally {
+    if (!isBackgroundUpdate) {
+      setLoadingUsers(false);
+    }
+    if (initialLoad) {
+      setInitialLoad(false);
+    }
+  }
+};
 
   // Función para manejar datos de fallback - SIN CAMBIOS
   const handleFallbackData = async () => {
