@@ -88,9 +88,14 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
       return;
     }
     
-    const response = await fetch('/api/chat/users/my-contacts', {
+    // 🔥 USAR LA URL COMPLETA DEL BACKEND
+    const API_BASE_URL = 'https://ligand-backend-oz6a.onrender.com';
+    const response = await fetch(`${API_BASE_URL}/api/chat/users/my-contacts`, {
       method: 'GET',
-      headers: headers
+      headers: headers,
+      // 🔥 AGREGAR CORS SI ES NECESARIO
+      mode: 'cors',
+      credentials: 'omit' // Cambiado de 'include' a 'omit' para evitar problemas CORS
     });
     
     console.log('📊 Response status:', response.status);
@@ -149,7 +154,15 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
         }
       }
     } else {
-      console.error('❌ Error HTTP:', response.status);
+      console.error('❌ Error HTTP:', response.status, response.statusText);
+      
+      // 🔥 LEER EL CUERPO DE LA RESPUESTA PARA MÁS DETALLES
+      try {
+        const errorBody = await response.text();
+        console.error('❌ Detalles del error:', errorBody);
+      } catch (e) {
+        console.error('❌ No se pudo leer el cuerpo del error');
+      }
       
       // Manejar específicamente el 401
       if (response.status === 401) {
@@ -164,6 +177,12 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
     }
   } catch (error) {
     console.error('❌ Error cargando usuarios activos:', error);
+    console.error('❌ Error completo:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
     if (initialLoad) {
       await handleFallbackData();
     }
