@@ -8,6 +8,8 @@ import { getUser } from "../utils/auth";
 import axios from "../api/axios";
 import CallingSystem from './CallingOverlay';
 import IncomingCallOverlay from './IncomingCallOverlay';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 
 export default function InterfazCliente() {
   const { t } = useTranslation();
@@ -198,7 +200,7 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
   // Función para manejar datos de fallback - SIN CAMBIOS
   const handleFallbackData = async () => {
     try {
-      const conversationsResponse = await fetch('/api/chat/conversations', {
+      const conversationsResponse = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -276,7 +278,7 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
       setIsCallActive(true);
       
       const token = sessionStorage.getItem('token');
-      const response = await fetch('/api/calls/start', {
+      const response = await fetch(`${API_BASE_URL}/api/calls/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -326,7 +328,7 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
     const interval = setInterval(async () => {
       try {
         const token = sessionStorage.getItem('token');
-        const response = await fetch('/api/calls/status', {
+        const response = await fetch(`${API_BASE_URL}/api/calls/status`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -396,7 +398,7 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
       
       if (currentCall?.callId) {
         const token = sessionStorage.getItem('token');
-        await fetch('/api/calls/cancel', {
+        await fetch(`${API_BASE_URL}/api/calls/cancel`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -426,7 +428,7 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
   const verificarLlamadasEntrantes = async () => {
     try {
       const token = sessionStorage.getItem('token');
-      const response = await fetch('/api/calls/check-incoming', {
+      const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -606,7 +608,7 @@ const stopIncomingCallSound = () => {
     stopIncomingCallSound();
     
     const token = sessionStorage.getItem('token');
-    const response = await fetch('/api/calls/answer', {
+    const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -812,7 +814,7 @@ const stopIncomingCallSound = () => {
         withCredentials: false,
       };
       
-      const response = await axios.get("/api/stories/my-story", config);
+      const response = await axios.get(`${API_BASE_URL}/api/stories/my-story`, config);
       
       if (response.data) {
         setExistingStory(response.data);
