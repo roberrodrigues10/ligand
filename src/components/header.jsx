@@ -16,6 +16,8 @@ export default function Header() {
   const mobileMenuRef = useRef(null);
   const pollingInterval = useRef(null);
   const { t, i18n } = useTranslation();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 
   const toggleMenu = () => setMenuAbierto(!menuAbierto);
   const toggleMobileMenu = () => setMobileMenuAbierto(!mobileMenuAbierto);
