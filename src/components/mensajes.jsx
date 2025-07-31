@@ -798,19 +798,26 @@ useEffect(() => {
         );
       default:
         // Si la traducción está habilitada Y tenemos el componente
-        if (translationSettings?.enabled && TranslatedMessage) {
+        if (translationSettings?.enabled && TranslatedMessage && textoMensaje && textoMensaje.trim()) {
           try {
             const tipoMensaje = esUsuarioActual ? 'local' : 'remote';
             const shouldShowTranslation = !esUsuarioActual || translationSettings.translateOutgoing;
             
-            if (shouldShowTranslation) {
+            // 🔥 VALIDAR QUE EL TEXTO NO ESTÉ VACÍO Y NO SEA SOLO EMOJIS
+            const cleanText = textoMensaje.trim();
+            const isOnlyEmojis = /^[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s]*$/u.test(cleanText);
+            const isOnlySpecialChars = /^[^\w\s]*$/.test(cleanText);
+            
+            if (shouldShowTranslation && cleanText.length > 0 && !isOnlyEmojis && !isOnlySpecialChars) {
               return (
                 <TranslatedMessage
                   message={{
-                    text: textoMensaje,
+                    text: cleanText,
                     type: tipoMensaje,
                     id: mensaje.id,
-                    timestamp: mensaje.created_at
+                    timestamp: mensaje.created_at,
+                    sender: mensaje.user_name,
+                    senderRole: mensaje.user_role
                   }}
                   settings={translationSettings}
                   className="text-white"
@@ -819,6 +826,7 @@ useEffect(() => {
             }
           } catch (error) {
             console.error('❌ Error en TranslatedMessage:', error);
+            // Fallback al texto normal si hay error
           }
         }
         
@@ -826,6 +834,37 @@ useEffect(() => {
         return <span className="text-white">{textoMensaje}</span>;
     }
   };
+  useEffect(() => {
+  const processMessagesForTranslation = async () => {
+    if (!translationSettings?.enabled) return;
+    
+    for (const message of messages) {
+      if (!message.processed && message.text && message.text.trim()) {
+        try {
+          // 🔥 VALIDAR ANTES DE TRADUCIR
+          const cleanText = message.text.trim();
+          const isOnlyEmojis = /^[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s]*$/u.test(cleanText);
+          
+          if (cleanText.length > 0 && !isOnlyEmojis && cleanText.length < 1000) {
+            const result = await translateMessage(message);
+            if (result) {
+              console.log(`✅ Mensaje traducido: "${message.text}" → "${result.translated}"`);
+              message.processed = true;
+            }
+          } else {
+            console.log('⚠️ Saltando traducción - texto no válido:', cleanText);
+            message.processed = true; // Marcar como procesado para no intentar de nuevo
+          }
+        } catch (error) {
+          console.warn('Error traduciendo mensaje:', error);
+          message.processed = true; // Marcar como procesado para evitar loops
+        }
+      }
+    }
+  };
+  
+  processMessagesForTranslation();
+}, [messages, translateMessage, translationSettings?.enabled]);
 
   const conversacionesFiltradas = conversaciones.filter(conv => 
     conv.other_user_name.toLowerCase().includes(busquedaConversacion.toLowerCase())
@@ -956,28 +995,29 @@ useEffect(() => {
                           <p className="font-semibold text-sm truncate">{conv.other_user_name}</p>
                           <div className="text-xs text-white/60 truncate">
                             {/* 🌍 PREVIEW CON TRADUCCIÓN SI ESTÁ HABILITADA */}
-                            {translationSettings?.enabled ? (
-                              <TranslatedMessage
-                                message={{
-                                  text: conv.last_message,
-                                  type: 'remote',
-                                  id: `preview_${conv.id}`
-                                }}
-                                settings={{
-                                  ...translationSettings,
-                                  showOriginal: false,
-                                  showOnlyTranslation: true
-                                }}
-                                className="text-white/60"
-                              />
-                            ) : (
-                              // Mostrar si el último mensaje es tuyo
-                              conv.last_message_sender_id === usuario.id ? (
-                                <span><span className="text-white/40">Tú:</span> {conv.last_message}</span>
-                              ) : (
-                                conv.last_message
-                              )
-                            )}
+                            {translationSettings?.enabled && conv.last_message && conv.last_message.trim() ? (
+  <TranslatedMessage
+    message={{
+      text: conv.last_message.trim(),
+      type: 'remote',
+      id: `preview_${conv.id}`,
+      timestamp: conv.last_message_time
+    }}
+    settings={{
+      ...translationSettings,
+      showOriginal: false,
+      showOnlyTranslation: true
+    }}
+    className="text-white/60"
+  />
+) : (
+  // Mostrar mensaje original si no se puede traducir
+  conv.last_message_sender_id === usuario.id ? (
+    <span><span className="text-white/40">Tú:</span> {conv.last_message}</span>
+  ) : (
+    conv.last_message
+  )
+)}
                           </div>
                         </div>
                         
