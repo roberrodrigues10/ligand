@@ -531,7 +531,7 @@ const SimpleChat = ({
       console.error('❌ Error de red enviando mensaje:', error);
       return false;
     }
-  };
+  };  
 
   const sendGift = async (gift) => {
     console.log('🎁 Enviando regalo:', gift);
@@ -923,5 +923,341 @@ window.refreshToken = async () => {
     return false;
   }
 };
+// 🔧 FUNCIONES DE DEBUG PARA DIAGNOSTICAR EL PROBLEMA DE CONVERSACIONES
+
+// 1. 🔍 FUNCIÓN PARA INSPECCIONAR LA RESPUESTA REAL
+window.debugConversationsAPI = async () => {
+  const token = sessionStorage.getItem('token');
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  
+  console.log('🔍 DEBUGGING CONVERSACIONES API');
+  console.log('🔗 API_BASE_URL:', API_BASE_URL);
+  console.log('🔐 Token presente:', !!token);
+  
+  if (!token) {
+    console.error('❌ No hay token');
+    return;
+  }
+
+  // Test del endpoint de conversaciones
+  try {
+    const url = `${API_BASE_URL}/api/conversations`;
+    console.log('📡 Probando URL:', url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('📊 Response Status:', response.status);
+    console.log('📊 Response OK:', response.ok);
+    console.log('📊 Response Headers:', Object.fromEntries(response.headers.entries()));
+    
+    // Obtener el contenido RAW para ver qué está devolviendo
+    const rawText = await response.text();
+    console.log('📄 CONTENIDO RAW (primeros 500 chars):');
+    console.log(rawText.substring(0, 500));
+    
+    // Verificar si es HTML
+    if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
+      console.error('🚨 EL SERVIDOR ESTÁ DEVOLVIENDO HTML EN LUGAR DE JSON');
+      console.error('🔍 Posibles causas:');
+      console.error('   - URL incorrecta (404)');
+      console.error('   - Endpoint no existe');
+      console.error('   - Error de servidor (500) con página de error');
+      console.error('   - Problema de CORS');
+      console.error('   - API no implementada correctamente');
+    } else {
+      console.log('✅ Respuesta parece ser JSON válido');
+      try {
+        const data = JSON.parse(rawText);
+        console.log('✅ JSON parseado correctamente:', data);
+      } catch (e) {
+        console.error('❌ Error parseando JSON:', e);
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Error de red:', error);
+  }
+};
+
+// 2. 🔍 FUNCIÓN PARA PROBAR ENDPOINTS ALTERNATIVOS
+window.testConversationEndpoints = async () => {
+  const token = sessionStorage.getItem('token');
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  
+  if (!token) {
+    console.error('❌ No hay token');
+    return;
+  }
+
+  const endpoints = [
+    { name: 'conversations', url: `${API_BASE_URL}/api/conversations` },
+    { name: 'chats', url: `${API_BASE_URL}/api/chats` },
+    { name: 'rooms', url: `${API_BASE_URL}/api/rooms` },
+    { name: 'chat/rooms', url: `${API_BASE_URL}/api/chat/rooms` },
+    { name: 'user/conversations', url: `${API_BASE_URL}/api/user/conversations` },
+    { name: 'messages/conversations', url: `${API_BASE_URL}/api/messages/conversations` }
+  ];
+
+  console.log('🔍 PROBANDO ENDPOINTS ALTERNATIVOS...');
+  
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`\n📡 Probando: ${endpoint.name}`);
+      const response = await fetch(endpoint.url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const rawText = await response.text();
+      const isHTML = rawText.includes('<!DOCTYPE') || rawText.includes('<html');
+      
+      console.log(`${endpoint.name}:`, {
+        status: response.status,
+        ok: response.ok,
+        isHTML: isHTML,
+        contentType: response.headers.get('content-type'),
+        result: response.ok && !isHTML ? '✅ FUNCIONA' : `❌ ${response.status} ${isHTML ? '(HTML)' : ''}`
+      });
+
+      // Si encontramos uno que funciona, mostrar los datos
+      if (response.ok && !isHTML) {
+        try {
+          const data = JSON.parse(rawText);
+          console.log(`✅ ¡ENDPOINT FUNCIONAL ENCONTRADO! ${endpoint.name}`);
+          console.log('📄 Datos:', data);
+        } catch (e) {
+          console.log(`⚠️ Respuesta OK pero JSON inválido en ${endpoint.name}`);
+        }
+      }
+
+    } catch (error) {
+      console.log(`${endpoint.name}: ❌ Error de red`);
+    }
+  }
+};
+
+// 3. 🔧 FUNCIÓN MEJORADA PARA CARGAR CONVERSACIONES CON DEBUG
+window.loadConversationsWithDebug = async () => {
+  const token = sessionStorage.getItem('token');
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  
+  console.log('🔍 CARGANDO CONVERSACIONES CON DEBUG...');
+  
+  if (!token) {
+    console.error('❌ No hay token de autenticación');
+    return { success: false, error: 'No token' };
+  }
+
+  try {
+    const url = `${API_BASE_URL}/api/conversations`;
+    console.log('📡 URL completa:', url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    });
+
+    console.log('📊 Response completa:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      url: response.url,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+
+    const contentType = response.headers.get('content-type');
+    const rawText = await response.text();
+    
+    console.log('📄 Content-Type:', contentType);
+    console.log('📄 Raw response (primeros 200 chars):', rawText.substring(0, 200));
+
+    // Verificar si es HTML (error del servidor)
+    if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
+      console.error('🚨 SERVIDOR DEVUELVE HTML - POSIBLES CAUSAS:');
+      
+      // Analizar el HTML para encontrar pistas
+      if (rawText.includes('404')) {
+        console.error('   🎯 ERROR 404: Endpoint no existe');
+        console.error('   💡 Solución: Verificar si la URL del API es correcta');
+      } else if (rawText.includes('500')) {
+        console.error('   🎯 ERROR 500: Error interno del servidor');
+        console.error('   💡 Solución: El backend tiene un bug');
+      } else if (rawText.includes('403') || rawText.includes('Forbidden')) {
+        console.error('   🎯 ERROR 403: Sin permisos');
+        console.error('   💡 Solución: Token inválido o permisos insuficientes');
+      } else {
+        console.error('   🎯 PÁGINA DE ERROR GENÉRICA');
+        console.error('   💡 Revisar logs del servidor');
+      }
+      
+      return { 
+        success: false, 
+        error: 'HTML_RESPONSE', 
+        htmlContent: rawText.substring(0, 1000) 
+      };
+    }
+
+    // Intentar parsear JSON
+    try {
+      const data = JSON.parse(rawText);
+      console.log('✅ JSON parseado exitosamente:', data);
+      return { success: true, data };
+    } catch (jsonError) {
+      console.error('❌ Error parseando JSON:', jsonError);
+      console.error('📄 Contenido que causó el error:', rawText);
+      return { 
+        success: false, 
+        error: 'JSON_PARSE_ERROR', 
+        rawContent: rawText 
+      };
+    }
+
+  } catch (networkError) {
+    console.error('❌ Error de red:', networkError);
+    return { 
+      success: false, 
+      error: 'NETWORK_ERROR', 
+      details: networkError.message 
+    };
+  }
+};
+
+// 4. 🔧 FUNCIÓN PARA VERIFICAR CONFIGURACIÓN
+window.checkAPIConfiguration = () => {
+  console.log('🔍 VERIFICANDO CONFIGURACIÓN API...');
+  
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const token = sessionStorage.getItem('token');
+  
+  console.log('📊 Configuración actual:');
+  console.log('   🔗 API_BASE_URL:', API_BASE_URL);
+  console.log('   🔐 Token presente:', !!token);
+  console.log('   🔐 Token length:', token ? token.length : 0);
+  console.log('   🌐 Current URL:', window.location.href);
+  console.log('   🍪 SessionStorage keys:', Object.keys(sessionStorage));
+  
+  // Verificar si la URL base es válida
+  if (!API_BASE_URL) {
+    console.error('❌ VITE_API_BASE_URL no está configurado');
+    console.error('💡 Agregar en .env: VITE_API_BASE_URL=http://tu-api.com');
+  } else if (!API_BASE_URL.startsWith('http')) {
+    console.error('❌ API_BASE_URL no tiene protocolo HTTP/HTTPS');
+  } else {
+    console.log('✅ API_BASE_URL parece válido');
+  }
+  
+  // Verificar token
+  if (!token) {
+    console.error('❌ No hay token de autenticación');
+    console.error('💡 Usuario debe hacer login primero');
+  } else if (token.length < 10) {
+    console.warn('⚠️ Token parece muy corto');
+  } else {
+    console.log('✅ Token presente y parece válido');
+  }
+};
+
+// 5. 🔧 FUNCIÓN DE RECUPERACIÓN AUTOMÁTICA
+window.fixConversationsIssue = async () => {
+  console.log('🔧 INTENTANDO ARREGLAR PROBLEMA DE CONVERSACIONES...');
+  
+  // 1. Verificar configuración
+  checkAPIConfiguration();
+  
+  // 2. Probar endpoint principal
+  console.log('\n📡 Paso 1: Probando endpoint principal...');
+  const mainResult = await loadConversationsWithDebug();
+  
+  if (mainResult.success) {
+    console.log('✅ ¡Problema resuelto! El endpoint principal funciona');
+    return mainResult.data;
+  }
+  
+  // 3. Probar endpoints alternativos
+  console.log('\n📡 Paso 2: Probando endpoints alternativos...');
+  await testConversationEndpoints();
+  
+  // 4. Verificar si es problema de autenticación
+  console.log('\n🔐 Paso 3: Verificando autenticación...');
+  const token = sessionStorage.getItem('token');
+  if (!token) {
+    console.error('❌ Problema de autenticación - no hay token');
+    console.error('💡 Redirigir al usuario a login');
+    return null;
+  }
+  
+  // 5. Intentar refresh del token
+  console.log('\n🔄 Paso 4: Intentando refresh de token...');
+  try {
+    const refreshResult = await window.refreshToken();
+    if (refreshResult) {
+      console.log('✅ Token refreshed, reintentando...');
+      return await loadConversationsWithDebug();
+    }
+  } catch (e) {
+    console.log('⚠️ No se pudo refrescar token');
+  }
+  
+  console.error('❌ No se pudo resolver el problema automáticamente');
+  console.error('💡 Revisar logs del servidor o contactar al desarrollador del backend');
+  
+  return null;
+};
+
+// 6. 🔧 FUNCIÓN PARA USAR DATOS MOCK MIENTRAS SE ARREGLA
+window.useMockConversations = () => {
+  console.log('🔧 USANDO DATOS MOCK TEMPORALES...');
+  
+  const mockConversations = [
+    {
+      id: 1,
+      name: 'Usuario Demo 1',
+      role: 'cliente',
+      lastMessage: 'Hola, ¿cómo estás?',
+      timestamp: new Date().toISOString(),
+      unreadCount: 2
+    },
+    {
+      id: 2,
+      name: 'Usuario Demo 2', 
+      role: 'modelo',
+      lastMessage: 'Perfecto, nos vemos luego',
+      timestamp: new Date(Date.now() - 300000).toISOString(),
+      unreadCount: 0
+    },
+    {
+      id: 3,
+      name: 'Usuario Demo 3',
+      role: 'cliente', 
+      lastMessage: 'Gracias por todo',
+      timestamp: new Date(Date.now() - 600000).toISOString(),
+      unreadCount: 1
+    }
+  ];
+  
+  console.log('✅ Mock conversations creadas:', mockConversations);
+  return mockConversations;
+};
+
+console.log('🔧 FUNCIONES DE DEBUG CARGADAS:');
+console.log('   - debugConversationsAPI()');
+console.log('   - testConversationEndpoints()');
+console.log('   - loadConversationsWithDebug()');
+console.log('   - checkAPIConfiguration()');
+console.log('   - fixConversationsIssue()');
+console.log('   - useMockConversations()');
 
 export default SimpleChat;
