@@ -33,6 +33,9 @@ import {
   Bell
 } from "lucide-react";
 
+// 🔥 AGREGAR API_BASE_URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 export default function ChatPrivado() {
   const { settings: translationSettings, setSettings: setTranslationSettings, languages } = useCustomTranslation();
   const location = useLocation(); // ← Agregar esto
@@ -243,7 +246,8 @@ export default function ChatPrivado() {
         try {
           console.log('🔄 Polling global de conversaciones...');
           
-          const response = await fetch('/api/chat/conversations', {
+          // 🔥 CAMBIO: Agregar API_BASE_URL
+          const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
             method: 'GET',
             headers: getAuthHeaders()
           });
@@ -351,7 +355,8 @@ export default function ChatPrivado() {
   useEffect(() => {
   const cargarUsuariosOnline = async () => {
     try {
-      const response = await fetch('/api/chat/users/my-contacts', {
+      // 🔥 CAMBIO: Agregar API_BASE_URL
+      const response = await fetch(`${API_BASE_URL}/api/chat/users/my-contacts`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -415,7 +420,8 @@ export default function ChatPrivado() {
       setLoading(true);
       console.log('🔍 Cargando conversaciones...');
       
-      const response = await fetch('/api/chat/conversations', {
+      // 🔥 CAMBIO: Agregar API_BASE_URL
+      const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -490,7 +496,8 @@ export default function ChatPrivado() {
 
   const cargarMensajes = async (roomName) => {
     try {
-      const response = await fetch(`/api/chat/messages/${roomName}`, {
+      // 🔥 CAMBIO: Agregar API_BASE_URL
+      const response = await fetch(`${API_BASE_URL}/api/chat/messages/${roomName}`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -640,7 +647,8 @@ useEffect(() => {
 
   const marcarComoLeido = async (roomName) => {
     try {
-      await fetch('/api/chat/mark-read', {
+      // 🔥 CAMBIO: Agregar API_BASE_URL
+      await fetch(`${API_BASE_URL}/api/chat/mark-read`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ room_name: roomName })
@@ -664,7 +672,8 @@ useEffect(() => {
     if (!mensaje || !conversacionActiva) return;
 
     try {
-      const response = await fetch('/api/chat/send-message', {
+      // 🔥 CAMBIO: Agregar API_BASE_URL
+      const response = await fetch(`${API_BASE_URL}/api/chat/send-message`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
