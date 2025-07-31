@@ -941,7 +941,7 @@ window.debugConversationsAPI = async () => {
 
   // Test del endpoint de conversaciones
   try {
-    const url = `${API_BASE_URL}/api/conversations`;
+    const url = `${API_BASE_URL}/api/chat/conversations`;
     console.log('📡 Probando URL:', url);
     
     const response = await fetch(url, {
