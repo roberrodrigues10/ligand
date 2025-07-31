@@ -26,7 +26,7 @@ let hasLoggedOut = false;
 instance.interceptors.response.use(
   (response) => response,
   (error) => {
-    const config = error.config || {};
+
 
     // Saltar si está marcado para omitir
     if (config.skipInterceptor) {
@@ -68,6 +68,17 @@ instance.interceptors.response.use(
         isRefreshing = false;
       }, 1000);
     }
+    const customEvent = new CustomEvent("axiosError", {
+  detail: {
+    status,
+    mensaje,
+    codigo,
+    url: config.url,
+    method: config.method,
+  },
+});
+window.dispatchEvent(customEvent);
+
 
     return Promise.reject(error);
   }

@@ -31,6 +31,8 @@ import { RateLimitProvider } from './contexts/RateLimitContext.jsx';
 import UserSearch from "./components/search.jsx";
 import VideoRecorderUpload from "./components/VideoRecorderUpload"; // 🆕 Importa el componente de grabación de video
 
+import AxiosErrorHandler from "./components/AxiosErrorHandler";
+import { ToastContainer } from "react-toastify";
 
 // 🔥 NUEVO: Importar componente de Rate Limiting
 import RateLimitWait from "./components/RateLimitWait";
@@ -44,10 +46,13 @@ function App() {
   }, []);
 
   return (
+    
     <BrowserRouter>
       <RateLimitProvider>
         {/* 🔥 ENVOLVER EN SearchingProvider */}
         <SearchingProvider>
+            <AxiosErrorHandler />
+        <ToastContainer />
           
           {/* 🔥 AGREGAR EL COMPONENTE GLOBAL */}
           
