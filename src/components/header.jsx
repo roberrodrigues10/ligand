@@ -88,7 +88,7 @@ export default function Header() {
     try {
       console.log('🔄 Obteniendo conteo global de mensajes...');
       
-      const response = await fetch('/api/chat/conversations', {
+      const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
