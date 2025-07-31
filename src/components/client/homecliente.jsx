@@ -9,6 +9,8 @@ import IncomingCallOverlay from '../../components/IncomingCallOverlay';
 
 export default function InterfazCliente() {
   const navigate = useNavigate();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 
   // Estados
   const [user, setUser] = React.useState(null);
@@ -55,7 +57,7 @@ export default function InterfazCliente() {
       
       console.log('🔍 Cargando chicas activas...');
       
-      const response = await fetch('/api/chat/users/my-contacts', {
+      const response = await fetch(`${API_BASE_URL}/api/chat/users/my-contacts`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -108,7 +110,7 @@ export default function InterfazCliente() {
   // Función para manejar datos de fallback
   const handleFallbackData = async () => {
     try {
-      const conversationsResponse = await fetch('/api/chat/conversations', {
+      const conversationsResponse = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -198,7 +200,7 @@ export default function InterfazCliente() {
       setIsCallActive(true);
       
       const token = sessionStorage.getItem('token');
-      const response = await fetch('/api/calls/start', {
+      const response = await fetch(`${API_BASE_URL}/api/calls/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -248,7 +250,7 @@ export default function InterfazCliente() {
     const interval = setInterval(async () => {
       try {
         const token = sessionStorage.getItem('token');
-        const response = await fetch('/api/calls/status', {
+        const response = await fetch(`${API_BASE_URL}/api/calls/status`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -318,7 +320,7 @@ export default function InterfazCliente() {
       
       if (currentCall?.callId) {
         const token = sessionStorage.getItem('token');
-        await fetch('/api/calls/cancel', {
+        await fetch(`${API_BASE_URL}/api/calls/cancel`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -348,7 +350,7 @@ export default function InterfazCliente() {
   const verificarLlamadasEntrantes = async () => {
     try {
       const token = sessionStorage.getItem('token');
-      const response = await fetch('/api/calls/check-incoming', {
+      const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -386,7 +388,7 @@ export default function InterfazCliente() {
       console.log(`📱 Respondiendo llamada de chica: ${accion}`);
       
       const token = sessionStorage.getItem('token');
-      const response = await fetch('/api/calls/answer', {
+      const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

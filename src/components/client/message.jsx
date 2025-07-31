@@ -26,6 +26,7 @@ import {
   Wine,
 } from "lucide-react";
 
+
 export default function ChatCliente() {
   const [mensajes, setMensajes] = useState([]);
   const [nuevoMensaje, setNuevoMensaje] = useState("");
@@ -44,6 +45,8 @@ export default function ChatCliente() {
   const [escribiendo, setEscribiendo] = useState(false);
   const mensajesRef = useRef(null);
   const navigate = useNavigate();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 
   // 🎁 CATÁLOGO DE REGALOS PARA CLIENTES
   const regalosDisponibles = [
@@ -131,7 +134,7 @@ export default function ChatCliente() {
       setLoading(true);
       console.log('🔍 [CLIENTE] Cargando conversaciones con modelos...');
       
-      const response = await fetch('/api/chat/conversations', {
+      const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -201,7 +204,7 @@ export default function ChatCliente() {
 
   const cargarMensajes = async (roomName) => {
     try {
-      const response = await fetch(`/api/chat/messages/${roomName}`, {
+      const response = await fetch(`${API_BASE_URL}/api/chat/messages/${roomName}`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -279,7 +282,7 @@ export default function ChatCliente() {
 
   const marcarComoLeido = async (roomName) => {
     try {
-      await fetch('/api/chat/mark-read', {
+      await fetch(`${API_BASE_URL}/api/chat/mark-read`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ room_name: roomName })
@@ -304,7 +307,7 @@ export default function ChatCliente() {
     try {
       setEscribiendo(true);
       
-      const response = await fetch('/api/chat/send-message', {
+      const response = await fetch(`${API_BASE_URL}/api/chat/send-message`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -386,7 +389,7 @@ export default function ChatCliente() {
 
   const eliminarMensaje = async (id) => {
     try {
-      const response = await fetch(`/api/chat/delete-message/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/chat/delete-message/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
