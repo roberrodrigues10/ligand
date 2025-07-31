@@ -996,7 +996,7 @@ window.testConversationEndpoints = async () => {
   }
 
   const endpoints = [
-    { name: 'conversations', url: `${API_BASE_URL}/api/conversations` },
+    { name: 'conversations', url: `${API_BASE_URL}/api/chat/conversations` },
     { name: 'chats', url: `${API_BASE_URL}/api/chats` },
     { name: 'rooms', url: `${API_BASE_URL}/api/rooms` },
     { name: 'chat/rooms', url: `${API_BASE_URL}/api/chat/rooms` },
@@ -1058,7 +1058,7 @@ window.loadConversationsWithDebug = async () => {
   }
 
   try {
-    const url = `${API_BASE_URL}/api/conversations`;
+    const url = `${API_BASE_URL}/api/chat/conversations`;
     console.log('📡 URL completa:', url);
     
     const response = await fetch(url, {
