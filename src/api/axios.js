@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,  // ✅ CAMBIAR AQUÍ
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   withCredentials: false,
   headers: {
     Accept: "application/json",
@@ -18,7 +18,11 @@ instance.interceptors.request.use((config) => {
   return config;
 });
 
-// 👉 Interceptor para capturar errores globales - SIMPLIFICADO
+// 👉 Variable para evitar bucles infinitos
+let isRefreshing = false;
+let hasLoggedOut = false;
+
+// 👉 Interceptor mejorado para capturar errores globales
 instance.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -43,14 +47,30 @@ instance.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (status === 401 || status === 403) {
-      console.log("🧹 Interceptor: Eliminando token por error de autenticación");
+    // Manejar errores 401/403 de forma más inteligente
+    if ((status === 401 || status === 403) && !isRefreshing && !hasLoggedOut) {
+      isRefreshing = true;
+      hasLoggedOut = true;
+      
+      console.log("🧹 Interceptor: Token inválido detectado");
+      
+      // Limpiar token
       sessionStorage.removeItem("token");
+      
+      // Opcional: Notificar al usuario
+      console.warn("🚫 Sesión expirada. Por favor, inicia sesión nuevamente.");
+      
+      // Opcional: Redirigir al login después de un breve delay
+      setTimeout(() => {
+        // window.location.href = '/login';
+        // O usar tu router: navigate('/login');
+        console.log("🔄 Debería redirigir al login");
+        isRefreshing = false;
+      }, 1000);
     }
 
     return Promise.reject(error);
   }
 );
-
 
 export default instance;

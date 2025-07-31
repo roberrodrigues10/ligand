@@ -29,6 +29,8 @@ import Homecliente from "./components/client/homecliente";
 import UnifiedProtectedRoute from "./routes/UnifiedProtectedRoute.jsx";
 import { RateLimitProvider } from './contexts/RateLimitContext.jsx';
 import UserSearch from "./components/search.jsx";
+import VideoRecorderUpload from "./components/VideoRecorderUpload"; // 🆕 Importa el componente de grabación de video
+
 
 // 🔥 NUEVO: Importar componente de Rate Limiting
 import RateLimitWait from "./components/RateLimitWait";
@@ -116,7 +118,7 @@ function App() {
                   <Route path="/esperandocall" element={<EsperancoCall />} />
                   <Route path="/videochat" element={<Videochat />} />
                   <Route path="/configuracion" element={<ConfiPerfil />} />
-
+                  <Route path="/VideoRecorderUpload" element={<VideoRecorderUpload />} />
                   <Route path="/usersearch" element={<UserSearch />} />
 
                   {/* Admin */}

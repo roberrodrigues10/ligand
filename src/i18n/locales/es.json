@@ -87,16 +87,27 @@
     "tipTitle": "Consejo del día:",
     "tipText": "Sonríe, relájate y deja que las conexiones fluyan. ¡Alguien genial puede estar a un clic!",
     "activeUsers": "Usuarios activos",
+    "yourHistory": "Tu Historial",
+    "loading": "Cargando...",
+    "defaultUser": "Usuario",
+    "loadingUsers": "Cargando usuarios...",
+    "noActiveUsers": "No hay usuarios activos",
+    "contactsWillAppear": "Tus contactos aparecerán aquí cuando estén en línea",
+    "call": "Llamar",
+    "message": "Mensaje",
+    "storyPending": "Historia Pendiente por Aprobación",
+    "viewApprovedStory": "Ver Tu Historia Aprobada",
+    "storyRejected": "Historia Rechazada - Crear Nueva",
     "estado": {
       "online": "Online",
       "offline": "Desconectado"
     },
-    "yourHistory": "Tu Historial"
-  },
-  "history": {
-    "today": "Hoy",
-    "yesterday": "Ayer",
-    "accion": {
+    "status.home": {
+      "online": "En línea"
+    },
+    "history": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
       "callEnded": "Llamada finalizada",
       "messageSent": "Mensaje enviado",
       "addedToFavorites": "Te agregó a favoritos"
