@@ -14,6 +14,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export default function InterfazCliente() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   // Estados
   const [user, setUser] = React.useState(null);
@@ -91,7 +92,6 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
     }
     
     // 🔥 USAR LA URL COMPLETA DEL BACKEND
-    const API_BASE_URL = 'https://ligand-backend-oz6a.onrender.com';
     const response = await fetch(`${API_BASE_URL}/api/chat/users/my-contacts`, {
       method: 'GET',
       headers: headers,

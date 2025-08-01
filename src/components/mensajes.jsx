@@ -32,6 +32,9 @@ import {
   ChevronDown,
   Bell
 } from "lucide-react";
+// 🔥 AGREGAR ESTAS IMPORTACIONES
+import CallingSystem from './CallingOverlay';
+import IncomingCallOverlay from './IncomingCallOverlay';
 
 // 🔥 AGREGAR API_BASE_URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -39,7 +42,20 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export default function ChatPrivado() {
   const { settings: translationSettings, setSettings: setTranslationSettings, languages } = useCustomTranslation();
   const location = useLocation(); // ← Agregar esto
-  
+ // 🔥 NUEVOS ESTADOS PARA LLAMADAS Y FAVORITOS
+  const [isCallActive, setIsCallActive] = useState(false);
+  const [currentCall, setCurrentCall] = useState(null);
+  const [isReceivingCall, setIsReceivingCall] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [callPollingInterval, setCallPollingInterval] = useState(null);
+  const [favoritos, setFavoritos] = useState(new Set());
+  const [loadingFavorite, setLoadingFavorite] = useState(false);
+  // 🔥 NUEVOS ESTADOS PARA SISTEMA DE BLOQUEO
+  const [usuariosBloqueados, setUsuariosBloqueados] = useState(new Set());
+  const [bloqueadoPor, setBloqueadoPor] = useState(new Set());
+  const [loadingBlock, setLoadingBlock] = useState(false);
+  const [conversacionBloqueada, setConversacionBloqueada] = useState(null); // 'yo_bloquee', 'me_bloquearon', 'mutuo', null
+  const audioRef = useRef(null);
   // 🔥 RECIBIR PARÁMETROS DE NAVEGACIÓN
   const openChatWith = location.state?.openChatWith;
   const hasOpenedSpecificChat = useRef(false); // ← Agregar esto
@@ -107,6 +123,389 @@ export default function ChatPrivado() {
 
     return headers;
   };
+  // 🔥 FUNCIÓN PARA INICIAR LLAMADA REAL
+  const iniciarLlamadaReal = async (otherUserId, otherUserName) => {
+    try {
+      console.log('📞 Iniciando llamada a:', otherUserName);
+      
+      setCurrentCall({
+        id: otherUserId,
+        name: otherUserName,
+        status: 'initiating'
+      });
+      setIsCallActive(true);
+      
+      const response = await fetch(`${API_BASE_URL}/api/calls/start`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          receiver_id: otherUserId,
+          call_type: 'video'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Llamada iniciada:', data);
+        setCurrentCall({
+          id: otherUserId,
+          name: otherUserName,
+          callId: data.call_id,
+          roomName: data.room_name,
+          status: 'calling'
+        });
+        iniciarPollingLlamada(data.call_id);
+      } else {
+        console.error('❌ Error iniciando llamada:', data.error);
+        setIsCallActive(false);
+        setCurrentCall(null);
+        alert(data.error);
+      }
+    } catch (error) {
+      console.error('❌ Error:', error);
+      setIsCallActive(false);
+      setCurrentCall(null);
+      alert('Error al iniciar llamada');
+    }
+  };
+
+  // 🔥 POLLING PARA VERIFICAR ESTADO DE LLAMADA
+  const iniciarPollingLlamada = (callId) => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/calls/status`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ call_id: callId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          const callStatus = data.call.status;
+          
+          if (callStatus === 'active') {
+            clearInterval(interval);
+            setCallPollingInterval(null);
+            redirigirAVideochat(data.call);
+          } else if (callStatus === 'rejected') {
+            clearInterval(interval);
+            setCallPollingInterval(null);
+            setIsCallActive(false);
+            setCurrentCall(null);
+            alert('La llamada fue rechazada');
+          } else if (callStatus === 'cancelled') {
+            clearInterval(interval);
+            setCallPollingInterval(null);
+            setIsCallActive(false);
+            setCurrentCall(null);
+            alert('La llamada expiró sin respuesta');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error verificando llamada:', error);  
+      }
+    }, 2000);
+    
+    setCallPollingInterval(interval);
+  };
+
+  // 🔥 CANCELAR LLAMADA
+  const cancelarLlamada = async () => {
+    try {
+      if (currentCall?.callId) {
+        await fetch(`${API_BASE_URL}/api/calls/cancel`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ call_id: currentCall.callId })
+        });
+      }
+      
+      if (callPollingInterval) {
+        clearInterval(callPollingInterval);
+        setCallPollingInterval(null);
+      }
+    } catch (error) {
+      console.error('❌ Error cancelando llamada:', error);
+    }
+    
+    setIsCallActive(false);
+    setCurrentCall(null);
+  };
+
+  // 🔥 REDIRIGIR AL VIDEOCHAT
+  const redirigirAVideochat = (callData) => {
+    sessionStorage.setItem('roomName', callData.room_name);
+    sessionStorage.setItem('userName', usuario.name || 'Usuario');
+    sessionStorage.setItem('currentRoom', callData.room_name);
+    sessionStorage.setItem('inCall', 'true');
+    
+    setIsCallActive(false);
+    setCurrentCall(null);
+    
+    if (callPollingInterval) {
+      clearInterval(callPollingInterval);
+      setCallPollingInterval(null);
+    }
+    
+    const targetRoute = usuario.rol === 'modelo' ? '/videochat' : '/videochatclient';
+    navigate(targetRoute, {
+      state: {
+        roomName: callData.room_name,
+        userName: usuario.name || 'Usuario',
+        callId: callData.call_id || callData.id,
+        from: 'call'
+      }
+    });
+  };
+
+  // 🔥 CARGAR FAVORITOS
+  const cargarFavoritos = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/favorites/list`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          const favoritosIds = new Set((data.favorites || []).map(fav => fav.id));
+          setFavoritos(favoritosIds);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error cargando favoritos:', error);
+    }
+  };
+
+  // 🔥 TOGGLE FAVORITO
+  const toggleFavorito = async (otherUserId, otherUserName) => {
+    if (loadingFavorite) return;
+    
+    const isFavorite = favoritos.has(otherUserId);
+    
+    try {
+      setLoadingFavorite(true);
+      
+      const endpoint = isFavorite ? 'remove' : 'add';
+      const response = await fetch(`${API_BASE_URL}/api/favorites/${endpoint}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          favorite_user_id: otherUserId,
+          note: isFavorite ? undefined : `Agregado desde chat con ${otherUserName}`
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        const newFavoritos = new Set(favoritos);
+        if (isFavorite) {
+          newFavoritos.delete(otherUserId);
+        } else {
+          newFavoritos.add(otherUserId);
+        }
+        setFavoritos(newFavoritos);
+      }
+    } catch (error) {
+      console.error('❌ Error toggle favorito:', error);
+    } finally {
+      setLoadingFavorite(false);
+    }
+  };
+  // 🔥 FUNCIÓN PARA CARGAR ESTADO DE BLOQUEOS
+  const cargarEstadoBloqueos = async () => {
+  try {
+    console.log('🔍 Cargando estado completo de bloqueos...');
+    
+    const response = await fetch(`${API_BASE_URL}/api/block-status`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        // Usuarios que YO he bloqueado
+        const bloqueadosIds = new Set(
+          (data.my_blocked_users || []).map(user => user.id)
+        );
+        setUsuariosBloqueados(bloqueadosIds);
+        
+        // Usuarios que ME han bloqueado
+        const bloqueadoresIds = new Set(
+          (data.blocked_by_users || []).map(user => user.id)
+        );
+        setBloqueadoPor(bloqueadoresIds);
+        
+        console.log('✅ Estado bloqueos cargado:', {
+          yoBloquee: Array.from(bloqueadosIds),
+          meBloquearon: Array.from(bloqueadoresIds)
+        });
+        
+        // Si hay conversación activa, actualizar su estado
+        if (conversacionActiva) {
+          const conversacionSeleccionada = conversaciones.find(c => c.room_name === conversacionActiva);
+          if (conversacionSeleccionada) {
+            const estadoBloqueo = verificarBloqueoConversacion(conversacionSeleccionada.other_user_id);
+            setConversacionBloqueada(estadoBloqueo);
+          }
+        }
+      }
+    } else {
+      console.error('❌ Error cargando estado bloqueos:', response.status);
+    }
+  } catch (error) {
+    console.error('❌ Error cargando estado bloqueos:', error);
+  }
+  };
+  // 🔥 FUNCIÓN PARA VERIFICAR SI UN USUARIO ESPECÍFICO ME BLOQUEÓ
+  const verificarSiMeBloqueó = async (otherUserId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/check-if-blocked-by`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          user_id: otherUserId
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.is_blocked_by_them) {
+          console.log('🚫 Confirmado: este usuario me bloqueó');
+          
+          // Actualizar estado local
+          const newBloqueadoPor = new Set(bloqueadoPor);
+          newBloqueadoPor.add(otherUserId);
+          setBloqueadoPor(newBloqueadoPor);
+          
+          // Actualizar estado de conversación
+          const estadoBloqueo = verificarBloqueoConversacion(otherUserId);
+          setConversacionBloqueada(estadoBloqueo);
+          
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('❌ Error verificando si me bloqueó:', error);
+      return false;
+    }
+  };
+
+  // 🔥 FUNCIÓN PARA VERIFICAR ESTADO DE BLOQUEO DE CONVERSACIÓN ACTUAL
+  const verificarBloqueoConversacion = (otherUserId) => {
+    if (!otherUserId) return null;
+    
+    const yoBloquee = usuariosBloqueados.has(otherUserId);
+    const meBloquearon = bloqueadoPor.has(otherUserId);
+    
+    if (yoBloquee && meBloquearon) return 'mutuo';
+    if (yoBloquee) return 'yo_bloquee';
+    if (meBloquearon) return 'me_bloquearon';
+    return null;
+  };
+
+  // 🔥 FUNCIÓN MEJORADA CON MEJOR MANEJO DE ERRORES
+const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
+  if (loadingBlock) return;
+  
+  const isBlocked = usuariosBloqueados.has(otherUserId);
+  let motivo = null;
+  
+  if (!isBlocked) {
+    motivo = prompt(`¿Por qué quieres bloquear a ${otherUserName}?`, 'Comportamiento inapropiado');
+    if (motivo === null) return;
+  }
+  
+  try {
+    setLoadingBlock(true);
+    
+    const endpoint = isBlocked ? 'unblock-user' : 'block-user';
+    const requestBody = {
+      blocked_user_id: otherUserId
+    };
+    
+    if (!isBlocked && motivo) {
+      requestBody.reason = motivo;
+    }
+    
+    console.log('🔍 Enviando solicitud:', {
+      endpoint: `${API_BASE_URL}/api/blocks/${endpoint}`,
+      body: requestBody,
+      headers: getAuthHeaders()
+    });
+    
+    const response = await fetch(`${API_BASE_URL}/api/blocks/${endpoint}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestBody)
+    });
+    
+    console.log('📡 Respuesta status:', response.status);
+    
+    // 🔥 LEER LA RESPUESTA COMPLETA PARA DEBUG
+    const responseText = await response.text();
+    console.log('📝 Respuesta completa:', responseText);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('❌ Error parseando JSON:', parseError);
+      console.error('📄 Texto de respuesta:', responseText);
+      alert('Error del servidor: Respuesta no válida');
+      return;
+    }
+    
+    if (response.ok && data.success) {
+      const newBloqueados = new Set(usuariosBloqueados);
+      
+      if (isBlocked) {
+        newBloqueados.delete(otherUserId);
+        console.log(`✅ ${otherUserName} desbloqueado`);
+        alert(`${otherUserName} ha sido desbloqueado`);
+      } else {
+        newBloqueados.add(otherUserId);
+        console.log(`🚫 ${otherUserName} bloqueado`);
+        alert(`${otherUserName} ha sido bloqueado`);
+        
+        if (favoritos.has(otherUserId)) {
+          const newFavoritos = new Set(favoritos);
+          newFavoritos.delete(otherUserId);
+          setFavoritos(newFavoritos);
+        }
+      }
+      
+      setUsuariosBloqueados(newBloqueados);
+      
+      if (conversacionActiva) {
+        const conversacionSeleccionada = conversaciones.find(c => c.room_name === conversacionActiva);
+        if (conversacionSeleccionada?.other_user_id === otherUserId) {
+          const nuevoEstadoBloqueo = verificarBloqueoConversacion(otherUserId);
+          setConversacionBloqueada(nuevoEstadoBloqueo);
+        }
+      }
+      
+    } else {
+      console.error('❌ Error del servidor:', {
+        status: response.status,
+        data: data,
+        error: data?.error || 'Error desconocido'
+      });
+      alert('Error: ' + (data?.error || `Error ${response.status}: ${responseText}`));
+    }
+  } catch (error) {
+    console.error('❌ Error de conexión:', error);
+    alert('Error de conexión: ' + error.message);
+  } finally {
+    setLoadingBlock(false);
+  }
+};
 
   // 🔥 FUNCIÓN PARA OBTENER INICIAL DEL NOMBRE
   const getInitial = (name) => {
@@ -327,6 +726,9 @@ export default function ChatPrivado() {
   useEffect(() => {
     if (usuario.id) {
       cargarConversaciones();
+      cargarFavoritos();
+      cargarEstadoBloqueos();
+
     }
   }, [usuario.id]);
 
@@ -545,6 +947,7 @@ export default function ChatPrivado() {
     }
   };
 
+  // 🔥 MODIFICAR LA FUNCIÓN abrirConversacion EXISTENTE
   const abrirConversacion = async (conversacion) => {
     setConversacionActiva(conversacion.room_name);
     
@@ -556,6 +959,15 @@ export default function ChatPrivado() {
     setIsUserScrolling(false);
     
     await cargarMensajes(conversacion.room_name);
+    
+    // 🔥 VERIFICAR BLOQUEO AL ABRIR CONVERSACIÓN
+    const estadoBloqueo = verificarBloqueoConversacion(conversacion.other_user_id);
+    setConversacionBloqueada(estadoBloqueo);
+    
+    // Si no sabemos si me bloqueó, verificar con el servidor
+    if (!bloqueadoPor.has(conversacion.other_user_id) && !usuariosBloqueados.has(conversacion.other_user_id)) {
+      await verificarSiMeBloqueó(conversacion.other_user_id);
+    }
     
     // 📜 FORZAR SCROLL AL FINAL DESPUÉS DE CARGAR MENSAJES
     setTimeout(() => {
@@ -666,13 +1078,12 @@ useEffect(() => {
       console.error('Error marcando como leído:', error);
     }
   };
-
+  // 🔥 MODIFICAR LA FUNCIÓN enviarMensaje EXISTENTE
   const enviarMensaje = async (tipo = 'text', contenido = null) => {
     const mensaje = contenido || nuevoMensaje.trim();
     if (!mensaje || !conversacionActiva) return;
 
     try {
-      // 🔥 CAMBIO: Agregar API_BASE_URL
       const response = await fetch(`${API_BASE_URL}/api/chat/send-message`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -687,40 +1098,69 @@ useEffect(() => {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // Agregar mensaje inmediatamente para UX fluida
-          const nuevoMensajeObj = {
-            id: Date.now(),
-            user_id: usuario.id,
-            user_name: usuario.name,
-            user_role: usuario.rol,
-            message: mensaje,
-            type: tipo,
-            created_at: new Date().toISOString()
-          };
-          setMensajes(prev => [...prev, nuevoMensajeObj]);
-          setNuevoMensaje("");
-          
-          // 🔔 ACTUALIZAR ÚLTIMA VEZ VISTO AL ENVIAR MENSAJE
-          updateLastSeen(conversacionActiva);
-          
-          // 📜 PERMITIR AUTO-SCROLL AL ENVIAR MENSAJE
-          setShouldAutoScroll(true);
-          setIsUserScrolling(false);
-          
-          // Actualizar último mensaje en la lista
-          setConversaciones(prev => 
-            prev.map(conv => 
-              conv.room_name === conversacionActiva
-                ? { 
-                    ...conv, 
-                    last_message: mensaje,
-                    last_message_time: new Date().toISOString(),
-                    last_message_sender_id: usuario.id
-                  }
-                : conv
-            )
-          );
+            // Agregar mensaje inmediatamente para UX fluida
+            const nuevoMensajeObj = {
+              id: Date.now(),
+              user_id: usuario.id,
+              user_name: usuario.name,
+              user_role: usuario.rol,
+              message: mensaje,
+              type: tipo,
+              created_at: new Date().toISOString()
+            };
+            setMensajes(prev => [...prev, nuevoMensajeObj]);
+            setNuevoMensaje("");
+            
+            // 🔔 ACTUALIZAR ÚLTIMA VEZ VISTO AL ENVIAR MENSAJE
+            updateLastSeen(conversacionActiva);
+            
+            // 📜 PERMITIR AUTO-SCROLL AL ENVIAR MENSAJE
+            setShouldAutoScroll(true);
+            setIsUserScrolling(false);
+            
+            // Actualizar último mensaje en la lista
+            setConversaciones(prev => 
+              prev.map(conv => 
+                conv.room_name === conversacionActiva
+                  ? { 
+                      ...conv, 
+                      last_message: mensaje,
+                      last_message_time: new Date().toISOString(),
+                      last_message_sender_id: usuario.id
+                    }
+                  : conv
+              )
+            );
+          }
+      } else {
+        // 🔥 DETECTAR SI FALLO POR BLOQUEO
+        if (response.status === 403 || response.status === 423) {
+          try {
+            const errorData = await response.json();
+            
+            // Verificar diferentes tipos de error de bloqueo
+            if (errorData.error && 
+                (errorData.error.includes('bloqueado') || 
+                errorData.error.includes('blocked') ||
+                errorData.error.includes('no permitido'))) {
+                
+              console.log('🚫 Detectado bloqueo al enviar mensaje');
+              
+              const conversacionSeleccionada = conversaciones.find(c => c.room_name === conversacionActiva);
+              if (conversacionSeleccionada) {
+                // Confirmar con el servidor que me bloquearon
+                const fueBloqueado = await verificarSiMeBloqueó(conversacionSeleccionada.other_user_id);
+                if (fueBloqueado) {
+                  alert(`${conversacionSeleccionada.other_user_name} te ha bloqueado`);
+                }
+              }
+            }
+          } catch (parseError) {
+            console.error('Error parseando respuesta:', parseError);
+          }
         }
+        
+        console.error('Error enviando mensaje:', response.status);
       }
     } catch (error) {
       console.error('Error enviando mensaje:', error);
@@ -834,7 +1274,47 @@ useEffect(() => {
         return <span className="text-white">{textoMensaje}</span>;
     }
   };
-  
+  // 🔥 CLEANUP AL DESMONTAR
+  useEffect(() => {
+    return () => {
+      if (callPollingInterval) {
+        clearInterval(callPollingInterval);
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+  // 🔥 NUEVO useEffect PARA MONITOREAR BLOQUEO DE CONVERSACIÓN ACTUAL
+  useEffect(() => {
+    if (conversacionActiva) {
+      const conversacionSeleccionada = conversaciones.find(c => c.room_name === conversacionActiva);
+      if (conversacionSeleccionada) {
+        const estadoBloqueo = verificarBloqueoConversacion(conversacionSeleccionada.other_user_id);
+        setConversacionBloqueada(estadoBloqueo);
+      }
+    } else {
+      setConversacionBloqueada(null);
+    }
+  }, [conversacionActiva, usuariosBloqueados, bloqueadoPor, conversaciones]);
+    // 🔥 NUEVO useEffect PARA VERIFICACIÓN PERIÓDICA DE BLOQUEOS
+  useEffect(() => {
+    if (!usuario.id) return;
+
+    // Verificar bloqueos cada 30 segundos
+    const interval = setInterval(() => {
+      if (conversacionActiva) {
+        const conversacionSeleccionada = conversaciones.find(c => c.room_name === conversacionActiva);
+        if (conversacionSeleccionada && !conversacionBloqueada) {
+          // Solo verificar si no sabemos ya que hay bloqueo
+          verificarSiMeBloqueó(conversacionSeleccionada.other_user_id);
+        }
+      }
+    }, 30000); // Cada 30 segundos
+
+    return () => clearInterval(interval);
+  }, [usuario.id, conversacionActiva, conversacionBloqueada]);
 
   const conversacionesFiltradas = conversaciones.filter(conv => 
     conv.other_user_name.toLowerCase().includes(busquedaConversacion.toLowerCase())
@@ -847,22 +1327,22 @@ useEffect(() => {
       <div className="relative">
         <Header />
         
-        {/* 📱 BOTÓN PARA MOSTRAR SIDEBAR EN MÓVIL - EN EL HEADER */}
+        {/* 📱 BOTÓN PARA MOSTRAR SIDEBAR EN MÓVIL - AL LADO DEL NAVBAR */}
         {isMobile && conversacionActiva && !showSidebar && (
           <button
             onClick={() => setShowSidebar(true)}
-            className="fixed top-4 right-4 z-[100] bg-[#ff007a] hover:bg-[#cc0062] p-3 rounded-full shadow-xl transition-colors border-2 border-white/20"
-            style={{ position: 'fixed' }}
+            className="fixed top-[29px] right-24 z-[100] bg-[#ff007a] hover:bg-[#cc0062] p-2 rounded-full shadow-xl transition-colors border-2 border-white/20"
           >
-            <MessageSquare size={20} className="text-white" />
+            <MessageSquare size={18} className="text-white" />
             {/* 🔔 MOSTRAR CONTEO GLOBAL EN EL BOTÓN */}
             {globalUnreadCount > 0 && (
-              <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center animate-pulse border-2 border-white">
+              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse border-2 border-white">
                 {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
               </div>
             )}
           </button>
         )}
+  
       </div>
       
       {/* 🔔 NOTIFICACIÓN GLOBAL DE MENSAJES NUEVOS - ABAJO IZQUIERDA ESQUINADA */}
@@ -882,8 +1362,11 @@ useEffect(() => {
       )}
       
       <div className={`${isMobile ? 'p-2' : 'p-2'}`}>
-        <div className={`flex rounded-xl overflow-hidden shadow-lg ${isMobile ? 'h-[calc(100vh-120px)]' : 'h-[83vh]'} border border-[#ff007a]/10 relative`}>
-
+      <div className={`flex rounded-xl overflow-hidden shadow-lg ${
+        isMobile 
+          ? 'h-[calc(100vh-80px)] max-h-[calc(100vh-80px)]' 
+          : 'h-[83vh]'
+      } border border-[#ff007a]/10 relative`}>
           {/* Sidebar de conversaciones */}
           <aside className={`${
             isMobile 
@@ -966,28 +1449,28 @@ useEffect(() => {
                           <div className="text-xs text-white/60 truncate">
                             {/* 🌍 PREVIEW CON TRADUCCIÓN SI ESTÁ HABILITADA */}
                             {translationSettings?.enabled && conv.last_message && conv.last_message.trim() ? (
-  <TranslatedMessage
-    message={{
-      text: conv.last_message.trim(),
-      type: 'remote',
-      id: `preview_${conv.id}`,
-      timestamp: conv.last_message_time
-    }}
-    settings={{
-      ...translationSettings,
-      showOriginal: false,
-      showOnlyTranslation: true
-    }}
-    className="text-white/60"
-  />
-) : (
-  // Mostrar mensaje original si no se puede traducir
-  conv.last_message_sender_id === usuario.id ? (
-    <span><span className="text-white/40">Tú:</span> {conv.last_message}</span>
-  ) : (
-    conv.last_message
-  )
-)}
+                              <TranslatedMessage
+                                message={{
+                                  text: conv.last_message.trim(),
+                                  type: 'remote',
+                                  id: `preview_${conv.id}`,
+                                  timestamp: conv.last_message_time
+                                }}
+                                settings={{
+                                  ...translationSettings,
+                                  showOriginal: false,
+                                  showOnlyTranslation: true
+                                }}
+                                className="text-white/60"
+                              />
+                            ) : (
+                              // Mostrar mensaje original si no se puede traducir
+                              conv.last_message_sender_id === usuario.id ? (
+                                <span><span className="text-white/40">Tú:</span> {conv.last_message}</span>
+                              ) : (
+                                conv.last_message
+                              )
+                            )}
                           </div>
                         </div>
                         
@@ -1007,9 +1490,9 @@ useEffect(() => {
           {/* Panel de chat */}
           <section className={`${
             isMobile 
-              ? `${showSidebar ? 'hidden' : 'w-full'}` // En móvil ocultar cuando sidebar está visible
+              ? `${showSidebar ? 'hidden' : 'w-full h-full'}` 
               : 'w-2/3'
-          } bg-[#0a0d10] flex flex-col relative`}>
+          } bg-[#0a0d10] flex flex-col relative overflow-hidden`}>
             {!conversacionActiva ? (
               /* Estado sin conversación seleccionada - Solo en desktop */
               !isMobile && (
@@ -1044,16 +1527,33 @@ useEffect(() => {
                   
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => iniciarVideochat(
-                        conversacionSeleccionada?.other_user_id,
-                        conversacionSeleccionada?.other_user_role
-                      )}
-                      className="px-3 py-2 bg-[#ff007a]/20 hover:bg-[#ff007a]/30 text-[#ff007a] rounded-lg text-sm transition-colors flex items-center gap-2"
-                    >
-                      <Video size={16} />
-                      {!isMobile && 'Videochat'}
-                    </button>
-                    
+                    onClick={() => iniciarLlamadaReal(
+                      conversacionSeleccionada?.other_user_id,
+                      conversacionSeleccionada?.other_user_name
+                    )}
+                    disabled={isCallActive || isReceivingCall || conversacionBloqueada !== null}
+                    className={`px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${
+                      isCallActive || isReceivingCall || conversacionBloqueada
+                        ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
+                        : 'bg-[#ff007a]/20 hover:bg-[#ff007a]/30 text-[#ff007a]'
+                    }`}
+                    title={
+                      conversacionBloqueada 
+                        ? 'No disponible - usuario bloqueado'
+                        : isCallActive || isReceivingCall 
+                          ? 'Llamada en curso'
+                          : 'Iniciar videochat'
+                    }
+                  >
+                    <Video size={16} />
+                    {!isMobile && (
+                      conversacionBloqueada 
+                        ? 'Bloqueado' 
+                        : isCallActive 
+                          ? 'Llamando...' 
+                          : 'Videochat'
+                    )}
+                  </button>
                     <div className="relative">
                       <button
                         onClick={() => setShowMainSettings(!showMainSettings)}
@@ -1085,14 +1585,66 @@ useEffect(() => {
                             <ArrowRight className="text-gray-400 group-hover:text-white" size={16} />
                           </button>
                           
-                          <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm">
-                            <Star size={16} /> Favorito
+                          <button 
+                            onClick={() => {
+                              toggleFavorito(
+                                conversacionSeleccionada?.other_user_id,
+                                conversacionSeleccionada?.other_user_name
+                              );
+                              setShowMainSettings(false);
+                            }}
+                            disabled={loadingFavorite}
+                            className={`w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm ${
+                              favoritos.has(conversacionSeleccionada?.other_user_id) 
+                                ? 'text-red-400' 
+                                : 'text-white'
+                            }`}
+                          >
+                            {loadingFavorite ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ff007a]"></div>
+                            ) : (
+                              <Star 
+                                size={16} 
+                                className={favoritos.has(conversacionSeleccionada?.other_user_id) ? 'fill-current' : ''}
+                              />
+                            )}
+                            {favoritos.has(conversacionSeleccionada?.other_user_id) 
+                              ? 'Quitar de Favoritos' 
+                              : 'Agregar a Favoritos'
+                            }
                           </button>
                           <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm">
                             <Pencil size={16} /> Cambiar apodo
                           </button>
-                          <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm text-red-400">
-                            <Ban size={16} /> Bloquear usuario
+                          <button 
+                            onClick={() => {
+                              const conversacionSeleccionada = conversaciones.find(c => c.room_name === conversacionActiva);
+                              if (conversacionSeleccionada) {
+                                toggleBloquearUsuario(
+                                  conversacionSeleccionada.other_user_id,
+                                  conversacionSeleccionada.other_user_name
+                                );
+                              }
+                              setShowMainSettings(false);
+                            }}
+                            disabled={loadingBlock || conversacionBloqueada === 'me_bloquearon'}
+                            className={`w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm ${
+                              conversacionBloqueada === 'me_bloquearon' 
+                                ? 'text-gray-500 cursor-not-allowed' 
+                                : 'text-red-400'
+                            }`}
+                          >
+                            {loadingBlock ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
+                            ) : (
+                              <Ban size={16} />
+                            )}
+                            {conversacionBloqueada === 'me_bloquearon' 
+                              ? 'No disponible (te bloqueó)' 
+                              : conversacionBloqueada === 'yo_bloquee' 
+                                ? 'Desbloquear usuario'
+                                : 'Bloquear usuario'
+                            }
                           </button>
                         </div>
                       )}
@@ -1103,10 +1655,13 @@ useEffect(() => {
                 {/* Mensajes - SIN SEPARADORES DE MENSAJES NUEVOS */}
                 <div 
                   ref={mensajesRef}
-                  className="flex-1 overflow-y-auto p-4 space-y-3 mensajes-container"
+                  className={`flex-1 overflow-y-auto p-4 space-y-3 mensajes-container ${
+                    isMobile ? 'pb-safe-area-inset-bottom' : ''
+                  }`}
                   style={{
                     scrollbarWidth: 'thin',
-                    scrollbarColor: '#ff007a #2b2d31'
+                    scrollbarColor: '#ff007a #2b2d31',
+                    maxHeight: isMobile ? 'calc(100vh - 220px)' : 'auto'
                   }}
                   onScroll={handleScroll}
                 >
@@ -1177,6 +1732,67 @@ useEffect(() => {
                     })
                   )}
                 </div>
+                {/* 🔥 MENSAJE DE ESTADO DE BLOQUEO COMPLETO */}
+                {conversacionBloqueada && (
+                  <div className="bg-red-900/50 border border-red-500/50 rounded-lg p-4 mx-4 mb-2">
+                    <div className="flex items-center gap-3">
+                      <Ban size={24} className="text-red-400 flex-shrink-0" />
+                      <div className="flex-1">
+                        {conversacionBloqueada === 'yo_bloquee' && (
+                          <>
+                            <p className="text-red-300 font-semibold">🚫 Usuario Bloqueado</p>
+                            <p className="text-red-200 text-sm mb-2">
+                              Has bloqueado a {conversaciones.find(c => c.room_name === conversacionActiva)?.other_user_name}. 
+                              No podrán enviarte mensajes ni llamarte.
+                            </p>
+                            <button 
+                              onClick={() => {
+                                const conv = conversaciones.find(c => c.room_name === conversacionActiva);
+                                if (conv) toggleBloquearUsuario(conv.other_user_id, conv.other_user_name);
+                              }}
+                              className="text-red-400 hover:text-red-300 text-sm underline bg-red-900/30 px-2 py-1 rounded"
+                              disabled={loadingBlock}
+                            >
+                              {loadingBlock ? 'Desbloqueando...' : 'Desbloquear usuario'}
+                            </button>
+                          </>
+                        )}
+                        
+                        {conversacionBloqueada === 'me_bloquearon' && (
+                          <>
+                            <p className="text-red-300 font-semibold">❌ Fuiste Bloqueado</p>
+                            <p className="text-red-200 text-sm">
+                              {conversaciones.find(c => c.room_name === conversacionActiva)?.other_user_name} te ha bloqueado. 
+                              No puedes enviar mensajes ni realizar llamadas.
+                            </p>
+                            <p className="text-red-300 text-xs mt-1 italic">
+                              Solo podrás ver mensajes anteriores, pero no enviar nuevos.
+                            </p>
+                          </>
+                        )}
+                        
+                        {conversacionBloqueada === 'mutuo' && (
+                          <>
+                            <p className="text-red-300 font-semibold">🚫 Bloqueo Mutuo</p>
+                            <p className="text-red-200 text-sm mb-2">
+                              Ambos se han bloqueado mutuamente. Ninguno puede contactar al otro.
+                            </p>
+                            <button 
+                              onClick={() => {
+                                const conv = conversaciones.find(c => c.room_name === conversacionActiva);
+                                if (conv) toggleBloquearUsuario(conv.other_user_id, conv.other_user_name);
+                              }}
+                              className="text-red-400 hover:text-red-300 text-sm underline bg-red-900/30 px-2 py-1 rounded"
+                              disabled={loadingBlock}
+                            >
+                              {loadingBlock ? 'Desbloqueando...' : 'Desbloquear de mi parte'}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Panel de regalos y emojis */}
                 <div className="bg-[#2b2d31] px-4 py-2 border-t border-[#ff007a]/10">
@@ -1217,22 +1833,45 @@ useEffect(() => {
                 </div>
 
                 {/* Input mensaje */}
-                <div className="bg-[#2b2d31] p-4 border-t border-[#ff007a]/20 flex gap-3">
-                  <input
+                <div className={`bg-[#2b2d31] border-t border-[#ff007a]/20 flex gap-3 ${
+                  isMobile 
+                    ? 'p-3 pb-safe-area-inset-bottom sticky bottom-0 z-10' 
+                    : 'p-4'
+                }`}>                  
+                <input
                     type="text"
-                    placeholder="Escribe un mensaje..."
-                    className="flex-1 bg-[#1a1c20] text-white px-4 py-2 rounded-full outline-none focus:ring-2 focus:ring-[#ff007a]/50 placeholder-white/60"
+                    placeholder={
+                      conversacionBloqueada === 'yo_bloquee' 
+                        ? "Has bloqueado a este usuario..." 
+                        : conversacionBloqueada === 'me_bloquearon'
+                          ? "Este usuario te ha bloqueado..."
+                          : conversacionBloqueada === 'mutuo'
+                            ? "Bloqueo mutuo activo..."
+                            : "Escribe un mensaje..."
+                    }
+                    className={`flex-1 px-4 py-2 rounded-full outline-none placeholder-white/60 ${
+                      conversacionBloqueada 
+                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+                        : 'bg-[#1a1c20] text-white focus:ring-2 focus:ring-[#ff007a]/50'
+                    }`}
                     value={nuevoMensaje}
-                    onChange={(e) => setNuevoMensaje(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && enviarMensaje()}
+                    onChange={(e) => !conversacionBloqueada && setNuevoMensaje(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && !conversacionBloqueada && enviarMensaje()}
+                    disabled={conversacionBloqueada !== null}
                   />
                   <button
                     onClick={() => enviarMensaje()}
-                    disabled={!nuevoMensaje.trim()}
-                    className="bg-[#ff007a] hover:bg-[#e6006e] disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-2 rounded-full font-semibold transition-colors flex items-center gap-2"
+                    disabled={!nuevoMensaje.trim() || conversacionBloqueada !== null}
+                    className={`px-6 py-2 rounded-full font-semibold transition-colors flex items-center gap-2 ${
+                      conversacionBloqueada !== null
+                        ? 'bg-gray-600 cursor-not-allowed text-gray-400'
+                        : !nuevoMensaje.trim()
+                          ? 'bg-gray-600 cursor-not-allowed text-gray-400'
+                          : 'bg-[#ff007a] hover:bg-[#e6006e] text-white'
+                    }`}
                   >
                     <Send size={16} />
-                    {!isMobile && 'Enviar'}
+                    {!isMobile && (conversacionBloqueada ? 'Bloqueado' : 'Enviar')}
                   </button>
                 </div>
               </>
@@ -1256,6 +1895,20 @@ useEffect(() => {
         settings={translationSettings}
         onSettingsChange={setTranslationSettings}
         languages={languages}
+      />
+      {/* 🔥 OVERLAYS DE LLAMADAS */}
+      <CallingSystem
+        isVisible={isCallActive}
+        callerName={currentCall?.name}
+        onCancel={cancelarLlamada}
+        callStatus={currentCall?.status || 'initiating'}
+      />
+
+      <IncomingCallOverlay
+        isVisible={isReceivingCall}
+        callData={incomingCall}
+        onAnswer={() => console.log('Responder llamada')}
+        onDecline={() => console.log('Rechazar llamada')}
       />
     </div>
   );
