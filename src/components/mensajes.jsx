@@ -1327,20 +1327,20 @@ useEffect(() => {
       <div className="relative">
         <Header />
         
-        {/* 📱 BOTÓN PARA MOSTRAR SIDEBAR EN MÓVIL - AL LADO DEL NAVBAR */}
-        {isMobile && conversacionActiva && !showSidebar && (
-          <button
-            onClick={() => setShowSidebar(true)}
-            className="fixed top-[29px] right-24 z-[100] bg-[#ff007a] hover:bg-[#cc0062] p-2 rounded-full shadow-xl transition-colors border-2 border-white/20"
-          >
-            <MessageSquare size={18} className="text-white" />
-            {/* 🔔 MOSTRAR CONTEO GLOBAL EN EL BOTÓN */}
-            {globalUnreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse border-2 border-white">
-                {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
-              </div>
-            )}
-          </button>
+       {/* 📱 BOTÓN DE CHAT - IZQUIERDA DEL NAVBAR */}
+      {isMobile && conversacionActiva && !showSidebar && (
+        <button
+          onClick={() => setShowSidebar(true)}
+          className="fixed top-[29px] right-[135px] z-[100] bg-[#ff007a] hover:bg-[#cc0062] p-2 rounded-full shadow-xl transition-colors border-2 border-white/20"
+        >
+          <MessageSquare size={18} className="text-white" />
+          {/* 🔔 MOSTRAR CONTEO GLOBAL EN EL BOTÓN */}
+          {globalUnreadCount > 0 && (
+            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse border-2 border-white">
+              {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
+            </div>
+          )}
+        </button>
         )}
   
       </div>
@@ -1490,7 +1490,7 @@ useEffect(() => {
           {/* Panel de chat */}
           <section className={`${
             isMobile 
-              ? `${showSidebar ? 'hidden' : 'w-full h-full'}` 
+              ? `${showSidebar ? 'hidden' : 'w-full h-[80vh]'}` 
               : 'w-2/3'
           } bg-[#0a0d10] flex flex-col relative overflow-hidden`}>
             {!conversacionActiva ? (
