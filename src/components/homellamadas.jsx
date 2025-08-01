@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { MessageSquare, Star, Home, Phone, Clock, CheckCircle, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "./header";
@@ -10,11 +10,9 @@ import CallingSystem from './CallingOverlay';
 import IncomingCallOverlay from './IncomingCallOverlay';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-
 export default function InterfazCliente() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   // Estados
   const [user, setUser] = React.useState(null);
@@ -23,8 +21,14 @@ export default function InterfazCliente() {
   const [usuariosActivos, setUsuariosActivos] = React.useState([]);
   const [loadingUsers, setLoadingUsers] = React.useState(true);
   const [initialLoad, setInitialLoad] = React.useState(true);
+  const [usuariosBloqueados, setUsuariosBloqueados] = useState([]);
+  const [loadingBloqueados, setLoadingBloqueados] = useState(false);
   
-  // 🔥 ESTADOS DE LLAMADAS - MEJORADO
+  // 🔥 ESTADOS PARA MODAL DE CONFIRMACIÓN
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  
+  // 🔥 ESTADOS DE LLAMADAS
   const [isCallActive, setIsCallActive] = React.useState(false);
   const [currentCall, setCurrentCall] = React.useState(null);
   const [isReceivingCall, setIsReceivingCall] = React.useState(false);
@@ -34,7 +38,6 @@ export default function InterfazCliente() {
   const [incomingCallAudio, setIncomingCallAudio] = React.useState(null);
   const audioRef = React.useRef(null);
 
-
   const historial = [
     { nombre: "LeoFlex", accion: t("client.history.callEnded") || "Llamada finalizada", hora: t("client.history.today") + ", 10:45 AM" },
     { nombre: "ValePink", accion: t("client.history.messageSent") || "Mensaje enviado", hora: t("client.history.yesterday") + ", 9:13 PM" },
@@ -42,162 +45,177 @@ export default function InterfazCliente() {
   ];
 
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TOKEN
- const getAuthHeaders = () => {
-  const token = sessionStorage.getItem("token");
-  
-  // 🔍 DEBUG: Verificar el token
-  console.log('🔑 Token completo:', token);
-  console.log('🔑 Token length:', token?.length);
-  console.log('🔑 Token válido:', token && token !== 'null' && token !== 'undefined');
-  
-  if (!token || token === 'null' || token === 'undefined') {
-    console.error('❌ TOKEN INVÁLIDO - Redirigiendo a login');
-    // Opcional: redirigir automáticamente al login
-    // window.location.href = '/login';
-    return {};
-  }
-  
-  return {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest',
-    'Authorization': `Bearer ${token}`
+  const getAuthHeaders = () => {
+    const token = sessionStorage.getItem("token");
+    
+    console.log('🔑 Token completo:', token);
+    console.log('🔑 Token length:', token?.length);
+    console.log('🔑 Token válido:', token && token !== 'null' && token !== 'undefined');
+    
+    if (!token || token === 'null' || token === 'undefined') {
+      console.error('❌ TOKEN INVÁLIDO - Redirigiendo a login');
+      return {};
+    }
+    
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Authorization': `Bearer ${token}`
+    };
   };
-};
 
   // 🔥 FUNCIÓN PARA OBTENER INICIAL DEL NOMBRE
   const getInitial = (name) => {
     return name ? name.charAt(0).toUpperCase() : '?';
   };
 
-  // 🔥 CARGAR USUARIOS ACTIVOS/ONLINE - SIN CAMBIOS
-  // 🔥 FUNCIÓN PARA OBTENER USUARIOS ACTIVOS - VERSIÓN CORREGIDA
-const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
-  try {
-    if (!isBackgroundUpdate) {
-      setLoadingUsers(true);
-    }
-    
-    console.log('🔍 Cargando usuarios activos...');
-    
-    const headers = getAuthHeaders();
-    
-    // Verificar que tenemos headers válidos
-    if (!headers.Authorization) {
-      console.error('❌ No hay token válido, saltando carga de usuarios');
-      if (initialLoad) {
-        await handleFallbackData();
-      }
-      return;
-    }
-    
-    // 🔥 USAR LA URL COMPLETA DEL BACKEND
-    const response = await fetch(`${API_BASE_URL}/api/chat/users/my-contacts`, {
-      method: 'GET',
-      headers: headers,
-      // 🔥 AGREGAR CORS SI ES NECESARIO
-      mode: 'cors',
-      credentials: 'omit' // Cambiado de 'include' a 'omit' para evitar problemas CORS
-    });
-    
-    console.log('📊 Response status:', response.status);
-    console.log('📊 Response headers:', response.headers.get('content-type'));
-    
-    // 🔥 VERIFICAR SI LA RESPUESTA ES REALMENTE JSON
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      console.error('❌ La respuesta no es JSON:', contentType);
-      
-      // Leer como texto para debug
-      const textResponse = await response.text();
-      console.error('❌ Respuesta recibida:', textResponse.substring(0, 200));
-      
-      // Si es un 401, el token es inválido
-      if (response.status === 401) {
-        console.error('🚨 TOKEN EXPIRADO - Limpiando sesión');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('user');
-        // window.location.href = '/login'; // Descomentar para redirigir automáticamente
-      }
-      
-      if (initialLoad) {
-        await handleFallbackData();
-      }
-      return;
-    }
-    
-    if (response.ok) {
-      try {
+  // 🔥 CARGAR USUARIOS BLOQUEADOS
+  const cargarUsuariosBloqueados = async () => {
+    try {
+      setLoadingBloqueados(true);
+      console.log('🚫 Cargando usuarios bloqueados...');
+
+      const response = await fetch(`${API_BASE_URL}/api/blocks/list`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      if (response.ok) {
         const data = await response.json();
-        console.log('✅ Usuarios activos recibidos:', data);
+        if (data.success) {
+          setUsuariosBloqueados(data.blocked_users || []);
+          console.log('✅ Usuarios bloqueados cargados:', data.blocked_users.length);
+        }
+      } else {
+        console.error('❌ Error HTTP cargando bloqueados:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Error cargando usuarios bloqueados:', error);
+    } finally {
+      setLoadingBloqueados(false);
+    }
+  };
+
+  // 🔥 CARGAR USUARIOS ACTIVOS/ONLINE
+  const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
+    try {
+      if (!isBackgroundUpdate) {
+        setLoadingUsers(true);
+      }
+      
+      console.log('🔍 Cargando usuarios activos...');
+      
+      const headers = getAuthHeaders();
+      
+      if (!headers.Authorization) {
+        console.error('❌ No hay token válido, saltando carga de usuarios');
+        if (initialLoad) {
+          await handleFallbackData();
+        }
+        return;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/api/chat/users/my-contacts`, {
+        method: 'GET',
+        headers: headers,
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      
+      console.log('📊 Response status:', response.status);
+      console.log('📊 Response headers:', response.headers.get('content-type'));
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('❌ La respuesta no es JSON:', contentType);
         
-        const usuariosOnline = (data.contacts || []);
+        const textResponse = await response.text();
+        console.error('❌ Respuesta recibida:', textResponse.substring(0, 200));
         
-        setUsuariosActivos(prevUsers => {
-          const newUserIds = usuariosOnline.map(u => u.id).sort();
-          const prevUserIds = prevUsers.map(u => u.id).sort();
+        if (response.status === 401) {
+          console.error('🚨 TOKEN EXPIRADO - Limpiando sesión');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
+        }
+        
+        if (initialLoad) {
+          await handleFallbackData();
+        }
+        return;
+      }
+      
+      if (response.ok) {
+        try {
+          const data = await response.json();
+          console.log('✅ Usuarios activos recibidos:', data);
           
-          if (JSON.stringify(newUserIds) !== JSON.stringify(prevUserIds)) {
-            console.log('📝 Actualizando lista de usuarios activos');
-            return usuariosOnline;
-          }
+          const usuariosOnline = (data.contacts || []);
           
-          return prevUsers.map(prevUser => {
-            const updatedUser = usuariosOnline.find(u => u.id === prevUser.id);
-            return updatedUser || prevUser;
+          setUsuariosActivos(prevUsers => {
+            const newUserIds = usuariosOnline.map(u => u.id).sort();
+            const prevUserIds = prevUsers.map(u => u.id).sort();
+            
+            if (JSON.stringify(newUserIds) !== JSON.stringify(prevUserIds)) {
+              console.log('📝 Actualizando lista de usuarios activos');
+              return usuariosOnline;
+            }
+            
+            return prevUsers.map(prevUser => {
+              const updatedUser = usuariosOnline.find(u => u.id === prevUser.id);
+              return updatedUser || prevUser;
+            });
           });
-        });
+          
+        } catch (jsonError) {
+          console.error('❌ Error parseando JSON:', jsonError);
+          
+          if (initialLoad) {
+            await handleFallbackData();
+          }
+        }
+      } else {
+        console.error('❌ Error HTTP:', response.status, response.statusText);
         
-      } catch (jsonError) {
-        console.error('❌ Error parseando JSON:', jsonError);
+        try {
+          const errorBody = await response.text();
+          console.error('❌ Detalles del error:', errorBody);
+        } catch (e) {
+          console.error('❌ No se pudo leer el cuerpo del error');
+        }
+        
+        if (response.status === 401) {
+          console.error('🚨 UNAUTHORIZED - Token inválido');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
+        }
         
         if (initialLoad) {
           await handleFallbackData();
         }
       }
-    } else {
-      console.error('❌ Error HTTP:', response.status, response.statusText);
-      
-      // 🔥 LEER EL CUERPO DE LA RESPUESTA PARA MÁS DETALLES
-      try {
-        const errorBody = await response.text();
-        console.error('❌ Detalles del error:', errorBody);
-      } catch (e) {
-        console.error('❌ No se pudo leer el cuerpo del error');
-      }
-      
-      // Manejar específicamente el 401
-      if (response.status === 401) {
-        console.error('🚨 UNAUTHORIZED - Token inválido');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('user');
-      }
+    } catch (error) {
+      console.error('❌ Error cargando usuarios activos:', error);
+      console.error('❌ Error completo:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
       
       if (initialLoad) {
         await handleFallbackData();
       }
+    } finally {
+      if (!isBackgroundUpdate) {
+        setLoadingUsers(false);
+      }
+      if (initialLoad) {
+        setInitialLoad(false);
+      }
     }
-  } catch (error) {
-    console.error('❌ Error cargando usuarios activos:', error);
-    console.error('❌ Error completo:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
-    
-    if (initialLoad) {
-      await handleFallbackData();
-    }
-  } finally {
-    if (!isBackgroundUpdate) {
-      setLoadingUsers(false);
-    }
-    if (initialLoad) {
-      setInitialLoad(false);
-    }
-  }
-};
-  // Función para manejar datos de fallback - SIN CAMBIOS
+  };
+
+  // Función para manejar datos de fallback
   const handleFallbackData = async () => {
     try {
       const conversationsResponse = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
@@ -250,7 +268,7 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
     }
   };
 
-  // 🔥 FUNCIÓN PARA NAVEGAR A CHAT CON USUARIO ESPECÍFICO - SIN CAMBIOS
+  // 🔥 FUNCIÓN PARA NAVEGAR A CHAT CON USUARIO ESPECÍFICO
   const abrirChatConUsuario = (usuario) => {
     console.log('📩 Abriendo chat con:', usuario.name);
     
@@ -265,12 +283,59 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
     });
   };
 
-  // 🔥 NUEVA FUNCIÓN: INICIAR LLAMADA CON EL CALLCONTROLLER
+  // 🔥 NUEVA FUNCIÓN: INICIAR LLAMADA CON VALIDACIÓN DE BLOQUEOS
   const iniciarLlamadaReal = async (usuario) => {
     try {
       console.log('📞 Iniciando llamada a:', usuario.name);
       
-      // Mostrar overlay de llamando
+      // 🔥 VARIABLES CORRECTAS PARA LA VALIDACIÓN
+      const otherUserId = usuario.id;
+      const otherUserName = usuario.name || usuario.alias;
+      
+      // 🚫 VERIFICAR SI YO LO BLOQUEÉ
+      const yoLoBloquee = usuariosBloqueados.some((user) => user.id === otherUserId);
+      if (yoLoBloquee) {
+        setConfirmAction({
+          type: 'blocked',
+          title: 'No disponible',
+          message: `Has bloqueado a ${otherUserName}. Debes desbloquearlo para poder llamarlo.`,
+          confirmText: 'Entendido',
+          action: () => setShowConfirmModal(false)
+        });
+        setShowConfirmModal(true);
+        return;
+      }
+
+      // 🚫 VERIFICAR SI ÉL ME BLOQUEÓ
+      const blockCheckResponse = await fetch(`${API_BASE_URL}/api/check-if-blocked-by`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          user_id: otherUserId
+        })
+      });
+
+      if (blockCheckResponse.ok) {
+        const blockData = await blockCheckResponse.json();
+        if (blockData.success && blockData.is_blocked_by_them) {
+          setConfirmAction({
+            type: 'blocked',
+            title: 'No disponible',
+            message: `${otherUserName} te ha bloqueado. No puedes realizar llamadas a este usuario.`,
+            confirmText: 'Entendido',
+            action: () => setShowConfirmModal(false)
+          });
+          setShowConfirmModal(true);
+          return;
+        }
+      } else {
+        // 🔥 AGREGAR ESTO:
+        console.warn('No se pudo verificar el estado de bloqueo');
+        // Continúa con la llamada pero prepárate para manejar el error
+      }
+      
+
+      // ✅ SIN BLOQUEOS - PROCEDER CON LA LLAMADA
       setCurrentCall({
         ...usuario,
         status: 'initiating'
@@ -295,7 +360,6 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
       if (data.success) {
         console.log('✅ Llamada iniciada:', data);
         
-        // Actualizar estado con datos de la llamada
         setCurrentCall({
           ...usuario,
           callId: data.call_id,
@@ -303,14 +367,33 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
           status: 'calling'
         });
         
-        // Iniciar polling para verificar respuesta
         iniciarPollingLlamada(data.call_id);
         
       } else {
         console.error('❌ Error iniciando llamada:', data.error);
         setIsCallActive(false);
         setCurrentCall(null);
-        alert(data.error);
+        
+        // Mostrar error específico si es por bloqueo
+        if (data.error === 'No puedes iniciar una llamada con este usuario') {
+          setConfirmAction({
+            type: 'blocked',
+            title: 'Llamada no disponible',
+            message: 'No se puede realizar la llamada. Posiblemente existe un bloqueo mutuo.',
+            confirmText: 'Entendido',
+            action: () => setShowConfirmModal(false)
+          });
+          setShowConfirmModal(true);
+        } else {
+          setConfirmAction({
+            type: 'error',
+            title: 'Error de llamada',
+            message: data.error || 'No se pudo completar la llamada',
+            confirmText: 'Entendido',
+            action: () => setShowConfirmModal(false)
+          });
+          setShowConfirmModal(true);        
+        }
       }
       
     } catch (error) {
@@ -320,6 +403,7 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
       alert('Error al iniciar llamada');
     }
   };
+  
 
   // 🔥 NUEVA FUNCIÓN: POLLING PARA VERIFICAR ESTADO DE LLAMADA SALIENTE
   const iniciarPollingLlamada = (callId) => {
@@ -344,14 +428,12 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
           console.log('📊 Estado llamada:', callStatus);
           
           if (callStatus === 'active') {
-            // ¡Llamada aceptada! Redirigir al videochat
             console.log('🎉 Llamada aceptada, redirigiendo...');
             clearInterval(interval);
             setCallPollingInterval(null);
             redirigirAVideochat(data.call);
             
           } else if (callStatus === 'rejected') {
-            // Llamada rechazada
             console.log('❌ Llamada rechazada');
             clearInterval(interval);
             setCallPollingInterval(null);
@@ -360,7 +442,6 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
             alert('La llamada fue rechazada');
             
           } else if (callStatus === 'cancelled') {
-            // Llamada cancelada por timeout
             console.log('🛑 Llamada cancelada por timeout');
             clearInterval(interval);
             setCallPollingInterval(null);
@@ -373,11 +454,10 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
       } catch (error) {
         console.error('❌ Error verificando llamada:', error);
       }
-    }, 2000); // Verificar cada 2 segundos
+    }, 2000);
     
     setCallPollingInterval(interval);
     
-    // Limpiar después de 35 segundos (timeout de seguridad)
     setTimeout(() => {
       if (interval) {
         clearInterval(interval);
@@ -410,7 +490,6 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
         });
       }
       
-      // Limpiar polling
       if (callPollingInterval) {
         clearInterval(callPollingInterval);
         setCallPollingInterval(null);
@@ -424,7 +503,6 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
     setCurrentCall(null);
   };
 
-  
   const verificarLlamadasEntrantes = async () => {
     try {
       const token = sessionStorage.getItem('token');
@@ -441,7 +519,6 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
         if (data.has_incoming && data.incoming_call) {
           console.log('📞 Llamada entrante detectada:', data.incoming_call);
           
-          // 🔥 VALIDAR QUE NO SEA LA MISMA LLAMADA QUE ESTOY HACIENDO
           const isMyOutgoingCall = currentCall && 
                                   currentCall.callId === data.incoming_call.id;
           
@@ -450,23 +527,15 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
             return;
           }
           
-          // Solo mostrar si no hay ya una llamada visible
           if (!isReceivingCall && !isCallActive) {
             console.log('🔊 Reproduciendo sonido de llamada entrante');
-            
-            // 🔊 REPRODUCIR SONIDO AQUÍ
             playIncomingCallSound();
-            
             setIncomingCall(data.incoming_call);
             setIsReceivingCall(true);
           }
         } else if (isReceivingCall && !data.has_incoming) {
-          // La llamada ya no está disponible
           console.log('📞 Llamada entrante ya no disponible');
-          
-          // 🔇 DETENER SONIDO
           stopIncomingCallSound();
-          
           setIsReceivingCall(false);
           setIncomingCall(null);
         }
@@ -475,241 +544,136 @@ const cargarUsuariosActivos = async (isBackgroundUpdate = false) => {
       console.log('⚠️ Error verificando llamadas entrantes:', error);
     }
   };
-const playIncomingCallSound = async () => {
-  try {
-    console.log('🔊 INTENTANDO reproducir sonido...');
-    
-    // Si ya hay un audio reproduciéndose, no crear otro
-    if (audioRef.current) {
-      console.log('⚠️ Ya hay audio reproduciéndose');
-      return;
-    }
-    
-    // Crear el audio
-    const audio = new Audio('/sounds/incoming-call.mp3');
-    console.log('📁 Audio creado, archivo:', audio.src);
-    
-    // Configurar propiedades
-    audio.loop = true;
-    audio.volume = 0.8;
-    audio.preload = 'auto';
-    
-    // Eventos para debug
-    audio.addEventListener('loadstart', () => console.log('🔄 Cargando audio...'));
-    audio.addEventListener('canplay', () => console.log('✅ Audio listo para reproducir'));
-    audio.addEventListener('play', () => console.log('▶️ Audio iniciado'));
-    audio.addEventListener('error', (e) => console.error('❌ Error de audio:', e));
-    
-    // Guardar referencia
-    audioRef.current = audio;
-    
+
+  const playIncomingCallSound = async () => {
     try {
-      // Intentar reproducir
-      await audio.play();
-      console.log('🎵 AUDIO REPRODUCIÉNDOSE CORRECTAMENTE');
-    } catch (playError) {
-      console.error('❌ Error al reproducir:', playError);
+      console.log('🔊 INTENTANDO reproducir sonido...');
       
-      if (playError.name === 'NotAllowedError') {
-        console.log('🚫 AUTOPLAY BLOQUEADO - Necesita interacción del usuario');
-        
-        // Mostrar mensaje al usuario
-        alert('⚠️ Para escuchar el sonido de las llamadas, haz clic en cualquier parte de la página');
-        
-        // Intentar reproducir después de la próxima interacción
-        const enableAudio = () => {
-          audio.play().then(() => {
-            console.log('🎵 Audio habilitado después de interacción');
-          }).catch(e => console.log('❌ Aún no se puede reproducir:', e));
-          document.removeEventListener('click', enableAudio, { once: true });
-        };
-        
-        document.addEventListener('click', enableAudio, { once: true });
+      if (audioRef.current) {
+        console.log('⚠️ Ya hay audio reproduciéndose');
+        return;
       }
-    }
-    
-  } catch (error) {
-    console.error('❌ Error general creando audio:', error);
-  }
-};
-
-// 🔥 AGREGA ESTE useEffect PARA HABILITAR AUDIO DESDE EL INICIO
-React.useEffect(() => {
-  console.log('🎵 Configurando sistema de audio...');
-  
-  // Función para habilitar audio después de primera interacción
-  const enableAudioContext = async () => {
-    console.log('👆 Primera interacción detectada - habilitando audio');
-    
-    // Crear y reproducir un audio silencioso para "despertar" el sistema
-    try {
-      const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAAABAABABkAAgAAACAJAAEAAABkYXRhBAAAAAEA');
-      silentAudio.volume = 0.01;
-      await silentAudio.play();
-      console.log('🔓 Sistema de audio desbloqueado');
-    } catch (e) {
-      console.log('⚠️ No se pudo desbloquear audio:', e);
-    }
-    
-    // Remover listener después de la primera interacción
-    document.removeEventListener('click', enableAudioContext);
-    document.removeEventListener('touchstart', enableAudioContext);
-    document.removeEventListener('keydown', enableAudioContext);
-  };
-  
-  // Escuchar cualquier tipo de interacción
-  document.addEventListener('click', enableAudioContext, { once: true });
-  document.addEventListener('touchstart', enableAudioContext, { once: true });
-  document.addEventListener('keydown', enableAudioContext, { once: true });
-  
-  return () => {
-    document.removeEventListener('click', enableAudioContext);
-    document.removeEventListener('touchstart', enableAudioContext);
-    document.removeEventListener('keydown', enableAudioContext);
-  };
-}, []);
-
-// 🔥 TAMBIÉN VERIFICA QUE EL ARCHIVO EXISTA
-React.useEffect(() => {
-  const testAudioFile = async () => {
-    try {
-      const response = await fetch('/sounds/incoming-call.mp3');
-      if (response.ok) {
-        console.log('✅ Archivo de audio encontrado');
-      } else {
-        console.error('❌ Archivo de audio NO encontrado (404)');
+      
+      const audio = new Audio('/sounds/incoming-call.mp3');
+      console.log('📁 Audio creado, archivo:', audio.src);
+      
+      audio.loop = true;
+      audio.volume = 0.8;
+      audio.preload = 'auto';
+      
+      audio.addEventListener('loadstart', () => console.log('🔄 Cargando audio...'));
+      audio.addEventListener('canplay', () => console.log('✅ Audio listo para reproducir'));
+      audio.addEventListener('play', () => console.log('▶️ Audio iniciado'));
+      audio.addEventListener('error', (e) => console.error('❌ Error de audio:', e));
+      
+      audioRef.current = audio;
+      
+      try {
+        await audio.play();
+        console.log('🎵 AUDIO REPRODUCIÉNDOSE CORRECTAMENTE');
+      } catch (playError) {
+        console.error('❌ Error al reproducir:', playError);
+        
+        if (playError.name === 'NotAllowedError') {
+          console.log('🚫 AUTOPLAY BLOQUEADO - Necesita interacción del usuario');
+          alert('⚠️ Para escuchar el sonido de las llamadas, haz clic en cualquier parte de la página');
+          
+          const enableAudio = () => {
+            audio.play().then(() => {
+              console.log('🎵 Audio habilitado después de interacción');
+            }).catch(e => console.log('❌ Aún no se puede reproducir:', e));
+            document.removeEventListener('click', enableAudio, { once: true });
+          };
+          
+          document.addEventListener('click', enableAudio, { once: true });
+        }
       }
+      
     } catch (error) {
-      console.error('❌ Error verificando archivo de audio:', error);
+      console.error('❌ Error general creando audio:', error);
     }
   };
-  
-  testAudioFile();
-}, []);
 
-// 🔥 FUNCIÓN PARA DETENER SONIDO
-const stopIncomingCallSound = () => {
-  if (audioRef.current) {
-    console.log('🔇 Deteniendo sonido de llamada');
-    audioRef.current.pause();
-    audioRef.current.currentTime = 0;
-    audioRef.current = null;
-  }
-};
+  const stopIncomingCallSound = () => {
+    if (audioRef.current) {
+      console.log('🔇 Deteniendo sonido de llamada');
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+  };
 
   // 🔥 NUEVA FUNCIÓN: RESPONDER LLAMADA ENTRANTE
   const responderLlamada = async (accion) => {
-  if (!incomingCall) return;
-  
-  try {
-    console.log(`📱 Respondiendo llamada: ${accion}`);
+    if (!incomingCall) return;
     
-    // 🔇 DETENER SONIDO INMEDIATAMENTE
-    stopIncomingCallSound();
-    
-    const token = sessionStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        call_id: incomingCall.id,
-        action: accion // 'accept' o 'reject'
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok && data.success) {
-      if (accion === 'accept') {
-        console.log('✅ Llamada aceptada:', data);
-        
-        // Ocultar overlay de llamada entrante
-        setIsReceivingCall(false);
-        setIncomingCall(null);
-        
-        // Redirigir al videochat
-        redirigirAVideochat(data);
-        
+    try {
+      console.log(`📱 Respondiendo llamada: ${accion}`);
+      
+      stopIncomingCallSound();
+      
+      const token = sessionStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          call_id: incomingCall.id,
+          action: accion
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        if (accion === 'accept') {
+          console.log('✅ Llamada aceptada:', data);
+          
+          setIsReceivingCall(false);
+          setIncomingCall(null);
+          
+          redirigirAVideochat(data);
+          
+        } else {
+          console.log('❌ Llamada rechazada');
+          setIsReceivingCall(false);
+          setIncomingCall(null);
+        }
       } else {
-        console.log('❌ Llamada rechazada');
+        console.error('❌ Error respondiendo llamada:', data.error);
         setIsReceivingCall(false);
         setIncomingCall(null);
       }
-    } else {
-      console.error('❌ Error respondiendo llamada:', data.error);
+      
+    } catch (error) {
+      console.error('❌ Error:', error);
       setIsReceivingCall(false);
       setIncomingCall(null);
     }
-    
-  } catch (error) {
-    console.error('❌ Error:', error);
-    setIsReceivingCall(false);
-    setIncomingCall(null);
-  }
   };
-
-  // 🔥 AGREGAR ESTE USEEFFECT PARA LIMPIAR AUDIO AL DESMONTAR
-  React.useEffect(() => {
-    return () => {
-      // Limpiar audio al desmontar el componente
-      stopIncomingCallSound();
-      
-      // Limpiar todos los intervals al desmontar
-      if (callPollingInterval) {
-        clearInterval(callPollingInterval);
-      }
-      if (incomingCallPollingInterval) {
-        clearInterval(incomingCallPollingInterval);  
-      }
-    };
-  }, []);
-
-  // 🔥 OPCIONAL: Agregar este useEffect para detener audio si cambia la visibilidad de la página
-  React.useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && audioRef.current) {
-        // Página oculta, pausar audio para ahorrar recursos
-        audioRef.current.volume = 0.3;
-      } else if (!document.hidden && audioRef.current) {
-        // Página visible, restaurar volumen
-        audioRef.current.volume = 0.8;
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
 
   // 🔥 NUEVA FUNCIÓN: REDIRIGIR AL VIDEOCHAT
   const redirigirAVideochat = (callData) => {
     console.log('🚀 Redirigiendo a videochat:', callData);
     
-    // Guardar datos de la llamada
     sessionStorage.setItem('roomName', callData.room_name);
     sessionStorage.setItem('userName', user?.name || 'Usuario');
     sessionStorage.setItem('currentRoom', callData.room_name);
     sessionStorage.setItem('inCall', 'true');
     sessionStorage.setItem('videochatActive', 'true');
     
-    // Limpiar estados de llamada
     setIsCallActive(false);
     setCurrentCall(null);
     setIsReceivingCall(false);
     setIncomingCall(null);
     
-    // Limpiar intervals
     if (callPollingInterval) {
       clearInterval(callPollingInterval);
       setCallPollingInterval(null);
     }
     
-    // Redirigir según el rol del usuario
     const targetRoute = user?.rol === 'modelo' ? '/videochat' : '/videochatclient';
     navigate(targetRoute, {
       state: {
@@ -722,11 +686,12 @@ const stopIncomingCallSound = () => {
     });
   };
 
-  // 🔥 USEEFFECTS EXISTENTES - SIN CAMBIOS
+  // 🔥 USEEFFECTS
   React.useEffect(() => {
     if (!user?.id) return;
 
     cargarUsuariosActivos(false);
+    cargarUsuariosBloqueados(); // 🔥 CARGAR USUARIOS BLOQUEADOS
 
     const interval = setInterval(() => {
       cargarUsuariosActivos(true);
@@ -751,45 +716,108 @@ const stopIncomingCallSound = () => {
     checkExistingStory();
   }, []);
 
-  // 🔥 NUEVO USEEFFECT: POLLING PARA LLAMADAS ENTRANTES
+  // 🔥 USEEFFECT PARA AUDIO
   React.useEffect(() => {
-  if (!user?.id) return;
-
-  console.log('🔔 Iniciando monitoreo de llamadas entrantes');
-  
-  // Solo verificar llamadas entrantes si NO hay llamada saliente activa
-  if (!isCallActive) {
-    verificarLlamadasEntrantes();
+    console.log('🎵 Configurando sistema de audio...');
     
-    // Configurar polling cada 3 segundos
-    const interval = setInterval(() => {
-      // Solo hacer polling si no hay llamada saliente
-      if (!isCallActive) {
-        verificarLlamadasEntrantes();
+    const enableAudioContext = async () => {
+      console.log('👆 Primera interacción detectada - habilitando audio');
+      
+      try {
+        const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAAABAABABkAAgAAACAJAAEAAABkYXRhBAAAAAEA');
+        silentAudio.volume = 0.01;
+        await silentAudio.play();
+        console.log('🔓 Sistema de audio desbloqueado');
+      } catch (e) {
+        console.log('⚠️ No se pudo desbloquear audio:', e);
       }
-    }, 3000);
+      
+      document.removeEventListener('click', enableAudioContext);
+      document.removeEventListener('touchstart', enableAudioContext);
+      document.removeEventListener('keydown', enableAudioContext);
+    };
     
-    setIncomingCallPollingInterval(interval);
-
+    document.addEventListener('click', enableAudioContext, { once: true });
+    document.addEventListener('touchstart', enableAudioContext, { once: true });
+    document.addEventListener('keydown', enableAudioContext, { once: true });
+    
     return () => {
-      console.log('🔔 Deteniendo monitoreo de llamadas entrantes');
-      if (interval) {
-        clearInterval(interval);
+      document.removeEventListener('click', enableAudioContext);
+      document.removeEventListener('touchstart', enableAudioContext);
+      document.removeEventListener('keydown', enableAudioContext);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const testAudioFile = async () => {
+      try {
+        const response = await fetch('/sounds/incoming-call.mp3');
+        if (response.ok) {
+          console.log('✅ Archivo de audio encontrado');
+        } else {
+          console.error('❌ Archivo de audio NO encontrado (404)');
+        }
+      } catch (error) {
+        console.error('❌ Error verificando archivo de audio:', error);
       }
     };
-  }
-  }, [user?.id, isCallActive]); // Agregar isCallActive como dependencia
+    
+    testAudioFile();
+  }, []);
 
-  // 🔥 CLEANUP AL DESMONTAR COMPONENTE
+  // 🔥 POLLING PARA LLAMADAS ENTRANTES
+  React.useEffect(() => {
+    if (!user?.id) return;
+
+    console.log('🔔 Iniciando monitoreo de llamadas entrantes');
+    
+    if (!isCallActive) {
+      verificarLlamadasEntrantes();
+      
+      const interval = setInterval(() => {
+        if (!isCallActive) {
+          verificarLlamadasEntrantes();
+        }
+      }, 3000);
+      
+      setIncomingCallPollingInterval(interval);
+
+      return () => {
+        console.log('🔔 Deteniendo monitoreo de llamadas entrantes');
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
+    }
+  }, [user?.id, isCallActive]);
+
+  // 🔥 CLEANUP AL DESMONTAR
   React.useEffect(() => {
     return () => {
-      // Limpiar todos los intervals al desmontar
+      stopIncomingCallSound();
+      
       if (callPollingInterval) {
         clearInterval(callPollingInterval);
       }
       if (incomingCallPollingInterval) {
         clearInterval(incomingCallPollingInterval);  
       }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && audioRef.current) {
+        audioRef.current.volume = 0.3;
+      } else if (!document.hidden && audioRef.current) {
+        audioRef.current.volume = 0.8;
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -1103,6 +1131,24 @@ const stopIncomingCallSound = () => {
           }
         `}</style>
       </div>
+      {showConfirmModal && confirmAction && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[#2b2d31] rounded-xl p-6 max-w-sm mx-4 shadow-xl border border-[#ff007a]/20">
+            <h3 className="text-lg font-bold text-white mb-3">
+              {confirmAction.title}
+            </h3>
+            <p className="text-white/70 mb-6">
+              {confirmAction.message}
+            </p>
+            <button
+              onClick={confirmAction.action}
+              className="w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+            >
+              {confirmAction.confirmText}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 🔥 OVERLAY PARA LLAMADAS SALIENTES */}
       <CallingSystem

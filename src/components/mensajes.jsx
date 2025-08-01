@@ -55,6 +55,12 @@ export default function ChatPrivado() {
   const [bloqueadoPor, setBloqueadoPor] = useState(new Set());
   const [loadingBlock, setLoadingBlock] = useState(false);
   const [conversacionBloqueada, setConversacionBloqueada] = useState(null); // 'yo_bloquee', 'me_bloquearon', 'mutuo', null
+  // 🔥 AGREGAR ESTOS ESTADOS (después de los otros estados)
+  const [apodos, setApodos] = useState({}); // { userId: 'apodo' }
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [nicknameTarget, setNicknameTarget] = useState(null);
+  const [nicknameValue, setNicknameValue] = useState('');
+  const [loadingNickname, setLoadingNickname] = useState(false);
   const audioRef = useRef(null);
   // 🔥 RECIBIR PARÁMETROS DE NAVEGACIÓN
   const openChatWith = location.state?.openChatWith;
@@ -79,9 +85,9 @@ export default function ChatPrivado() {
   const [mostrarOpciones, setMostrarOpciones] = useState(false);
   const [conversaciones, setConversaciones] = useState([]);
   const [conversacionActiva, setConversacionActiva] = useState(null);
-  const [usuario, setUsuario] = useState({
+  const [Chico, setUsuario] = useState({
     id: null,
-    name: "Usuario",
+    name: "Chico",
     rol: "cliente"
   });
   const [loading, setLoading] = useState(false);
@@ -103,6 +109,12 @@ export default function ChatPrivado() {
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const scrollTimeoutRef = useRef(null);
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockModalData, setBlockModalData] = useState(null);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalData, setConfirmModalData] = useState(null);
   
   const mensajesRef = useRef(null);
   const globalPollingInterval = useRef(null);
@@ -237,7 +249,7 @@ export default function ChatPrivado() {
   // 🔥 REDIRIGIR AL VIDEOCHAT
   const redirigirAVideochat = (callData) => {
     sessionStorage.setItem('roomName', callData.room_name);
-    sessionStorage.setItem('userName', usuario.name || 'Usuario');
+    sessionStorage.setItem('userName', Chico.name || 'Chico');
     sessionStorage.setItem('currentRoom', callData.room_name);
     sessionStorage.setItem('inCall', 'true');
     
@@ -249,11 +261,11 @@ export default function ChatPrivado() {
       setCallPollingInterval(null);
     }
     
-    const targetRoute = usuario.rol === 'modelo' ? '/videochat' : '/videochatclient';
+    const targetRoute = Chico.rol === 'modelo' ? '/videochat' : '/videochatclient';
     navigate(targetRoute, {
       state: {
         roomName: callData.room_name,
-        userName: usuario.name || 'Usuario',
+        userName: Chico.name || 'Chico',
         callId: callData.call_id || callData.id,
         from: 'call'
       }
@@ -376,7 +388,7 @@ export default function ChatPrivado() {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.is_blocked_by_them) {
-          console.log('🚫 Confirmado: este usuario me bloqueó');
+          console.log('🚫 Confirmado: este Chico me bloqueó');
           
           // Actualizar estado local
           const newBloqueadoPor = new Set(bloqueadoPor);
@@ -411,101 +423,157 @@ export default function ChatPrivado() {
   };
 
   // 🔥 FUNCIÓN MEJORADA CON MEJOR MANEJO DE ERRORES
-const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
-  if (loadingBlock) return;
-  
-  const isBlocked = usuariosBloqueados.has(otherUserId);
-  let motivo = null;
-  
-  if (!isBlocked) {
-    motivo = prompt(`¿Por qué quieres bloquear a ${otherUserName}?`, 'Comportamiento inapropiado');
-    if (motivo === null) return;
-  }
-  
-  try {
-    setLoadingBlock(true);
+  const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
+    if (loadingBlock) return;
     
-    const endpoint = isBlocked ? 'unblock-user' : 'block-user';
-    const requestBody = {
-      blocked_user_id: otherUserId
-    };
+    const isBlocked = usuariosBloqueados.has(otherUserId);
     
-    if (!isBlocked && motivo) {
-      requestBody.reason = motivo;
+    // Mostrar modal de confirmación apropiado
+    if (isBlocked) {
+      // Mostrar modal de desbloqueo
+      setConfirmModalData({
+        type: 'unblock',
+        userId: otherUserId,
+        name: otherUserName
+      });
+      setShowConfirmModal(true);
+    } else {
+      // Mostrar modal de bloqueo
+      setBlockModalData({
+        userId: otherUserId,
+        name: otherUserName
+      });
+      setShowBlockModal(true);
     }
+  };
+
+// 🔥 FUNCIÓN PARA CONFIRMAR BLOQUEO
+  const confirmarBloqueo = async (reason) => {
+    if (!blockModalData) return;
     
-    console.log('🔍 Enviando solicitud:', {
-      endpoint: `${API_BASE_URL}/api/blocks/${endpoint}`,
-      body: requestBody,
-      headers: getAuthHeaders()
-    });
-    
-    const response = await fetch(`${API_BASE_URL}/api/blocks/${endpoint}`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(requestBody)
-    });
-    
-    console.log('📡 Respuesta status:', response.status);
-    
-    // 🔥 LEER LA RESPUESTA COMPLETA PARA DEBUG
-    const responseText = await response.text();
-    console.log('📝 Respuesta completa:', responseText);
-    
-    let data;
     try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('❌ Error parseando JSON:', parseError);
-      console.error('📄 Texto de respuesta:', responseText);
-      alert('Error del servidor: Respuesta no válida');
-      return;
-    }
-    
-    if (response.ok && data.success) {
-      const newBloqueados = new Set(usuariosBloqueados);
+      setLoadingBlock(true);
       
-      if (isBlocked) {
-        newBloqueados.delete(otherUserId);
-        console.log(`✅ ${otherUserName} desbloqueado`);
-        alert(`${otherUserName} ha sido desbloqueado`);
-      } else {
-        newBloqueados.add(otherUserId);
-        console.log(`🚫 ${otherUserName} bloqueado`);
-        alert(`${otherUserName} ha sido bloqueado`);
+      const response = await fetch(`${API_BASE_URL}/api/blocks/block-user`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          blocked_user_id: blockModalData.userId,
+          reason: reason
+        })
+      });
+      
+      const responseText = await response.text();
+      let data;
+      
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ Error parseando JSON:', parseError);
+        setSuccessMessage('Error del servidor: Respuesta no válida');
+        setShowSuccessPopup(true);
+        return;
+      }
+      
+      if (response.ok && data.success) {
+        const newBloqueados = new Set(usuariosBloqueados);
+        newBloqueados.add(blockModalData.userId);
+        setUsuariosBloqueados(newBloqueados);
         
-        if (favoritos.has(otherUserId)) {
+        // Remover de favoritos si está
+        if (favoritos.has(blockModalData.userId)) {
           const newFavoritos = new Set(favoritos);
-          newFavoritos.delete(otherUserId);
+          newFavoritos.delete(blockModalData.userId);
           setFavoritos(newFavoritos);
         }
-      }
-      
-      setUsuariosBloqueados(newBloqueados);
-      
-      if (conversacionActiva) {
-        const conversacionSeleccionada = conversaciones.find(c => c.room_name === conversacionActiva);
-        if (conversacionSeleccionada?.other_user_id === otherUserId) {
-          const nuevoEstadoBloqueo = verificarBloqueoConversacion(otherUserId);
-          setConversacionBloqueada(nuevoEstadoBloqueo);
+        
+        // Actualizar estado de conversación
+        if (conversacionActiva) {
+          const conversacionSeleccionada = conversaciones.find(c => c.room_name === conversacionActiva);
+          if (conversacionSeleccionada?.other_user_id === blockModalData.userId) {
+            const nuevoEstadoBloqueo = verificarBloqueoConversacion(blockModalData.userId);
+            setConversacionBloqueada(nuevoEstadoBloqueo);
+          }
         }
+        
+        // Mostrar mensaje de éxito
+        setSuccessMessage(`${blockModalData.name} ha sido bloqueado exitosamente`);
+        setShowSuccessPopup(true);
+        
+      } else {
+        setSuccessMessage('Error: ' + (data?.error || `Error ${response.status}`));
+        setShowSuccessPopup(true);
+      }
+    } catch (error) {
+      console.error('❌ Error de conexión:', error);
+      setSuccessMessage('Error de conexión: ' + error.message);
+      setShowSuccessPopup(true);
+    } finally {
+      setLoadingBlock(false);
+      setShowBlockModal(false);
+      setBlockModalData(null);
+    }
+  };
+
+  // 🔥 FUNCIÓN PARA CONFIRMAR DESBLOQUEO
+  const confirmarDesbloqueo = async () => {
+    if (!confirmModalData) return;
+    
+    try {
+      setLoadingBlock(true);
+      
+      const response = await fetch(`${API_BASE_URL}/api/blocks/unblock-user`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          blocked_user_id: confirmModalData.userId
+        })
+      });
+      
+      const responseText = await response.text();
+      let data;
+      
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ Error parseando JSON:', parseError);
+        setSuccessMessage('Error del servidor: Respuesta no válida');
+        setShowSuccessPopup(true);
+        return;
       }
       
-    } else {
-      console.error('❌ Error del servidor:', {
-        status: response.status,
-        data: data,
-        error: data?.error || 'Error desconocido'
-      });
-      alert('Error: ' + (data?.error || `Error ${response.status}: ${responseText}`));
+      if (response.ok && data.success) {
+        const newBloqueados = new Set(usuariosBloqueados);
+        newBloqueados.delete(confirmModalData.userId);
+        setUsuariosBloqueados(newBloqueados);
+        
+        // Actualizar estado de conversación
+        if (conversacionActiva) {
+          const conversacionSeleccionada = conversaciones.find(c => c.room_name === conversacionActiva);
+          if (conversacionSeleccionada?.other_user_id === confirmModalData.userId) {
+            const nuevoEstadoBloqueo = verificarBloqueoConversacion(confirmModalData.userId);
+            setConversacionBloqueada(nuevoEstadoBloqueo);
+          }
+        }
+        
+        // Mostrar mensaje de éxito
+        setSuccessMessage(`${confirmModalData.name} ha sido desbloqueado exitosamente`);
+        setShowSuccessPopup(true);
+        
+      } else {
+        setSuccessMessage('Error: ' + (data?.error || `Error ${response.status}`));
+        setShowSuccessPopup(true);
+      }
+    } catch (error) {
+      console.error('❌ Error de conexión:', error);
+      setSuccessMessage('Error de conexión: ' + error.message);
+      setShowSuccessPopup(true);
+    } finally {
+      setLoadingBlock(false);
+      setShowConfirmModal(false);
+      setConfirmModalData(null);
     }
-  } catch (error) {
-    console.error('❌ Error de conexión:', error);
-    alert('Error de conexión: ' + error.message);
-  } finally {
-    setLoadingBlock(false);
-  }
-};
+  };
 
   // 🔥 FUNCIÓN PARA OBTENER INICIAL DEL NOMBRE
   const getInitial = (name) => {
@@ -584,7 +652,7 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
       // Contar mensajes no leídos reales desde la última vez visto
       const unreadMessages = mensajes.filter(msg => {
         const messageTime = new Date(msg.created_at).getTime();
-        return messageTime > lastSeen && msg.user_id !== usuario.id;
+        return messageTime > lastSeen && msg.user_id !== Chico.id;
       });
       return unreadMessages.length;
     } else {
@@ -593,8 +661,8 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
         return conversacion.unread_count;
       }
       
-      // Fallback: si el último mensaje es después de la última vez visto Y no es del usuario actual
-      if (lastMessageTime > lastSeen && conversacion.last_message_sender_id !== usuario.id) {
+      // Fallback: si el último mensaje es después de la última vez visto Y no es del Chico actual
+      if (lastMessageTime > lastSeen && conversacion.last_message_sender_id !== Chico.id) {
         return 1;
       }
     }
@@ -616,10 +684,10 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
     const { scrollTop, scrollHeight, clientHeight } = mensajesRef.current;
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
     
-    // Si el usuario está cerca del final, permitir auto-scroll
+    // Si el Chico está cerca del final, permitir auto-scroll
     setShouldAutoScroll(isNearBottom);
     
-    // Detectar si el usuario está haciendo scroll manual
+    // Detectar si el Chico está haciendo scroll manual
     if (!isNearBottom) {
       setIsUserScrolling(true);
       
@@ -635,10 +703,147 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
       setIsUserScrolling(false);
     }
   };
+  // 🔥 AGREGAR ESTAS FUNCIONES (después de las funciones existentes)
+
+// Cargar apodos personalizados
+const cargarApodos = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/nicknames/my-nicknames`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        const apodosMap = {};
+        data.nicknames.forEach(item => {
+          apodosMap[item.target_user_id] = item.nickname;
+        });
+        setApodos(apodosMap);
+        console.log('✅ Apodos cargados:', apodosMap);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error cargando apodos:', error);
+  }
+};
+
+// Obtener nombre a mostrar (apodo o nombre real)
+const getDisplayName = (userId, originalName) => {
+  return apodos[userId] || originalName;
+};
+
+// Abrir modal para cambiar apodo
+const abrirModalApodo = (userId, userName) => {
+  const currentNickname = apodos[userId] || '';
+  setNicknameTarget({ userId, userName });
+  setNicknameValue(currentNickname);
+  setShowNicknameModal(true);
+};
+
+// Guardar apodo
+const guardarApodo = async () => {
+  if (!nicknameTarget) return;
+  
+  const nickname = nicknameValue.trim();
+  
+  if (!nickname) {
+    alert('Por favor ingresa un apodo válido');
+    return;
+  }
+  
+  if (nickname.length > 100) {
+    alert('El apodo no puede tener más de 100 caracteres');
+    return;
+  }
+  
+  try {
+    setLoadingNickname(true);
+    
+    const response = await fetch(`${API_BASE_URL}/api/nicknames/set`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        target_user_id: nicknameTarget.userId,
+        nickname: nickname
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Actualizar apodos localmente
+      setApodos(prev => ({
+        ...prev,
+        [nicknameTarget.userId]: nickname
+      }));
+      
+      console.log(`✅ Apodo guardado: ${nicknameTarget.userName} -> ${nickname}`);
+      
+      // Cerrar modal
+      setShowNicknameModal(false);
+      setNicknameTarget(null);
+      setNicknameValue('');
+    } else {
+      alert('Error: ' + data.error);
+    }
+  } catch (error) {
+    console.error('❌ Error guardando apodo:', error);
+    alert('Error de conexión');
+  } finally {
+    setLoadingNickname(false);
+  }
+};
+
+// Eliminar apodo
+const eliminarApodo = async () => {
+  if (!nicknameTarget) return;
+  
+  if (!confirm(`¿Eliminar el apodo de ${nicknameTarget.userName}?`)) return;
+  
+  try {
+    setLoadingNickname(true);
+    
+    const response = await fetch(`${API_BASE_URL}/api/nicknames/remove`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        target_user_id: nicknameTarget.userId
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Eliminar apodo localmente
+      setApodos(prev => {
+        const newApodos = { ...prev };
+        delete newApodos[nicknameTarget.userId];
+        return newApodos;
+      });
+      
+      console.log(`✅ Apodo eliminado para: ${nicknameTarget.userName}`);
+      alert('Apodo eliminado');
+      
+      // Cerrar modal
+      setShowNicknameModal(false);
+      setNicknameTarget(null);
+      setNicknameValue('');
+    } else {
+      alert('Error: ' + data.error);
+    }
+  } catch (error) {
+    console.error('❌ Error eliminando apodo:', error);
+    alert('Error de conexión');
+  } finally {
+    setLoadingNickname(false);
+  }
+};
 
   // 🌍 POLLING GLOBAL DE CONVERSACIONES MEJORADO
   useEffect(() => {
-    if (!usuario.id) return;
+    if (!Chico.id) return;
 
     const startGlobalPolling = () => {
       globalPollingInterval.current = setInterval(async () => {
@@ -708,7 +913,7 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
         console.log('🛑 Polling global detenido');
       }
     };
-  }, [usuario.id, previousConversations, lastSeenMessages, conversacionActiva]);
+  }, [Chico.id, previousConversations, lastSeenMessages, conversacionActiva]);
 
   // 🔔 ACTUALIZAR CONTEO GLOBAL CUANDO CAMBIEN LAS CONVERSACIONES
   useEffect(() => {
@@ -717,20 +922,20 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
     console.log('📊 Conteo global actualizado:', totalUnread);
   }, [conversaciones, lastSeenMessages, conversacionActiva]);
 
-  // Cargar datos del usuario usando tu sistema de auth
+  // Cargar datos del Chico usando tu sistema de auth
   useEffect(() => {
     cargarDatosUsuario();
   }, []);
 
-  // Cargar conversaciones cuando se tenga el usuario
+  // Cargar conversaciones cuando se tenga el Chico
   useEffect(() => {
-    if (usuario.id) {
+    if (Chico.id) {
       cargarConversaciones();
       cargarFavoritos();
       cargarEstadoBloqueos();
-
+      cargarApodos();
     }
-  }, [usuario.id]);
+  }, [Chico.id]);
 
   // Auto-scroll MEJORADO - SIEMPRE al final al abrir conversación, luego inteligente
   useEffect(() => {
@@ -776,7 +981,7 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
     }
   };
 
-  if (usuario.id) {
+  if (Chico.id) {
     // Cargar inicial
     cargarUsuariosOnline();
     
@@ -784,7 +989,7 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
     const interval = setInterval(cargarUsuariosOnline, 15000);
     return () => clearInterval(interval);
   }
-  }, [usuario.id]);
+  }, [Chico.id]);
 
 
   const cargarDatosUsuario = async () => {
@@ -795,7 +1000,7 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
       // 🔥 USAR TU FUNCIÓN getUser EXISTENTE
       const userData = await getUser();
       
-      console.log('✅ Datos de usuario recibidos:', userData);
+      console.log('✅ Datos de Chico recibidos:', userData);
       setUsuario({
         id: userData.id,
         name: userData.name || userData.alias || `Usuario_${userData.id}`,
@@ -803,14 +1008,14 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
       });
       
     } catch (error) {
-      console.error('❌ Error cargando datos usuario:', error);
+      console.error('❌ Error cargando datos Chico:', error);
       
       // Si es error de autenticación, usar datos de prueba
       if (error.response?.status === 401) {
         console.log('🔧 Error de autenticación, usando datos de prueba...');
         setUsuario({
           id: 1,
-          name: "Usuario Demo",
+          name: "Chico Demo",
           rol: "cliente"
         });
       }
@@ -838,7 +1043,7 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
         setPreviousConversations(newConversations); // Inicializar estado anterior
       } else if (response.status === 401) {
         console.error('❌ Token inválido para conversaciones');
-        // Intentar refrescar el usuario o redirigir al login
+        // Intentar refrescar el Chico o redirigir al login
       } else {
         console.error('❌ Error cargando conversaciones:', response.status);
         const errorText = await response.text();
@@ -927,7 +1132,7 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
         {
           id: 2,
           user_id: 1,
-          user_name: "Usuario Demo",
+          user_name: "Chico Demo",
           user_role: "cliente",
           message: "¡Hola! Todo bien, ¿y tú?",
           type: "text",
@@ -1030,7 +1235,7 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
                 other_user_id: userInfo.userId,
                 other_user_name: userInfo.userName,
                 other_user_role: userInfo.userRole,
-                room_name: `chat_user_${usuario.id}_${userInfo.userId}`,
+                room_name: `chat_user_${Chico.id}_${userInfo.userId}`,
                 last_message: "",
                 last_message_time: new Date().toISOString(),
                 unread_count: 0
@@ -1050,12 +1255,12 @@ const toggleBloquearUsuario = async (otherUserId, otherUserName) => {
   };
 
 // 🔥 MANEJAR PARÁMETRO DE CONVERSACIÓN ESPECÍFICA
-useEffect(() => {
-  if (openChatWith && conversaciones.length > 0 && usuario.id) {
+  useEffect(() => {
+  if (openChatWith && conversaciones.length > 0 && Chico.id) {
     console.log('📩 Recibido parámetro para abrir chat con:', openChatWith);
     buscarYAbrirConversacion(openChatWith);
   }
-}, [openChatWith, conversaciones, usuario.id]);
+  }, [openChatWith, conversaciones, Chico.id]);
 
   const marcarComoLeido = async (roomName) => {
     try {
@@ -1101,9 +1306,9 @@ useEffect(() => {
             // Agregar mensaje inmediatamente para UX fluida
             const nuevoMensajeObj = {
               id: Date.now(),
-              user_id: usuario.id,
-              user_name: usuario.name,
-              user_role: usuario.rol,
+              user_id: Chico.id,
+              user_name: Chico.name,
+              user_role: Chico.rol,
               message: mensaje,
               type: tipo,
               created_at: new Date().toISOString()
@@ -1126,7 +1331,7 @@ useEffect(() => {
                       ...conv, 
                       last_message: mensaje,
                       last_message_time: new Date().toISOString(),
-                      last_message_sender_id: usuario.id
+                      last_message_sender_id: Chico.id
                     }
                   : conv
               )
@@ -1166,26 +1371,6 @@ useEffect(() => {
       console.error('Error enviando mensaje:', error);
     }
   };
-
-  const iniciarVideochat = (otherUserId, otherUserRole) => {
-    // Navegar a videochat con el usuario específico
-    if (otherUserRole === 'modelo') {
-      navigate('/videochatclient', { 
-        state: { 
-          targetUserId: otherUserId,
-          fromChat: true 
-        }
-      });
-    } else {
-      navigate('/videochat', { 
-        state: { 
-          targetUserId: otherUserId,
-          fromChat: true 
-        }
-      });
-    }
-  };
-
   const enviarRegalo = (tipoRegalo) => {
     enviarMensaje('gift', tipoRegalo);
   };
@@ -1220,7 +1405,7 @@ useEffect(() => {
 
   const renderMensaje = (mensaje) => {
     const textoMensaje = mensaje.message || mensaje.text || 'Mensaje sin contenido';
-    const esUsuarioActual = mensaje.user_id === usuario.id;
+    const esUsuarioActual = mensaje.user_id === Chico.id;
     
     switch (mensaje.type) {
       case 'gift':
@@ -1274,6 +1459,219 @@ useEffect(() => {
         return <span className="text-white">{textoMensaje}</span>;
     }
   };
+  const BlockConfirmModal = ({ isOpen, onClose, userData, onConfirm, loading }) => {
+  const [blockReason, setBlockReason] = useState("Comportamiento inapropiado");
+
+  if (!isOpen || !userData) return null;
+
+  const reasons = [
+    "Comportamiento inapropiado",
+    "Contenido ofensivo",
+    "Spam o acoso",
+    "Solicitudes inapropiadas",
+    "Violación de términos",
+    "Otro motivo"
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+      <div className="bg-gradient-to-b from-[#0a0d10] to-[#131418] border border-[#ff007a]/30 rounded-2xl shadow-2xl w-full max-w-md transform animate-fadeIn">
+        
+        {/* Header */}
+        <div className="p-6 border-b border-[#ff007a]/20">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 bg-[#ff007a]/20 rounded-full flex items-center justify-center">
+              <Ban size={24} className="text-[#ff007a]" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Bloquear Chico</h3>
+              <p className="text-[#ff007a] text-sm">{userData.name}</p>
+            </div>
+          </div>
+          <p className="text-white/70 text-sm">
+            ¿Estás seguro que quieres bloquear a este chico?
+          </p>
+        </div>
+
+        {/* Contenido */}
+        <div className="p-6">
+          <div className="mb-4">
+            <label className="block text-white text-sm font-medium mb-3">
+              Selecciona el motivo:
+            </label>
+            <div className="space-y-2">
+              {reasons.map((reason) => (
+                <label key={reason} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-white/5 rounded-lg transition-colors">
+                  <input
+                    type="radio"
+                    name="blockReason"
+                    value={reason}
+                    checked={blockReason === reason}
+                    onChange={(e) => setBlockReason(e.target.value)}
+                    className="w-4 h-4 text-[#ff007a] focus:ring-[#ff007a] focus:ring-2"
+                  />
+                  <span className="text-white/80 text-sm">{reason}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Consecuencias */}
+          <div className="bg-[#ff007a]/10 border border-[#ff007a]/30 rounded-lg p-3 mb-4">
+            <h4 className="text-[#ff007a] font-medium text-sm mb-2">Al bloquear este chico:</h4>
+            <ul className="text-[#ff007a]/90 text-xs space-y-1">
+              <li>• No podrá enviarte mensajes</li>
+              <li>• No podrá realizarte llamadas</li>
+              <li>• Será removido de tus favoritos</li>
+              <li>• No verá cuando estés en línea</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Botones */}
+        <div className="p-6 border-t border-[#ff007a]/20 flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 bg-[#1e1e25] hover:bg-[#2c2c33] text-white px-4 py-3 rounded-xl transition-colors disabled:opacity-50 font-medium"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => onConfirm(blockReason)}
+            disabled={loading}
+            className="flex-1 bg-[#ff007a] hover:bg-[#e6006f] text-white px-4 py-3 rounded-xl transition-colors disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Bloqueando...
+              </>
+            ) : (
+              <>
+                <Ban size={16} />
+                Bloquear Chico
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+  };
+
+  // 🔥 COMPONENTE POPUP DE ÉXITO
+  const SuccessPopup = ({ isOpen, message, onClose }) => {
+    useEffect(() => {
+      if (isOpen) {
+        const timer = setTimeout(() => {
+          onClose();
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    }, [isOpen, onClose]);
+
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed top-4 right-4 z-[300] animate-slideInRight">
+        <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] text-white px-6 py-4 rounded-xl shadow-2xl border border-[#ff007a]/30 max-w-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-[#ff007a]/20 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5 text-[#ff007a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-sm text-white">{message}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-white/60 hover:text-white transition-colors p-1"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+// 🔥 MODAL DE CONFIRMACIÓN PARA DESBLOQUEAR
+  const UnblockConfirmModal = ({ isOpen, onClose, userData, onConfirm, loading }) => {
+  if (!isOpen || !userData) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+      <div className="bg-gradient-to-b from-[#0a0d10] to-[#131418] border border-[#ff007a]/30 rounded-2xl shadow-2xl w-full max-w-md transform animate-fadeIn">
+        
+        {/* Header */}
+        <div className="p-6 border-b border-[#ff007a]/20">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 bg-[#ff007a]/20 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-[#ff007a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Desbloquear Chico</h3>
+              <p className="text-[#ff007a] text-sm">{userData.name}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Contenido */}
+        <div className="p-6">
+          <p className="text-white/80 mb-4">
+            ¿Estás seguro que quieres desbloquear a <span className="font-semibold text-[#ff007a]">{userData.name}</span>?
+          </p>
+
+          <div className="bg-[#ff007a]/10 border border-[#ff007a]/30 rounded-lg p-3">
+            <h4 className="text-[#ff007a] font-medium text-sm mb-2">Al desbloquear este chico:</h4>
+            <ul className="text-[#ff007a]/90 text-xs space-y-1">
+              <li>• Podrá enviarte mensajes nuevamente</li>
+              <li>• Podrá realizarte llamadas</li>
+              <li>• Verá cuando estés en línea</li>
+              <li>• Podrán interactuar normalmente</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Botones */}
+        <div className="p-6 border-t border-[#ff007a]/20 flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 bg-[#1e1e25] hover:bg-[#2c2c33] text-white px-4 py-3 rounded-xl transition-colors disabled:opacity-50 font-medium"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 bg-[#ff007a] hover:bg-[#e6006f] text-white px-4 py-3 rounded-xl transition-colors disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Desbloqueando...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                </svg>
+                Desbloquear Chico
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+  };
+
+
   // 🔥 CLEANUP AL DESMONTAR
   useEffect(() => {
     return () => {
@@ -1300,7 +1698,7 @@ useEffect(() => {
   }, [conversacionActiva, usuariosBloqueados, bloqueadoPor, conversaciones]);
     // 🔥 NUEVO useEffect PARA VERIFICACIÓN PERIÓDICA DE BLOQUEOS
   useEffect(() => {
-    if (!usuario.id) return;
+    if (!Chico.id) return;
 
     // Verificar bloqueos cada 30 segundos
     const interval = setInterval(() => {
@@ -1314,7 +1712,7 @@ useEffect(() => {
     }, 30000); // Cada 30 segundos
 
     return () => clearInterval(interval);
-  }, [usuario.id, conversacionActiva, conversacionBloqueada]);
+  }, [Chico.id, conversacionActiva, conversacionBloqueada]);
 
   const conversacionesFiltradas = conversaciones.filter(conv => 
     conv.other_user_name.toLowerCase().includes(busquedaConversacion.toLowerCase())
@@ -1445,7 +1843,9 @@ useEffect(() => {
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm truncate">{conv.other_user_name}</p>
+                          <p className="font-semibold text-base truncate">
+                            {getDisplayName(conv.other_user_id, conv.other_user_name)}
+                          </p>
                           <div className="text-xs text-white/60 truncate">
                             {/* 🌍 PREVIEW CON TRADUCCIÓN SI ESTÁ HABILITADA */}
                             {translationSettings?.enabled && conv.last_message && conv.last_message.trim() ? (
@@ -1465,7 +1865,7 @@ useEffect(() => {
                               />
                             ) : (
                               // Mostrar mensaje original si no se puede traducir
-                              conv.last_message_sender_id === usuario.id ? (
+                              conv.last_message_sender_id === Chico.id ? (
                                 <span><span className="text-white/40">Tú:</span> {conv.last_message}</span>
                               ) : (
                                 conv.last_message
@@ -1519,9 +1919,12 @@ useEffect(() => {
                       }`} />
                     </div>
                     <div>
-                      <span className="font-semibold block">
-                        {conversacionSeleccionada?.other_user_name}
-                      </span>
+                      <h3 className="font-semibold text-lg">
+                        {getDisplayName(
+                          conversacionSeleccionada?.other_user_id, 
+                          conversacionSeleccionada?.other_user_name
+                        )}
+                      </h3>
                     </div>
                   </div>
                   
@@ -1539,7 +1942,7 @@ useEffect(() => {
                     }`}
                     title={
                       conversacionBloqueada 
-                        ? 'No disponible - usuario bloqueado'
+                        ? 'No disponible - Chico bloqueado'
                         : isCallActive || isReceivingCall 
                           ? 'Llamada en curso'
                           : 'Iniciar videochat'
@@ -1613,8 +2016,21 @@ useEffect(() => {
                               : 'Agregar a Favoritos'
                             }
                           </button>
-                          <button className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm">
-                            <Pencil size={16} /> Cambiar apodo
+                          <button 
+                            onClick={() => {
+                              const conversacionSeleccionada = conversaciones.find(c => c.room_name === conversacionActiva);
+                              if (conversacionSeleccionada) {
+                                abrirModalApodo(
+                                  conversacionSeleccionada.other_user_id,
+                                  conversacionSeleccionada.other_user_name
+                                );
+                              }
+                              setShowMainSettings(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#2b2d31] text-sm text-white transition-colors"
+                          >
+                            <Pencil size={16} />
+                            Cambiar apodo
                           </button>
                           <button 
                             onClick={() => {
@@ -1642,8 +2058,8 @@ useEffect(() => {
                             {conversacionBloqueada === 'me_bloquearon' 
                               ? 'No disponible (te bloqueó)' 
                               : conversacionBloqueada === 'yo_bloquee' 
-                                ? 'Desbloquear usuario'
-                                : 'Bloquear usuario'
+                                ? 'Desbloquear Chico'
+                                : 'Bloquear Chico'
                             }
                           </button>
                         </div>
@@ -1699,19 +2115,11 @@ useEffect(() => {
                     </div>
                   ) : (
                     mensajes.map((mensaje, index) => {
-                      const esUsuarioActual = mensaje.user_id === usuario.id;
+                      const esUsuarioActual = mensaje.user_id === Chico.id;
                       
                       return (
                         <div key={mensaje.id} className={`flex ${esUsuarioActual ? "justify-end" : "justify-start"}`}>
                           <div className="flex flex-col max-w-sm">
-                            {!esUsuarioActual && (
-                              <div className="flex items-center gap-2 mb-1 px-2">
-                                <div className="w-5 h-5 bg-gradient-to-br from-[#ff007a] to-[#cc0062] rounded-full flex items-center justify-center text-white font-bold text-xs">
-                                  {getInitial(mensaje.user_name)}
-                                </div>
-                                <span className="text-xs text-white/60">{mensaje.user_name}</span>
-                              </div>
-                            )}
                             <div
                               className={`relative px-4 py-2 rounded-2xl text-sm ${
                                 esUsuarioActual
@@ -1734,15 +2142,22 @@ useEffect(() => {
                 </div>
                 {/* 🔥 MENSAJE DE ESTADO DE BLOQUEO COMPLETO */}
                 {conversacionBloqueada && (
-                  <div className="bg-red-900/50 border border-red-500/50 rounded-lg p-4 mx-4 mb-2">
-                    <div className="flex items-center gap-3">
-                      <Ban size={24} className="text-red-400 flex-shrink-0" />
-                      <div className="flex-1">
+                  <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] border-l-4 border-[#ff007a] rounded-r-lg p-4 mx-4 mb-2 backdrop-blur-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-[#ff007a]/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                        <Ban size={20} className="text-[#ff007a]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
                         {conversacionBloqueada === 'yo_bloquee' && (
                           <>
-                            <p className="text-red-300 font-semibold">🚫 Usuario Bloqueado</p>
-                            <p className="text-red-200 text-sm mb-2">
-                              Has bloqueado a {conversaciones.find(c => c.room_name === conversacionActiva)?.other_user_name}. 
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="text-[#ff007a] font-bold text-base">🚫 Chico Bloqueado</h4>
+                              <span className="bg-[#ff007a]/20 text-[#ff007a] px-2 py-1 rounded-full text-xs font-medium">
+                                Activo
+                              </span>
+                            </div>
+                            <p className="text-white/80 text-sm mb-3 leading-relaxed">
+                              Has bloqueado a <span className="font-semibold text-white">{conversaciones.find(c => c.room_name === conversacionActiva)?.other_user_name}</span>. 
                               No podrán enviarte mensajes ni llamarte.
                             </p>
                             <button 
@@ -1750,31 +2165,53 @@ useEffect(() => {
                                 const conv = conversaciones.find(c => c.room_name === conversacionActiva);
                                 if (conv) toggleBloquearUsuario(conv.other_user_id, conv.other_user_name);
                               }}
-                              className="text-red-400 hover:text-red-300 text-sm underline bg-red-900/30 px-2 py-1 rounded"
+                              className="bg-[#ff007a] hover:bg-[#e6006f] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center gap-2"
                               disabled={loadingBlock}
                             >
-                              {loadingBlock ? 'Desbloqueando...' : 'Desbloquear usuario'}
+                              {loadingBlock ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                  Desbloqueando...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                                  </svg>
+                                  Desbloquear Chico
+                                </>
+                              )}
                             </button>
                           </>
                         )}
-                        
+
                         {conversacionBloqueada === 'me_bloquearon' && (
                           <>
-                            <p className="text-red-300 font-semibold">❌ Fuiste Bloqueado</p>
-                            <p className="text-red-200 text-sm">
-                              {conversaciones.find(c => c.room_name === conversacionActiva)?.other_user_name} te ha bloqueado. 
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="text-[#ff007a] font-bold text-base">❌ Fuiste Bloqueado</h4>
+                              <span className="bg-[#ff007a]/20 text-[#ff007a] px-2 py-1 rounded-full text-xs font-medium">
+                                Restringido
+                              </span>
+                            </div>
+                            <p className="text-white/80 text-sm mb-2 leading-relaxed">
+                              <span className="font-semibold text-white">{conversaciones.find(c => c.room_name === conversacionActiva)?.other_user_name}</span> te ha bloqueado. 
                               No puedes enviar mensajes ni realizar llamadas.
                             </p>
-                            <p className="text-red-300 text-xs mt-1 italic">
-                              Solo podrás ver mensajes anteriores, pero no enviar nuevos.
+                            <p className="text-[#ff007a] text-xs italic bg-[#ff007a]/10 p-2 rounded border-l-2 border-[#ff007a]">
+                              💡 Solo puedes ver mensajes anteriores, pero no enviar nuevos.
                             </p>
                           </>
                         )}
-                        
+
                         {conversacionBloqueada === 'mutuo' && (
                           <>
-                            <p className="text-red-300 font-semibold">🚫 Bloqueo Mutuo</p>
-                            <p className="text-red-200 text-sm mb-2">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="text-[#ff007a] font-bold text-base">🚫 Bloqueo Mutuo</h4>
+                              <span className="bg-[#ff007a]/20 text-[#ff007a] px-2 py-1 rounded-full text-xs font-medium">
+                                Mutuo
+                              </span>
+                            </div>
+                            <p className="text-white/80 text-sm mb-3 leading-relaxed">
                               Ambos se han bloqueado mutuamente. Ninguno puede contactar al otro.
                             </p>
                             <button 
@@ -1782,10 +2219,22 @@ useEffect(() => {
                                 const conv = conversaciones.find(c => c.room_name === conversacionActiva);
                                 if (conv) toggleBloquearUsuario(conv.other_user_id, conv.other_user_name);
                               }}
-                              className="text-red-400 hover:text-red-300 text-sm underline bg-red-900/30 px-2 py-1 rounded"
+                              className="bg-[#ff007a] hover:bg-[#e6006f] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center gap-2"
                               disabled={loadingBlock}
                             >
-                              {loadingBlock ? 'Desbloqueando...' : 'Desbloquear de mi parte'}
+                              {loadingBlock ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                  Desbloqueando...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                                  </svg>
+                                  Desbloquear de mi parte
+                                </>
+                              )}
                             </button>
                           </>
                         )}
@@ -1793,6 +2242,7 @@ useEffect(() => {
                     </div>
                   </div>
                 )}
+
 
                 {/* Panel de regalos y emojis */}
                 <div className="bg-[#2b2d31] px-4 py-2 border-t border-[#ff007a]/10">
@@ -1842,9 +2292,9 @@ useEffect(() => {
                     type="text"
                     placeholder={
                       conversacionBloqueada === 'yo_bloquee' 
-                        ? "Has bloqueado a este usuario..." 
+                        ? "Has bloqueado a este Chico..." 
                         : conversacionBloqueada === 'me_bloquearon'
-                          ? "Este usuario te ha bloqueado..."
+                          ? "Este Chico te ha bloqueado..."
                           : conversacionBloqueada === 'mutuo'
                             ? "Bloqueo mutuo activo..."
                             : "Escribe un mensaje..."
@@ -1879,6 +2329,102 @@ useEffect(() => {
           </section>
         </div>
       </div>
+      {/* 🔥 MODAL DE CAMBIAR APODO */}
+      {showNicknameModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-[#1f2125] border border-[#ff007a]/30 rounded-xl shadow-2xl w-full max-w-md">
+            {/* Header del modal */}
+            <div className="p-6 border-b border-[#ff007a]/20">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white">Cambiar Apodo</h3>
+                <button
+                  onClick={() => {
+                    setShowNicknameModal(false);
+                    setNicknameTarget(null);
+                    setNicknameValue('');
+                  }}
+                  className="text-white/60 hover:text-white p-2 hover:bg-[#3a3d44] rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-white/70 text-sm mt-2">
+                Personaliza cómo quieres ver a <span className="font-semibold text-[#ff007a]">
+                  {nicknameTarget?.userName}
+                </span>
+              </p>
+            </div>
+            
+            {/* Contenido del modal */}
+            <div className="p-6">
+              <div className="mb-4">
+                <label className="block text-white text-sm font-medium mb-2">
+                  Apodo personalizado
+                </label>
+                <input
+                  type="text"
+                  value={nicknameValue}
+                  onChange={(e) => setNicknameValue(e.target.value)}
+                  maxLength={8}
+                  className="w-full px-4 py-3 bg-[#1a1c20] text-white placeholder-white/60 rounded-lg outline-none focus:ring-2 focus:ring-[#ff007a]/50 border border-[#3a3d44]"
+                />
+                <p className="text-xs text-white/50 mt-1">
+                  {nicknameValue.length}/8 caracteres
+                </p>
+              </div>
+              
+              {/* Vista previa */}
+              <div className="bg-[#2b2d31] rounded-lg p-3 mb-4">
+                <p className="text-white/70 text-xs mb-1">Vista previa:</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-[#ff007a] to-[#cc0062] rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    {getInitial(nicknameTarget?.userName)}
+                  </div>
+                  <span className="text-white font-medium">
+                    {nicknameValue.trim() || nicknameTarget?.userName}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Botones del modal */}
+            <div className="p-6 border-t border-[#ff007a]/20 flex gap-3">
+              {/* Botón eliminar (solo si ya hay apodo) */}
+              {apodos[nicknameTarget?.userId] && (
+                <button
+                  onClick={eliminarApodo}
+                  disabled={loadingNickname}
+                  className="flex-1 bg-red-600/20 hover:bg-red-600/30 text-red-400 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingNickname ? 'Eliminando...' : 'Eliminar'}
+                </button>
+              )}
+              
+              {/* Botón cancelar */}
+              <button
+                onClick={() => {
+                  setShowNicknameModal(false);
+                  setNicknameTarget(null);
+                  setNicknameValue('');
+                }}
+                disabled={loadingNickname}
+                className="flex-1 bg-[#3a3d44] hover:bg-[#4a4d54] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              
+              {/* Botón guardar */}
+              <button
+                onClick={guardarApodo}
+                disabled={loadingNickname || !nicknameValue.trim()}
+                className="flex-1 bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingNickname ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 📱 OVERLAY PARA CERRAR SIDEBAR EN MÓVIL */}
       {isMobile && showSidebar && (
@@ -1910,6 +2456,52 @@ useEffect(() => {
         onAnswer={() => console.log('Responder llamada')}
         onDecline={() => console.log('Rechazar llamada')}
       />
+      <BlockConfirmModal
+        isOpen={showBlockModal}
+        onClose={() => {
+          setShowBlockModal(false);
+          setBlockModalData(null);
+        }}
+        userData={blockModalData}
+        onConfirm={confirmarBloqueo}
+        loading={loadingBlock}
+      />
+
+      <UnblockConfirmModal
+        isOpen={showConfirmModal && confirmModalData?.type === 'unblock'}
+        onClose={() => {
+          setShowConfirmModal(false);
+          setConfirmModalData(null);
+        }}
+        userData={confirmModalData}
+        onConfirm={confirmarDesbloqueo}
+        loading={loadingBlock}
+      />
+
+      <SuccessPopup
+        isOpen={showSuccessPopup}
+        message={successMessage}
+        onClose={() => setShowSuccessPopup(false)}
+      />
     </div>
   );
 }
+<style jsx>{`
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .animate-slideInRight {
+    animation: slideInRight 0.4s ease-out;
+  }
+`}</style>
