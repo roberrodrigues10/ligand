@@ -1331,7 +1331,7 @@ useEffect(() => {
       {isMobile && conversacionActiva && !showSidebar && (
         <button
           onClick={() => setShowSidebar(true)}
-          className="absolute top-[5px] right-[135px]  bg-[#ff007a] hover:bg-[#cc0062] p-2 rounded-full shadow-xl transition-colors border-2 border-white/20"
+          className="absolute top-[5px] right-[113px]  bg-[#ff007a] hover:bg-[#cc0062] p-2 rounded-full shadow-xl transition-colors border-2 border-white/20"
         >
           <MessageSquare size={18} className="text-white" />
           {/* 🔔 MOSTRAR CONTEO GLOBAL EN EL BOTÓN */}
