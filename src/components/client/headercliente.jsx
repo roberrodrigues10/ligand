@@ -190,7 +190,7 @@ export default function HeaderCliente() {
           
           <button
             className="hover:scale-110 transition p-2"
-            onClick={() => navigate("/messageclient")}
+            onClick={() => navigate("/message")}
             title="Mensajes"
           >
             <MessageSquare className="text-[#ff007a]" size={24} />

@@ -365,7 +365,6 @@ export default function PaymentManager({ onClose }) { // ELIMINAR userId
             value={formData.country_code}
             onChange={(e) => {
               const selectedCountry = countries.find(c => c.code === e.target.value);
-              console.log('🔄 País cambiado a:', e.target.value, selectedCountry?.name);
               setFormData(prev => ({
                 ...prev,
                 country_code: e.target.value,
@@ -388,7 +387,7 @@ export default function PaymentManager({ onClose }) { // ELIMINAR userId
 
         {/* Métodos de pago (solo si se seleccionó país) */}
         {formData.country_code && (
-          <div key={`payment-section-${formData.country_code}`}>
+          <div>
             <label className="block text-sm font-medium text-white/80 mb-3">
               <CreditCard size={16} className="inline mr-2" />
               Selecciona método de pago
@@ -399,75 +398,25 @@ export default function PaymentManager({ onClose }) { // ELIMINAR userId
                 <span className="text-xs text-blue-400 ml-2">(Solo criptomonedas)</span>
               )}
             </label>
-            
-            {/* Renderizado condicional directo */}
-            {formData.country_code === 'CO' ? (
-              // MÉTODOS PARA COLOMBIA
-              <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(paymentMethods).map(([key, method]) => (
                 <button
+                  key={key}
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, payment_method: 'bancolombia' }))}
+                  onClick={() => setFormData(prev => ({ ...prev, payment_method: key }))}
                   className={`p-3 rounded-lg border transition-all ${
-                    formData.payment_method === 'bancolombia'
+                    formData.payment_method === key
                       ? "border-[#ff007a] bg-[#ff007a]/10"
                       : "border-white/10 bg-[#0a0d10] hover:border-[#ff007a]/50"
                   }`}
                 >
-                  <div className="p-2 rounded-lg bg-yellow-500 mb-2 mx-auto w-fit">
-                    <Building2 size={20} />
+                  <div className={`p-2 rounded-lg ${method.color} mb-2 mx-auto w-fit`}>
+                    {method.icon}
                   </div>
-                  <p className="text-sm font-medium text-white">Bancolombia</p>
+                  <p className="text-sm font-medium text-white">{method.name}</p>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, payment_method: 'nequi' }))}
-                  className={`p-3 rounded-lg border transition-all ${
-                    formData.payment_method === 'nequi'
-                      ? "border-[#ff007a] bg-[#ff007a]/10"
-                      : "border-white/10 bg-[#0a0d10] hover:border-[#ff007a]/50"
-                  }`}
-                >
-                  <div className="p-2 rounded-lg bg-purple-500 mb-2 mx-auto w-fit">
-                    <Smartphone size={20} />
-                  </div>
-                  <p className="text-sm font-medium text-white">Nequi</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, payment_method: 'payoneer' }))}
-                  className={`p-3 rounded-lg border transition-all ${
-                    formData.payment_method === 'payoneer'
-                      ? "border-[#ff007a] bg-[#ff007a]/10"
-                      : "border-white/10 bg-[#0a0d10] hover:border-[#ff007a]/50"
-                  }`}
-                >
-                  <div className="p-2 rounded-lg bg-orange-500 mb-2 mx-auto w-fit">
-                    <Globe size={20} />
-                  </div>
-                  <p className="text-sm font-medium text-white">Payoneer</p>
-                </button>
-              </div>
-            ) : (
-              // MÉTODOS PARA OTROS PAÍSES (SOLO TRC-20)
-              <div className="grid grid-cols-1 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, payment_method: 'trc20' }))}
-                  className={`p-3 rounded-lg border transition-all ${
-                    formData.payment_method === 'trc20'
-                      ? "border-[#ff007a] bg-[#ff007a]/10"
-                      : "border-white/10 bg-[#0a0d10] hover:border-[#ff007a]/50"
-                  }`}
-                >
-                  <div className="p-2 rounded-lg bg-green-500 mb-2 mx-auto w-fit">
-                    <DollarSign size={20} />
-                  </div>
-                  <p className="text-sm font-medium text-white">TRC-20 (USDT)</p>
-                </button>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         )}
 

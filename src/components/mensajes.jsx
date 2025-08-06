@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation  } from "react-router-dom";
 import Header from "./header";
 import { getUser } from "../utils/auth";
+import { usePageAccess, ProtectedPage } from "./usePageAccess";
+
 
 import {
   useTranslation as useCustomTranslation,
@@ -35,7 +37,8 @@ import {
 // 🔥 AGREGAR ESTAS IMPORTACIONES
 import CallingSystem from './CallingOverlay';
 import IncomingCallOverlay from './IncomingCallOverlay';
-
+import { useGiftSystem, GiftMessageComponent, GiftNotificationOverlay, GiftsModal, giftSystemStyles } from '../components/GiftSystem';
+;
 // 🔥 AGREGAR API_BASE_URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -56,6 +59,11 @@ export default function ChatPrivado() {
   const [loadingBlock, setLoadingBlock] = useState(false);
   const [conversacionBloqueada, setConversacionBloqueada] = useState(null); // 'yo_bloquee', 'me_bloquearon', 'mutuo', null
   // 🔥 AGREGAR ESTOS ESTADOS (después de los otros estados)
+  const [userProfile, setUserProfile] = useState({
+    avatar_url: null,
+    preferred_language: 'es',
+    display_name: ''
+  });
   const [apodos, setApodos] = useState({}); // { userId: 'apodo' }
   const [showNicknameModal, setShowNicknameModal] = useState(false);
   const [nicknameTarget, setNicknameTarget] = useState(null);
@@ -98,6 +106,10 @@ export default function ChatPrivado() {
   const [onlineUsers, setOnlineUsers] = useState(new Set([2, 3])); // Mock de usuarios online
   const [isMobile, setIsMobile] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showGiftsModal, setShowGiftsModal] = useState(false);
+  const [loadingGift, setLoadingGift] = useState(false);
+  const [showGiftNotification, setShowGiftNotification] = useState(false);
+  const [giftNotificationData, setGiftNotificationData] = useState(null);
   
   // 🔔 SISTEMA DE NOTIFICACIONES GLOBALES MEJORADO
   const [globalUnreadCount, setGlobalUnreadCount] = useState(0);
@@ -135,10 +147,19 @@ export default function ChatPrivado() {
 
     return headers;
   };
+  const {
+    gifts,
+    loadingGifts,
+    pendingRequests,
+    loadingRequests,
+    loadGifts,
+    loadPendingRequests,
+    setPendingRequests
+  } = useGiftSystem(Chico.id, Chico.rol, getAuthHeaders, API_BASE_URL);
+  
   // 🔥 FUNCIÓN PARA INICIAR LLAMADA REAL
   const iniciarLlamadaReal = async (otherUserId, otherUserName) => {
     try {
-      console.log('📞 Iniciando llamada a:', otherUserName);
       
       setCurrentCall({
         id: otherUserId,
@@ -159,7 +180,6 @@ export default function ChatPrivado() {
       const data = await response.json();
       
       if (data.success) {
-        console.log('✅ Llamada iniciada:', data);
         setCurrentCall({
           id: otherUserId,
           name: otherUserName,
@@ -169,13 +189,12 @@ export default function ChatPrivado() {
         });
         iniciarPollingLlamada(data.call_id);
       } else {
-        console.error('❌ Error iniciando llamada:', data.error);
         setIsCallActive(false);
         setCurrentCall(null);
         alert(data.error);
       }
     } catch (error) {
-      console.error('❌ Error:', error);
+
       setIsCallActive(false);
       setCurrentCall(null);
       alert('Error al iniciar llamada');
@@ -216,7 +235,7 @@ export default function ChatPrivado() {
           }
         }
       } catch (error) {
-        console.error('❌ Error verificando llamada:', error);  
+
       }
     }, 2000);
     
@@ -239,7 +258,7 @@ export default function ChatPrivado() {
         setCallPollingInterval(null);
       }
     } catch (error) {
-      console.error('❌ Error cancelando llamada:', error);
+
     }
     
     setIsCallActive(false);
@@ -288,7 +307,7 @@ export default function ChatPrivado() {
         }
       }
     } catch (error) {
-      console.error('❌ Error cargando favoritos:', error);
+
     }
   };
 
@@ -323,7 +342,6 @@ export default function ChatPrivado() {
         setFavoritos(newFavoritos);
       }
     } catch (error) {
-      console.error('❌ Error toggle favorito:', error);
     } finally {
       setLoadingFavorite(false);
     }
@@ -331,7 +349,6 @@ export default function ChatPrivado() {
   // 🔥 FUNCIÓN PARA CARGAR ESTADO DE BLOQUEOS
   const cargarEstadoBloqueos = async () => {
   try {
-    console.log('🔍 Cargando estado completo de bloqueos...');
     
     const response = await fetch(`${API_BASE_URL}/api/block-status`, {
       method: 'GET',
@@ -353,10 +370,7 @@ export default function ChatPrivado() {
         );
         setBloqueadoPor(bloqueadoresIds);
         
-        console.log('✅ Estado bloqueos cargado:', {
-          yoBloquee: Array.from(bloqueadosIds),
-          meBloquearon: Array.from(bloqueadoresIds)
-        });
+
         
         // Si hay conversación activa, actualizar su estado
         if (conversacionActiva) {
@@ -368,10 +382,8 @@ export default function ChatPrivado() {
         }
       }
     } else {
-      console.error('❌ Error cargando estado bloqueos:', response.status);
     }
   } catch (error) {
-    console.error('❌ Error cargando estado bloqueos:', error);
   }
   };
   // 🔥 FUNCIÓN PARA VERIFICAR SI UN USUARIO ESPECÍFICO ME BLOQUEÓ
@@ -388,7 +400,6 @@ export default function ChatPrivado() {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.is_blocked_by_them) {
-          console.log('🚫 Confirmado: este Chico me bloqueó');
           
           // Actualizar estado local
           const newBloqueadoPor = new Set(bloqueadoPor);
@@ -404,7 +415,6 @@ export default function ChatPrivado() {
       }
       return false;
     } catch (error) {
-      console.error('❌ Error verificando si me bloqueó:', error);
       return false;
     }
   };
@@ -469,7 +479,6 @@ export default function ChatPrivado() {
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('❌ Error parseando JSON:', parseError);
         setSuccessMessage('Error del servidor: Respuesta no válida');
         setShowSuccessPopup(true);
         return;
@@ -505,7 +514,6 @@ export default function ChatPrivado() {
         setShowSuccessPopup(true);
       }
     } catch (error) {
-      console.error('❌ Error de conexión:', error);
       setSuccessMessage('Error de conexión: ' + error.message);
       setShowSuccessPopup(true);
     } finally {
@@ -536,7 +544,6 @@ export default function ChatPrivado() {
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('❌ Error parseando JSON:', parseError);
         setSuccessMessage('Error del servidor: Respuesta no válida');
         setShowSuccessPopup(true);
         return;
@@ -565,7 +572,6 @@ export default function ChatPrivado() {
         setShowSuccessPopup(true);
       }
     } catch (error) {
-      console.error('❌ Error de conexión:', error);
       setSuccessMessage('Error de conexión: ' + error.message);
       setShowSuccessPopup(true);
     } finally {
@@ -595,13 +601,23 @@ export default function ChatPrivado() {
 
   // 🔧 DEBUG: Hook de traducción
   useEffect(() => {
-    console.log('🔍 Hook traducción inicializado:', {
-      t: typeof t,
-      translationSettings,
-      languages: Object.keys(languages || {}),
-      TranslatedMessage: typeof TranslatedMessage
-    });
-  }, [translationSettings, languages]);
+  console.log('🔍 Hook traducción inicializado:', {
+    t: typeof t,
+    translationSettings,
+    languages: Object.keys(languages || {}),
+    TranslatedMessage: typeof TranslatedMessage,
+    userLanguage: userProfile.preferred_language
+  });
+  
+  // 🌍 SINCRONIZAR IDIOMA DEL PERFIL CON TRADUCCIÓN
+  if (userProfile.preferred_language && translationSettings && 
+      translationSettings.targetLanguage !== userProfile.preferred_language) {
+    setTranslationSettings(prev => ({
+      ...prev,
+      targetLanguage: userProfile.preferred_language
+    }));
+  }
+}, [translationSettings, languages, userProfile.preferred_language]);
 
   // 📱 DETECTAR MÓVIL
   useEffect(() => {
@@ -729,10 +745,20 @@ const cargarApodos = async () => {
   }
 };
 
-// Obtener nombre a mostrar (apodo o nombre real)
-const getDisplayName = (userId, originalName) => {
-  return apodos[userId] || originalName;
-};
+  // Obtener nombre a mostrar (apodo o nombre real)
+  const getDisplayName = (userId, originalName) => {
+    return apodos[userId] || originalName;
+  };
+  const getUserAvatar = (userId, userName) => {
+    // Si es el usuario actual, usar su avatar del perfil
+    if (userId === Chico.id) {
+      return userProfile.avatar_url;
+    }
+    
+    // Para otros usuarios, podrías tener un estado separado o hacer una consulta
+    // Por ahora retornamos null para que use inicial
+    return null;
+  };
 
 // Abrir modal para cambiar apodo
 const abrirModalApodo = (userId, userName) => {
@@ -934,6 +960,7 @@ const eliminarApodo = async () => {
       cargarFavoritos();
       cargarEstadoBloqueos();
       cargarApodos();
+      cargarPerfilUsuario
     }
   }, [Chico.id]);
 
@@ -993,33 +1020,143 @@ const eliminarApodo = async () => {
 
 
   const cargarDatosUsuario = async () => {
-    try {
-      console.log('🔍 Cargando perfil usando tu sistema de auth...');
-      console.log('🔑 Token disponible:', sessionStorage.getItem("token") ? 'SÍ' : 'NO');
-      
-      // 🔥 USAR TU FUNCIÓN getUser EXISTENTE
-      const userData = await getUser();
-      
-      console.log('✅ Datos de Chico recibidos:', userData);
+  try {
+    console.log('🔍 Cargando perfil usando tu sistema de auth...');
+    console.log('🔑 Token disponible:', sessionStorage.getItem("token") ? 'SÍ' : 'NO');
+    
+    // 🔥 USAR TU FUNCIÓN getUser EXISTENTE
+    const userData = await getUser();
+    
+    console.log('✅ Datos de Usuario recibidos:', userData);
+    
+    // Actualizar datos básicos del usuario
+    setUsuario({
+      id: userData.id,
+      name: userData.name || userData.alias || `Usuario_${userData.id}`,
+      rol: userData.rol
+    });
+
+    // 🔥 NUEVO: Cargar perfil completo con avatar e idioma
+    await cargarPerfilCompleto(userData.id);
+    
+  } catch (error) {
+    console.error('❌ Error cargando datos Usuario:', error);
+    
+    // Si es error de autenticación, usar datos de prueba
+    if (error.response?.status === 401) {
+      console.log('🔧 Error de autenticación, usando datos de prueba...');
       setUsuario({
-        id: userData.id,
-        name: userData.name || userData.alias || `Usuario_${userData.id}`,
-        rol: userData.rol
+        id: 1,
+        name: "Usuario Demo",
+        rol: "cliente"
       });
-      
-    } catch (error) {
-      console.error('❌ Error cargando datos Chico:', error);
-      
-      // Si es error de autenticación, usar datos de prueba
-      if (error.response?.status === 401) {
-        console.log('🔧 Error de autenticación, usando datos de prueba...');
-        setUsuario({
-          id: 1,
-          name: "Chico Demo",
-          rol: "cliente"
+    }
+  }
+  };
+  const getAvatarOrInitial = (userName, userId = null) => {
+  // Si es el usuario actual, usar su avatar del perfil
+  const avatarUrl = (userId === Chico.id) ? userProfile.avatar_url : null;
+  
+  if (avatarUrl) {
+    return (
+      <img 
+        src={avatarUrl} 
+        alt={userName} 
+        className="w-10 h-10 rounded-full object-cover border-2 border-[#ff007a]"
+        onError={(e) => {
+          // Si falla la imagen, mostrar inicial
+          e.target.style.display = 'none';
+          const initial = e.target.parentNode.querySelector('.avatar-initial');
+          if (initial) initial.style.display = 'flex';
+        }}
+      />
+    );
+  }
+  
+  return (
+    <div className="w-10 h-10 bg-gradient-to-br from-[#ff007a] to-[#cc0062] rounded-full flex items-center justify-center text-white font-bold text-sm avatar-initial">
+      {getInitial(userName)}
+    </div>
+  );
+  };
+  const cargarPerfilCompleto = async (userId) => {
+  try {
+    console.log('🔍 Cargando perfil completo del usuario...');
+    
+    const response = await fetch(`${API_BASE_URL}/api/profile/info`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.user) {
+        console.log('✅ Perfil completo cargado:', data.user);
+        
+        // Actualizar estado del perfil
+        setUserProfile({
+          avatar_url: data.user.avatar_url,
+          preferred_language: data.user.preferred_language || 'es',
+          display_name: data.user.display_name || data.user.nickname || data.user.name
         });
+        
+        // 🌍 ACTUALIZAR CONFIGURACIÓN DE TRADUCCIÓN CON EL IDIOMA DEL USUARIO
+        if (data.user.preferred_language && translationSettings) {
+          console.log(`🌍 Actualizando idioma de traducción a: ${data.user.preferred_language}`);
+          setTranslationSettings(prev => ({
+            ...prev,
+            targetLanguage: data.user.preferred_language
+          }));
+        }
+        
+        // 👤 ACTUALIZAR NOMBRE A MOSTRAR
+        if (data.user.display_name || data.user.nickname) {
+          setUsuario(prev => ({
+            ...prev,
+            name: data.user.display_name || data.user.nickname || prev.name
+          }));
+        }
+        
+      }
+    } else {
+      console.log('⚠️ No se pudo cargar el perfil completo, usando valores por defecto');
+    }
+  } catch (error) {
+    console.error('❌ Error cargando perfil completo:', error);
+    // No hacer nada, mantener valores por defecto
+  }
+  };
+
+  const cargarPerfilUsuario = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/profile/info`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.user) {
+        console.log('✅ Perfil cargado:', data.user);
+        
+        setUserProfile({
+          avatar_url: data.user.avatar_url,
+          preferred_language: data.user.preferred_language || 'es',
+          display_name: data.user.display_name || data.user.nickname || data.user.name
+        });
+
+        // 🌍 ACTUALIZAR IDIOMA DE TRADUCCIÓN
+        if (data.user.preferred_language && translationSettings) {
+          setTranslationSettings(prev => ({
+            ...prev,
+            targetLanguage: data.user.preferred_language
+          }));
+        }
       }
     }
+  } catch (error) {
+    console.error('❌ Error cargando perfil:', error);
+  }
   };
 
   const cargarConversaciones = async () => {
@@ -1404,61 +1541,72 @@ const eliminarApodo = async () => {
   };
 
   const renderMensaje = (mensaje) => {
-    const textoMensaje = mensaje.message || mensaje.text || 'Mensaje sin contenido';
-    const esUsuarioActual = mensaje.user_id === Chico.id;
-    
-    switch (mensaje.type) {
-      case 'gift':
-        return (
-          <div className="flex items-center gap-2 text-yellow-400">
-            <Gift size={16} />
-            <span>Envió: {textoMensaje}</span>
-          </div>
-        );
-      case 'emoji':
-        return (
-          <div className="text-2xl">
-            {textoMensaje}
-          </div>
-        );
-      default:
-        // Si la traducción está habilitada Y tenemos el componente
-        if (translationSettings?.enabled && TranslatedMessage && textoMensaje && textoMensaje.trim()) {
-          try {
-            const tipoMensaje = esUsuarioActual ? 'local' : 'remote';
-            const shouldShowTranslation = !esUsuarioActual || translationSettings.translateOutgoing;
-            
-            // 🔥 VALIDAR QUE EL TEXTO NO ESTÉ VACÍO Y NO SEA SOLO EMOJIS
-            const cleanText = textoMensaje.trim();
-            const isOnlyEmojis = /^[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s]*$/u.test(cleanText);
-            const isOnlySpecialChars = /^[^\w\s]*$/.test(cleanText);
-            
-            if (shouldShowTranslation && cleanText.length > 0 && !isOnlyEmojis && !isOnlySpecialChars) {
-              return (
-                <TranslatedMessage
-                  message={{
-                    text: cleanText,
-                    type: tipoMensaje,
-                    id: mensaje.id,
-                    timestamp: mensaje.created_at,
-                    sender: mensaje.user_name,
-                    senderRole: mensaje.user_role
-                  }}
-                  settings={translationSettings}
-                  className="text-white"
-                />
-              );
-            }
-          } catch (error) {
-            console.error('❌ Error en TranslatedMessage:', error);
-            // Fallback al texto normal si hay error
+  const textoMensaje = mensaje.message || mensaje.text || 'Mensaje sin contenido';
+  const esUsuarioActual = mensaje.user_id === Chico.id;
+  
+  switch (mensaje.type) {
+    case 'gift':
+      return (
+        <div className="flex items-center gap-2 text-yellow-400">
+          <Gift size={16} />
+          <span>Envió: {textoMensaje}</span>
+        </div>
+      );
+    case 'gift_request':
+      return (
+        <div className="flex items-center gap-2 text-purple-400">
+          <Gift size={16} />
+          <span className="italic">🙏 {textoMensaje}</span>
+        </div>
+      );
+    case 'gift_sent':
+      return (
+        <div className="flex items-center gap-2 text-green-400">
+          <Gift size={16} />
+          <span className="font-semibold">🎁 {textoMensaje}</span>
+        </div>
+      );
+    case 'emoji':
+      return (
+        <div className="text-2xl">
+          {textoMensaje}
+        </div>
+      );
+    default:
+      // Tu código de traducción existente aquí...
+      if (translationSettings?.enabled && TranslatedMessage && textoMensaje && textoMensaje.trim()) {
+        try {
+          const tipoMensaje = esUsuarioActual ? 'local' : 'remote';
+          const shouldShowTranslation = !esUsuarioActual || translationSettings.translateOutgoing;
+          
+          const cleanText = textoMensaje.trim();
+          const isOnlyEmojis = /^[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s]*$/u.test(cleanText);
+          const isOnlySpecialChars = /^[^\w\s]*$/.test(cleanText);
+          
+          if (shouldShowTranslation && cleanText.length > 0 && !isOnlyEmojis && !isOnlySpecialChars) {
+            return (
+              <TranslatedMessage
+                message={{
+                  text: cleanText,
+                  type: tipoMensaje,
+                  id: mensaje.id,
+                  timestamp: mensaje.created_at,
+                  sender: mensaje.user_name,
+                  senderRole: mensaje.user_role
+                }}
+                settings={translationSettings}
+                className="text-white"
+              />
+            );
           }
+        } catch (error) {
+          console.error('❌ Error en TranslatedMessage:', error);
         }
-        
-        // Fallback: mostrar solo mensaje normal
-        return <span className="text-white">{textoMensaje}</span>;
-    }
-  };
+      }
+      
+      return <span className="text-white">{textoMensaje}</span>;
+  }
+};
   const BlockConfirmModal = ({ isOpen, onClose, userData, onConfirm, loading }) => {
   const [blockReason, setBlockReason] = useState("Comportamiento inapropiado");
 
@@ -1596,6 +1744,78 @@ const eliminarApodo = async () => {
       </div>
     );
   };
+  const pedirRegalo = async (giftId, clientId, roomName, message = '') => {
+  try {
+    console.log('🎁 Pidiendo regalo:', { giftId, clientId, roomName, message });
+    
+    const response = await fetch(`${API_BASE_URL}/api/gifts/request`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        gift_id: giftId,
+        client_id: clientId,
+        room_name: roomName,
+        message: message
+      })
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      console.log('✅ Regalo pedido exitosamente:', data);
+      
+      // Agregar mensaje de solicitud al chat
+      const giftRequestMessage = {
+        id: `gift_request_${Date.now()}`,
+        user_id: Chico.id,
+        user_name: Chico.name,
+        user_role: Chico.rol,
+        message: `Pedí: ${data.request.gift_name}`,
+        type: 'gift_request',
+        created_at: new Date().toISOString(),
+        gift_data: data.request
+      };
+      
+      setMensajes(prev => [...prev, giftRequestMessage]);
+      updateLastSeen(roomName);
+      
+      return { success: true, data: data.request };
+    } else {
+      console.error('❌ Error pidiendo regalo:', data.error);
+      return { success: false, error: data.error };
+    }
+  } catch (error) {
+    console.error('❌ Error en pedirRegalo:', error);
+    return { success: false, error: 'Error de conexión' };
+  }
+  };
+  const handleRequestGift = async (giftId, recipientId, roomName, message) => {
+  try {
+    setLoadingGift(true);
+    const result = await pedirRegalo(giftId, recipientId, roomName, message);
+    setLoadingGift(false);
+    
+    if (result.success) {
+      setShowGiftsModal(false);
+    }
+    
+    return result;
+  } catch (error) {
+    setLoadingGift(false);
+    return { success: false, error: 'Error inesperado' };
+  }
+};
+  
+  useEffect(() => {
+    if (Chico.id) {
+      console.log('👤 Usuario cargado, cargando regalos...');
+      loadGifts();
+      
+      // Si es cliente, cargar solicitudes pendientes
+      if (Chico.rol === 'cliente') {
+        loadPendingRequests();
+      }
+    }
+}, [Chico.id, loadGifts, loadPendingRequests, Chico.rol]);
 
 // 🔥 MODAL DE CONFIRMACIÓN PARA DESBLOQUEAR
   const UnblockConfirmModal = ({ isOpen, onClose, userData, onConfirm, loading }) => {
@@ -1828,8 +2048,11 @@ const eliminarApodo = async () => {
                         {/* 🔥 AVATAR CON INICIAL Y ESTADO ONLINE */}
                         <div className="relative">
                           <div className="w-10 h-10 bg-gradient-to-br from-[#ff007a] to-[#cc0062] rounded-full flex items-center justify-center text-white font-bold text-sm">
-                            {getInitial(conv.other_user_name)}
-                          </div>
+                            {getAvatarOrInitial(
+                                getDisplayName(conv.other_user_id, conv.other_user_name),
+                                conv.other_user_id
+                              )}                          
+                         </div>
                           {/* Solo punto indicador */}
                           <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${
                             isOnline ? 'bg-green-500' : 'bg-gray-500'
@@ -1957,6 +2180,21 @@ const eliminarApodo = async () => {
                           : 'Videochat'
                     )}
                   </button>
+                  {Chico.rol === 'modelo' && (
+                    <button
+                      onClick={() => setShowGiftsModal(true)}
+                      disabled={conversacionBloqueada !== null}
+                      className={`px-4 py-2 rounded-full text-xs hover:scale-105 transition-transform flex items-center gap-2 ${
+                        conversacionBloqueada 
+                          ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-purple-500 to-pink-500'
+                      }`}
+                      title={conversacionBloqueada ? 'No disponible - Usuario bloqueado' : 'Pedir regalos'}
+                    >
+                      <Gift size={16} />
+                      {!isMobile && (conversacionBloqueada ? 'Bloqueado' : 'Pedir Regalo')}
+                    </button>
+                  )}
                     <div className="relative">
                       <button
                         onClick={() => setShowMainSettings(!showMainSettings)}
@@ -2453,8 +2691,6 @@ const eliminarApodo = async () => {
       <IncomingCallOverlay
         isVisible={isReceivingCall}
         callData={incomingCall}
-        onAnswer={() => console.log('Responder llamada')}
-        onDecline={() => console.log('Rechazar llamada')}
       />
       <BlockConfirmModal
         isOpen={showBlockModal}
@@ -2483,6 +2719,19 @@ const eliminarApodo = async () => {
         message={successMessage}
         onClose={() => setShowSuccessPopup(false)}
       />
+      {/* Modal de regalos */}
+     <GiftsModal
+        isOpen={showGiftsModal}
+        onClose={() => setShowGiftsModal(false)}
+        recipientName={conversacionSeleccionada?.other_user_name || 'Usuario'}
+        recipientId={conversacionSeleccionada?.other_user_id}
+        roomName={conversacionActiva}
+        userRole={Chico.rol}
+        gifts={gifts}
+        onRequestGift={handleRequestGift}
+        loading={loadingGift}
+      />
+
     </div>
   );
 }

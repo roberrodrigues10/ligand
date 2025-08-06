@@ -5,11 +5,10 @@ import {
   LogOut,
   Trash2,
   ShieldCheck,
-  Upload,
   Camera,
   X,
-  Globe,
   User,
+  Globe,
   CreditCard,
   Banknote,
   HelpCircle,
@@ -19,19 +18,21 @@ import {
 import { useTranslation } from "react-i18next";
 import PaymentManager from "./PaymentManager";
 import MinimumPayoutManager from "./MinimumPayoutManager";
-
+import ProfileSettings from "./ProfileSettings";
+import SecuritySettings from "./SecuritySettings";
 
 export default function ModeloConfiguracion() {
   const [modalActivo, setModalActivo] = useState(null);
   const { t } = useTranslation();
-  const [userId, setUserId] = useState(1); // O obtén el userId del contexto/auth
+  const [userId, setUserId] = useState(1);
 
-
+  // ✅ Funciones del componente
   const abrirModal = (id) => setModalActivo(id);
   const cerrarModal = () => setModalActivo(null);
 
+  // 🎨 Render principal
   return (
-    <div className="min-h-screen bg-ligand-mix-dark from-[#0a0d10] to-[#131418] text-white p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0d10] to-[#131418] text-white p-6">
       <Header />
 
       <div className="max-w-4xl mx-auto px-6 py-10">
@@ -41,36 +42,49 @@ export default function ModeloConfiguracion() {
 
         {/* Cuenta y seguridad */}
         <Seccion titulo={t("settings.accountSecurity")}>
-          <ConfigBoton icon={<Lock size={18} />} texto={t("settings.changePassword")} onClick={() => abrirModal("changePassword")} />
-          <ConfigBoton icon={<LogOut size={18} />} texto={t("settings.logoutAll")} onClick={() => abrirModal("logoutAll")} />
-          <ConfigBoton icon={<Trash2 size={18} />} texto={t("settings.deleteAccount")} onClick={() => abrirModal("deleteAccount")} />
-          <ConfigBoton icon={<ShieldCheck size={18} />} texto={t("settings.enable2FA")} onClick={() => abrirModal("enable2FA")} />
+          <SecuritySettings t={t} />
         </Seccion>
 
-        {/* Perfil */}
+        {/* 🔥 PERFIL - AHORA USANDO EL COMPONENTE ProfileSettings */}
         <Seccion titulo={t("settings.profile")}>
-          <ConfigBoton icon={<Upload size={18} />} texto={t("settings.uploadPhoto")} onClick={() => abrirModal("uploadPhoto")} />
-          <ConfigBoton icon={<Camera size={18} />} texto={t("settings.takePhoto")} onClick={() => abrirModal("takePhoto")} />
-          <ConfigBoton icon={<Trash2 size={18} />} texto={t("settings.deletePhoto")} onClick={() => abrirModal("deletePhoto")} />
-          <ConfigBoton icon={<User size={18} />} texto={t("settings.editAlias")} onClick={() => abrirModal("editAlias")} />
-          <ConfigBoton icon={<Globe size={18} />} texto={t("settings.language")} onClick={() => abrirModal("language")} />
+          <ProfileSettings t={t} />
         </Seccion>
 
         {/* Pagos */}
         <Seccion titulo={t("settings.payments")}>
-          <ConfigBoton icon={<CreditCard size={18} />} texto={t("settings.managePaymentMethod")} onClick={() => abrirModal("managePaymentMethod")} />
-          <ConfigBoton icon={<Banknote size={18} />} texto={t("settings.minimumPayout")} onClick={() => abrirModal("minimumPayout")} />
+          <ConfigBoton 
+            icon={<CreditCard size={18} />} 
+            texto={t("settings.managePaymentMethod")} 
+            onClick={() => abrirModal("managePaymentMethod")} 
+          />
+          <ConfigBoton 
+            icon={<Banknote size={18} />} 
+            texto={t("settings.minimumPayout")} 
+            onClick={() => abrirModal("minimumPayout")} 
+          />
         </Seccion>
 
         {/* Otros */}
         <Seccion titulo={t("settings.others")}>
-          <ConfigBoton icon={<HelpCircle size={18} />} texto={t("settings.support")} onClick={() => abrirModal("support")} />
-          <ConfigBoton icon={<FileText size={18} />} texto={t("settings.terms")} onClick={() => abrirModal("terms")} />
-          <ConfigBoton icon={<AlertTriangle size={18} />} texto={t("settings.report")} onClick={() => abrirModal("report")} />
+          <ConfigBoton 
+            icon={<HelpCircle size={18} />} 
+            texto={t("settings.support")} 
+            onClick={() => abrirModal("support")} 
+          />
+          <ConfigBoton 
+            icon={<FileText size={18} />} 
+            texto={t("settings.terms")} 
+            onClick={() => abrirModal("terms")} 
+          />
+          <ConfigBoton 
+            icon={<AlertTriangle size={18} />} 
+            texto={t("settings.report")} 
+            onClick={() => abrirModal("report")} 
+          />
         </Seccion>
       </div>
 
-      {/* Modal */}
+      {/* Modal para las otras configuraciones (que no sean perfil) */}
       {modalActivo === "managePaymentMethod" ? (
         <PaymentManager 
           onClose={cerrarModal}
@@ -100,7 +114,9 @@ export default function ModeloConfiguracion() {
               {t(`settings.${modalActivo}`)?.toUpperCase() || modalActivo}
             </h3>
             <p className="text-sm text-white/80">
-              {t("settings.modalInstruction", { item: t(`settings.${modalActivo}`) || modalActivo })}
+              {t("settings.modalInstruction", { 
+                item: t(`settings.${modalActivo}`) || modalActivo 
+              })}
             </p>
           </div>
         </div>

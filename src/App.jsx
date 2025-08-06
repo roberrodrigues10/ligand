@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { initializeAuth } from "./utils/auth";
 
+// 🔥 IMPORTAR EL HOOK SIMPLE DE ROL
+import { ProtectedPage } from "./components/usePageAccess";
+
 import LigandHome from "./components/ligandHome";
 import LoginLigand from "./components/verificacion/login/loginligand";
 import Logout from "./components/verificacion/login/logout";
@@ -27,18 +30,16 @@ import Favoritesboy from "./components/client/favoritesclient.jsx"
 import RouteGuard from "./routes/blockchat";
 import VerificacionesAdmin from "./components/admin/adminverification";
 import Homecliente from "./components/client/homecliente";
-import UnifiedProtectedRoute from "./routes/UnifiedProtectedRoute.jsx";
 import { RateLimitProvider } from './contexts/RateLimitContext.jsx';
 import UserSearch from "./components/search.jsx";
 import VideoRecorderUpload from "./components/VideoRecorderUpload";
 
-import AxiosErrorHandler from "./components/AxiosErrorHandler";
 import { ToastContainer } from "react-toastify";
 
 import RateLimitWait from "./components/RateLimitWait";
 
 import { SearchingProvider } from './contexts/SearchingContext.jsx';
-import { GlobalTranslationProvider } from './contexts/GlobalTranslationContext.jsx'; // ✅ YA LO TIENES
+import { GlobalTranslationProvider } from './contexts/GlobalTranslationContext.jsx';
 
 function App() {
   useEffect(() => {
@@ -49,96 +50,78 @@ function App() {
     <BrowserRouter>
       <RateLimitProvider>
         <SearchingProvider>
-          {/* 🔥 AGREGAR ESTA LÍNEA - ENVOLVER TODO EN TRADUCCIÓN GLOBAL */}
           <GlobalTranslationProvider>
             
-            <AxiosErrorHandler />
             <ToastContainer />
               
             <Routes>
-              {/* 🔓 RUTAS PÚBLICAS - FUERA del RouteGuard y sin protección */}
+              {/* 🔓 RUTAS PÚBLICAS (fuera del RoleGuard) */}
               <Route path="/home" element={<LigandHome />} />
               <Route path="/login" element={<LoginLigand />} />
               <Route path="/logout" element={<Logout />} />
+              <Route path="/rate-limit-wait" element={<RateLimitWait />} />
 
-              {/* 🔥 NUEVA RUTA: Página de espera para Rate Limiting */}
-              <Route 
-                path="/rate-limit-wait" 
-                element={<RateLimitWait />} 
-              />
-
-              {/* 🔒 RUTAS PROTEGIDAS - DENTRO del RouteGuard */}
+              {/* 🔒 RUTAS PROTEGIDAS (dentro del RouteGuard Y ProtectedPage) */}
               <Route path="/*" element={
                 <RouteGuard>
-                  <Routes>
-                    {/* 🏠 Ruta de inicio - redirige al hub */}
-                    <Route 
-                      path="/" 
-                      element={
-                        <UnifiedProtectedRoute>
-                          <div className="min-h-screen flex items-center justify-center bg-black text-white">
-                            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500"></div>
-                          </div>
-                        </UnifiedProtectedRoute>
-                      } 
-                    />
+                    <Routes>
+                      
+                      {/* 🏠 RUTA RAÍZ */}
+                      <Route 
+                        path="/" 
+                        element={<Navigate to="/dashboard" replace />} 
+                      />
 
-                    {/* 🎯 HUB DE DECISIÓN - Donde llega el login */}
-                    <Route 
-                      path="/dashboard" 
-                      element={
-                        <UnifiedProtectedRoute>
+                      {/* 🎯 DASHBOARD - El RoleGuard se encargará de redirigir */}
+                      <Route 
+                        path="/dashboard" 
+                        element={
                           <div className="min-h-screen flex items-center justify-center bg-black text-white">
                             <div className="text-center">
                               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500 mx-auto mb-4"></div>
                               <p>Redirigiendo al área correspondiente...</p>
                             </div>
                           </div>
-                        </UnifiedProtectedRoute>
-                      } 
-                    />
+                        } 
+                      />
 
-                    {/* 📄 PÁGINAS ESPECÍFICAS - Sin rutas protegidas anidadas */}
-                    
-                    {/* Proceso de registro y verificación */}
-                    <Route path="/verificaremail" element={<VerificarCodigo />} />
-                    <Route path="/genero" element={<Genero />} />
-                    <Route path="/verificacion" element={<Verificacion />} />
-                    <Route path="/anteveri" element={<Anteveri />} />
-                    <Route path="/esperando" element={<Esperando />} />
+                      {/* 📧 PROCESO DE REGISTRO (públicas dentro del RouteGuard) */}
+                      <Route path="/verificaremail" element={<VerificarCodigo />} />
+                      <Route path="/genero" element={<Genero />} />
+                      <Route path="/verificacion" element={<Verificacion />} />
+                      <Route path="/anteveri" element={<Anteveri />} />
+                      <Route path="/esperando" element={<Esperando />} />
 
-                    {/* Área del cliente */}
-                    <Route path="/homecliente" element={<Homecliente />} />
-                    <Route path="/esperandocallcliente" element={<EsperandoCallCliente />} />
-                    <Route path="/videochatclient" element={<VideochatClient />} />
-                    <Route path="/message" element={<MessageClient />} />
-                    <Route path="/favoritesboy" element={<Favoritesboy />} />
+                      {/* 👨‍💼 ÁREA DEL CLIENTE - Solo clientes pueden acceder */}
+                      <Route path="/homecliente" element={<Homecliente />} />
+                      <Route path="/esperandocallcliente" element={<EsperandoCallCliente />} />
+                      <Route path="/videochatclient" element={<VideochatClient />} />
+                      <Route path="/message" element={<MessageClient />} />
+                      <Route path="/favoritesboy" element={<Favoritesboy />} />
 
+                      {/* 👩‍💼 ÁREA DE LA MODELO - Solo modelos pueden acceder */}
+                      <Route path="/homellamadas" element={<HomeLlamadas />} />
+                      <Route path="/mensajes" element={<Mensajes />} />
+                      <Route path="/favorites" element={<Favoritos />} />
+                      <Route path="/historysu" element={<HistorySub />} />
+                      <Route path="/esperandocall" element={<EsperancoCall />} />
+                      <Route path="/videochat" element={<Videochat />} />
+                      <Route path="/configuracion" element={<ConfiPerfil />} />
+                      <Route path="/VideoRecorderUpload" element={<VideoRecorderUpload />} />
+                      <Route path="/usersearch" element={<UserSearch />} />
 
-                    {/* Área de la modelo */}
-                    <Route path="/homellamadas" element={<HomeLlamadas />} />
-                    <Route path="/mensajes" element={<Mensajes />} />
-                    <Route path="/favorites" element={<Favoritos />} />
-                    <Route path="/historysu" element={<HistorySub />} />
-                    <Route path="/esperandocall" element={<EsperancoCall />} />
-                    <Route path="/videochat" element={<Videochat />} />
-                    <Route path="/configuracion" element={<ConfiPerfil />} />
-                    <Route path="/VideoRecorderUpload" element={<VideoRecorderUpload />} />
-                    <Route path="/usersearch" element={<UserSearch />} />
+                      {/* 🛡️ ADMIN - Solo admins pueden acceder */}
+                      <Route path="/verificacionesadmin" element={<VerificacionesAdmin />} />
 
-                    {/* Admin */}
-                    <Route path="/verificacionesadmin" element={<VerificacionesAdmin />} />
-
-                    {/* 🚫 Fallback */}
-                    <Route path="*" element={<Navigate to="/home" replace />} />
-                  </Routes>
+                      {/* 🚫 FALLBACK */}
+                      <Route path="*" element={<Navigate to="/home" replace />} />
+                      
+                    </Routes>
                 </RouteGuard>
               } />
             </Routes>
 
-          {/* 🔥 CERRAR EL GlobalTranslationProvider */}
           </GlobalTranslationProvider>
-          
         </SearchingProvider>
       </RateLimitProvider>
     </BrowserRouter>
