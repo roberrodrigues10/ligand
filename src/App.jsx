@@ -22,6 +22,7 @@ import Videochat from "./components/videochat";
 import VideochatClient from "./components/client/videochatclient";
 import ConfiPerfil from "./components/confiperfil";
 import MessageClient from "./components/client/message.jsx"
+import Favoritesboy from "./components/client/favoritesclient.jsx"
 
 import RouteGuard from "./routes/blockchat";
 import VerificacionesAdmin from "./components/admin/adminverification";
@@ -110,7 +111,9 @@ function App() {
                     <Route path="/homecliente" element={<Homecliente />} />
                     <Route path="/esperandocallcliente" element={<EsperandoCallCliente />} />
                     <Route path="/videochatclient" element={<VideochatClient />} />
-                    <Route path="/messageclient" element={<MessageClient />} />
+                    <Route path="/message" element={<MessageClient />} />
+                    <Route path="/favoritesboy" element={<Favoritesboy />} />
+
 
                     {/* Área de la modelo */}
                     <Route path="/homellamadas" element={<HomeLlamadas />} />

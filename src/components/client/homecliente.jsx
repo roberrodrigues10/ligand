@@ -6,6 +6,10 @@ import { ProtectedPage } from '../usePageAccess';
 import { getUser } from "../../utils/auth";
 import CallingSystem from '../../components/CallingOverlay';
 import IncomingCallOverlay from '../../components/IncomingCallOverlay';
+import { useState, useEffect } from "react";
+import StripeBuyMinutes from "../StripeBuyCoins";
+import MinutesBalanceWidget from '../CoinsBalanceWidget';
+
 
 export default function InterfazCliente() {
   const navigate = useNavigate();
@@ -17,6 +21,15 @@ export default function InterfazCliente() {
   const [chicasActivas, setChicasActivas] = React.useState([]);
   const [loadingUsers, setLoadingUsers] = React.useState(true);
   const [initialLoad, setInitialLoad] = React.useState(true);
+  const [showBuyMinutes, setShowBuyMinutes] = useState(false);
+  const abrirModalCompraMinutos = () => {
+  setShowBuyMinutes(true);
+  };
+  const cerrarModalCompraMinutos = () => {
+    setShowBuyMinutes(false);
+  };
+
+
   
   // 🔥 ESTADOS DE LLAMADAS
   const [isCallActive, setIsCallActive] = React.useState(false);
@@ -25,6 +38,17 @@ export default function InterfazCliente() {
   const [incomingCall, setIncomingCall] = React.useState(null);
   const [callPollingInterval, setCallPollingInterval] = React.useState(null);
   const [incomingCallPollingInterval, setIncomingCallPollingInterval] = React.useState(null);
+    // 🔥 ESTADOS PARA MODAL DE CONFIRMACIÓN
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  // 🔥 ESTADOS PARA AUDIO DE LLAMADAS
+  const [incomingCallAudio, setIncomingCallAudio] = useState(null);
+  const audioRef = React.useRef(null);
+
+  // 🔥 ESTADO PARA USUARIOS BLOQUEADOS
+  const [usuariosBloqueados, setUsuariosBloqueados] = useState([]);
+  const [loadingBloqueados, setLoadingBloqueados] = useState(false);
 
   const historial = [
     { nombre: "SofiSweet", accion: "Llamada finalizada", hora: "Hoy, 11:12 AM" },
@@ -176,7 +200,7 @@ export default function InterfazCliente() {
   const abrirChatConChica = (chica) => {
     console.log('📩 Abriendo chat con chica:', chica.name);
     
-    navigate('/mensajes', {
+    navigate('/messageclient', {
       state: {
         openChatWith: {
           userId: chica.id,
@@ -192,7 +216,49 @@ export default function InterfazCliente() {
     try {
       console.log('📞 Iniciando llamada a chica:', chica.name);
       
-      // Mostrar overlay de llamando
+      // 🔥 VARIABLES CORRECTAS PARA LA VALIDACIÓN
+      const otherUserId = chica.id;
+      const otherUserName = chica.name || chica.alias;
+      
+      // 🚫 VERIFICAR SI YO LA BLOQUEÉ
+      const yoLaBloquee = usuariosBloqueados.some((user) => user.id === otherUserId);
+      if (yoLaBloquee) {
+        setConfirmAction({
+          type: 'blocked',
+          title: 'No disponible',
+          message: `Has bloqueado a ${otherUserName}. Debes desbloquearla para poder llamarla.`,
+          confirmText: 'Entendido',
+          action: () => setShowConfirmModal(false)
+        });
+        setShowConfirmModal(true);
+        return;
+      }
+
+      // 🚫 VERIFICAR SI ELLA ME BLOQUEÓ
+      const blockCheckResponse = await fetch(`${API_BASE_URL}/api/check-if-blocked-by`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          user_id: otherUserId
+        })
+      });
+
+      if (blockCheckResponse.ok) {
+        const blockData = await blockCheckResponse.json();
+        if (blockData.success && blockData.is_blocked_by_them) {
+          setConfirmAction({
+            type: 'blocked',
+            title: 'No disponible',
+            message: `${otherUserName} te ha bloqueado. No puedes realizar llamadas a esta chica.`,
+            confirmText: 'Entendido',
+            action: () => setShowConfirmModal(false)
+          });
+          setShowConfirmModal(true);
+          return;
+        }
+      }
+
+      // ✅ SIN BLOQUEOS - PROCEDER CON LA LLAMADA (resto del código original)
       setCurrentCall({
         ...chica,
         status: 'initiating'
@@ -216,30 +282,101 @@ export default function InterfazCliente() {
       
       if (data.success) {
         console.log('✅ Llamada iniciada a chica:', data);
-        
-        // Actualizar estado con datos de la llamada
         setCurrentCall({
           ...chica,
           callId: data.call_id,
           roomName: data.room_name,
           status: 'calling'
         });
-        
-        // Iniciar polling para verificar respuesta
         iniciarPollingLlamada(data.call_id);
-        
       } else {
         console.error('❌ Error iniciando llamada a chica:', data.error);
         setIsCallActive(false);
         setCurrentCall(null);
-        alert(data.error);
+        
+        // Mostrar error específico
+        setConfirmAction({
+          type: 'error',
+          title: 'Error de llamada',
+          message: data.error || 'No se pudo completar la llamada',
+          confirmText: 'Entendido',
+          action: () => setShowConfirmModal(false)
+        });
+        setShowConfirmModal(true);
       }
-      
     } catch (error) {
       console.error('❌ Error:', error);
       setIsCallActive(false);
       setCurrentCall(null);
       alert('Error al iniciar llamada');
+    }
+  };
+    // 🔥 CARGAR USUARIOS BLOQUEADOS
+  const cargarUsuariosBloqueados = async () => {
+    try {
+      setLoadingBloqueados(true);
+      console.log('🚫 Cargando usuarios bloqueados...');
+
+      const response = await fetch(`${API_BASE_URL}/api/blocks/list`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setUsuariosBloqueados(data.blocked_users || []);
+          console.log('✅ Usuarios bloqueados cargados:', data.blocked_users.length);
+        }
+      } else {
+        console.error('❌ Error HTTP cargando bloqueados:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Error cargando usuarios bloqueados:', error);
+    } finally {
+      setLoadingBloqueados(false);
+    }
+  };
+
+  // 🔥 FUNCIONES DE AUDIO
+  const playIncomingCallSound = async () => {
+    try {
+      console.log('🔊 INTENTANDO reproducir sonido...');
+      
+      if (audioRef.current) {
+        console.log('⚠️ Ya hay audio reproduciéndose');
+        return;
+      }
+      
+      const audio = new Audio('/sounds/incoming-call.mp3');
+      console.log('📁 Audio creado, archivo:', audio.src);
+      
+      audio.loop = true;
+      audio.volume = 0.8;
+      audio.preload = 'auto';
+      
+      audioRef.current = audio;
+      
+      try {
+        await audio.play();
+        console.log('🎵 AUDIO REPRODUCIÉNDOSE CORRECTAMENTE');
+      } catch (playError) {
+        console.error('❌ Error al reproducir:', playError);
+        if (playError.name === 'NotAllowedError') {
+          console.log('🚫 AUTOPLAY BLOQUEADO - Necesita interacción del usuario');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error general creando audio:', error);
+    }
+  };
+
+  const stopIncomingCallSound = () => {
+    if (audioRef.current) {
+      console.log('🔇 Deteniendo sonido de llamada');
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
     }
   };
 
@@ -348,87 +485,92 @@ export default function InterfazCliente() {
 
   // 🔥 NUEVA FUNCIÓN: POLLING PARA LLAMADAS ENTRANTES
   const verificarLlamadasEntrantes = async () => {
-    try {
-      const token = sessionStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data.has_incoming && data.incoming_call) {
-          console.log('📞 Llamada entrante de chica detectada:', data.incoming_call);
-          
-          // Solo mostrar si no hay ya una llamada visible
-          if (!isReceivingCall && !isCallActive) {
-            setIncomingCall(data.incoming_call);
-            setIsReceivingCall(true);
-          }
-        } else if (isReceivingCall && !data.has_incoming) {
-          // La llamada ya no está disponible
-          console.log('📞 Llamada entrante ya no disponible');
-          setIsReceivingCall(false);
-          setIncomingCall(null);
-        }
+  try {
+    const token = sessionStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
       }
-    } catch (error) {
-      console.log('⚠️ Error verificando llamadas entrantes:', error);
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.has_incoming && data.incoming_call) {
+        console.log('📞 Llamada entrante de chica detectada:', data.incoming_call);
+        
+        const isMyOutgoingCall = currentCall && 
+                                currentCall.callId === data.incoming_call.id;
+        
+        if (isMyOutgoingCall) {
+          console.log('⚠️ Ignorando llamada entrante - es mi propia llamada saliente');
+          return;
+        }
+        
+        if (!isReceivingCall && !isCallActive) {
+          console.log('🔊 Reproduciendo sonido de llamada entrante');
+          playIncomingCallSound();
+          setIncomingCall(data.incoming_call);
+          setIsReceivingCall(true);
+        }
+      } else if (isReceivingCall && !data.has_incoming) {
+        console.log('📞 Llamada entrante ya no disponible');
+        stopIncomingCallSound();
+        setIsReceivingCall(false);
+        setIncomingCall(null);
+      }
     }
+  } catch (error) {
+    console.log('⚠️ Error verificando llamadas entrantes:', error);
+  }
   };
 
   // 🔥 NUEVA FUNCIÓN: RESPONDER LLAMADA ENTRANTE
   const responderLlamada = async (accion) => {
-    if (!incomingCall) return;
+  if (!incomingCall) return;
+  
+  try {
+    console.log(`📱 Respondiendo llamada de chica: ${accion}`);
     
-    try {
-      console.log(`📱 Respondiendo llamada de chica: ${accion}`);
-      
-      const token = sessionStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          call_id: incomingCall.id,
-          action: accion // 'accept' o 'reject'
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        if (accion === 'accept') {
-          console.log('✅ Llamada de chica aceptada:', data);
-          
-          // Ocultar overlay de llamada entrante
-          setIsReceivingCall(false);
-          setIncomingCall(null);
-          
-          // Redirigir al videochat
-          redirigirAVideochat(data);
-          
-        } else {
-          console.log('❌ Llamada de chica rechazada');
-          setIsReceivingCall(false);
-          setIncomingCall(null);
-        }
+    stopIncomingCallSound(); // 🔥 AGREGAR ESTA LÍNEA
+    
+    const token = sessionStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        call_id: incomingCall.id,
+        action: accion
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok && data.success) {
+      if (accion === 'accept') {
+        console.log('✅ Llamada de chica aceptada:', data);
+        setIsReceivingCall(false);
+        setIncomingCall(null);
+        redirigirAVideochat(data);
       } else {
-        console.error('❌ Error respondiendo llamada:', data.error);
+        console.log('❌ Llamada de chica rechazada');
         setIsReceivingCall(false);
         setIncomingCall(null);
       }
-      
-    } catch (error) {
-      console.error('❌ Error:', error);
+    } else {
+      console.error('❌ Error respondiendo llamada:', data.error);
       setIsReceivingCall(false);
       setIncomingCall(null);
     }
+  } catch (error) {
+    console.error('❌ Error:', error);
+    setIsReceivingCall(false);
+    setIncomingCall(null);
+  }
   };
 
   // 🔥 NUEVA FUNCIÓN: REDIRIGIR AL VIDEOCHAT CLIENTE
@@ -521,6 +663,52 @@ export default function InterfazCliente() {
       }
     };
   }, []);
+  // 🔥 CARGAR USUARIOS BLOQUEADOS
+React.useEffect(() => {
+  if (!user?.id) return;
+  cargarUsuariosBloqueados();
+}, [user?.id]);
+
+// 🔥 CONFIGURAR SISTEMA DE AUDIO
+React.useEffect(() => {
+  console.log('🎵 Configurando sistema de audio...');
+  
+  const enableAudioContext = async () => {
+    console.log('👆 Primera interacción detectada - habilitando audio');
+    try {
+      const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAAABAABABkAAgAAACAJAAEAAABkYXRhBAAAAAEA');
+      silentAudio.volume = 0.01;
+      await silentAudio.play();
+      console.log('🔓 Sistema de audio desbloqueado');
+    } catch (e) {
+      console.log('⚠️ No se pudo desbloquear audio:', e);
+    }
+    
+    document.removeEventListener('click', enableAudioContext);
+    document.removeEventListener('touchstart', enableAudioContext);
+  };
+  
+  document.addEventListener('click', enableAudioContext, { once: true });
+  document.addEventListener('touchstart', enableAudioContext, { once: true });
+  
+  return () => {
+    document.removeEventListener('click', enableAudioContext);
+    document.removeEventListener('touchstart', enableAudioContext);
+  };
+}, []);
+
+// 🔥 CLEANUP MEJORADO
+  React.useEffect(() => {
+    return () => {
+      stopIncomingCallSound(); // 🔥 AGREGAR ESTA LÍNEA
+      if (callPollingInterval) {
+        clearInterval(callPollingInterval);
+      }
+      if (incomingCallPollingInterval) {
+        clearInterval(incomingCallPollingInterval);  
+      }
+    };
+  }, []);
 
   return (
     <ProtectedPage requiredConditions={{
@@ -554,7 +742,7 @@ export default function InterfazCliente() {
 
               <button
                 className="w-full bg-[#ffe4f1] hover:bg-[#ffd1e8] text-[#4b2e35] px-8 py-4 rounded-full text-lg font-semibold shadow-md transition-all duration-200 transform hover:scale-105"
-                onClick={() => navigate("/comprar-minutos")}
+                onClick={setShowBuyMinutes}
               >
                 Comprar Minutos
               </button>
@@ -729,7 +917,40 @@ export default function InterfazCliente() {
             animation: fadeIn 0.3s ease-out forwards;
           }
         `}</style>
+        {/* 🔥 MODAL DE CONFIRMACIÓN */}
+        {showConfirmModal && confirmAction && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-[#2b2d31] rounded-xl p-6 max-w-sm mx-4 shadow-xl border border-[#ff007a]/20">
+              <h3 className="text-lg font-bold text-white mb-3">
+                {confirmAction.title}
+              </h3>
+              <p className="text-white/70 mb-6">
+                {confirmAction.message}
+              </p>
+              <button
+                onClick={confirmAction.action}
+                className="w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                {confirmAction.confirmText}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+      {showBuyMinutes && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+          <div className="bg-[#1a1c20] rounded-xl p-1  w-[80vw] shadow-xl border border-[#ff007a]/40 relative">
+            <StripeBuyMinutes onClose={cerrarModalCompraMinutos} />
+            <button 
+              onClick={cerrarModalCompraMinutos}
+              className="absolute top-2 right-2 text-white hover:text-[#ff007a]"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
 
       {/* 🔥 OVERLAY PARA LLAMADAS SALIENTES */}
       <CallingSystem
@@ -747,6 +968,12 @@ export default function InterfazCliente() {
         onAnswer={() => responderLlamada('accept')}
         onDecline={() => responderLlamada('reject')}
       />
+      <MinutesBalanceWidget
+        onBuyClick={abrirModalCompraMinutos}
+        showFullStats={true}
+        showHistory={true}
+      />
+
     </ProtectedPage>
   );
 }

@@ -52,10 +52,7 @@
       TranslatedMessage 
     } from '../utils/translationSystem.jsx';
     import CameraAudioSettings from '../utils/cameraaudiosettings.jsx';
-
-
-
-    // 🔥 IMPORT DEL CONTEXTO DE BÚSQUEDA
+    import ClientRemainingMinutes  from './ClientRemainingMinutes.jsx';
     import { useSearching } from '../contexts/SearchingContext.jsx';
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -355,6 +352,7 @@
       const navigate = useNavigate();
       const [searchParams] = useSearchParams();
       const { t } = useTranslation();
+      
 
       // 🔥 HOOK DE SEARCHING CONTEXT
       const { startSearching, stopSearching, forceStopSearching } = useSearching();
@@ -395,6 +393,7 @@
       const [disconnectionReason, setDisconnectionReason] = useState('');
       const [disconnectionType, setDisconnectionType] = useState(''); // 'stop', 'next', 'left'
       const [redirectCountdown, setRedirectCountdown] = useState(0);
+      const [showClientBalance, setShowClientBalance] = useState(true);
 
 
 
@@ -416,6 +415,10 @@
       // Estados para UI
       const [camaraPrincipal, setCamaraPrincipal] = useState("remote");
       const [tiempo, setTiempo] = useState(0);
+      const [tiempoReal, setTiempoReal] = useState(0); // ✅ Inicializar siempre en 0
+      const tiempoInicioRef = useRef(null);
+      const tiempoGuardadoRef = useRef(0);     
+      const tiempoIntervalRef = useRef(null);
       const [mensaje, setMensaje] = useState("");
       const [mostrarRegalos, setMostrarRegalos] = useState(false);
       const [showSidePanel, setShowSidePanel] = useState(false);
@@ -633,12 +636,146 @@
       };
 
       // Funciones de UI
+      // 🔥 REEMPLAZAR ESTA FUNCIÓN
       const formatoTiempo = () => {
-        const minutos = Math.floor(tiempo / 60).toString().padStart(2, "0");
-        const segundos = (tiempo % 60).toString().padStart(2, "0");
+        const minutos = Math.floor(tiempoReal / 60).toString().padStart(2, "0");
+        const segundos = (tiempoReal % 60).toString().padStart(2, "0");
         return `${minutos}:${segundos}`;
       };
+      const iniciarTiempoReal = () => {
+        console.log('⏱️ Iniciando contador de tiempo real');
 
+        // Limpiar cualquier contador anterior
+        if (tiempoIntervalRef.current) {
+          clearInterval(tiempoIntervalRef.current);
+          tiempoIntervalRef.current = null;
+        }
+
+        // Establecer tiempo de inicio
+        tiempoInicioRef.current = Date.now();
+        setTiempoReal(0); // Empezar siempre en 0
+
+        console.log('⏱️ Contador iniciado desde 0');
+        
+        // Iniciar contador limpio
+        tiempoIntervalRef.current = setInterval(() => {
+          const tiempoTranscurrido = Math.floor((Date.now() - tiempoInicioRef.current) / 1000);
+          setTiempoReal(tiempoTranscurrido);
+        }, 1000);
+      };
+
+        const detenerTiempoReal = () => {
+          if (tiempoIntervalRef.current) {
+            clearInterval(tiempoIntervalRef.current);
+            tiempoIntervalRef.current = null;
+            
+            // Calcular tiempo final exacto
+            const tiempoFinal = tiempoInicioRef.current ? 
+              Math.floor((Date.now() - tiempoInicioRef.current) / 1000) : tiempoReal;
+            
+            // 🔥 VALIDACIÓN ADICIONAL
+            if (tiempoFinal <= 0) {
+              console.warn('⚠️ Tiempo final <= 0, usando tiempo actual:', tiempoReal);
+              const tiempoSeguro = Math.max(tiempoReal, 30); // Mínimo 30 segundos
+              console.log(`⏹️ Tiempo final seguro: ${tiempoSeguro}s`);
+              setTiempoReal(tiempoSeguro);
+              return tiempoSeguro;
+            }
+            
+            console.log(`⏹️ Tiempo final: ${tiempoFinal}s (${Math.floor(tiempoFinal/60)}:${(tiempoFinal%60).toString().padStart(2, '0')})`);
+            
+            setTiempoReal(tiempoFinal);
+            return tiempoFinal;
+          }
+          
+          // Si no hay interval, usar tiempo actual
+          const tiempoActual = Math.max(tiempoReal, 30);
+          console.log(`⏹️ Sin interval activo, usando tiempo actual: ${tiempoActual}s`);
+          return tiempoActual;
+        };
+      const enviarTiempoReal = async (sessionId, tiempoEspecifico = null) => {
+        // Obtener tiempo exacto
+        let tiempoAEnviar;
+        
+        if (tiempoEspecifico !== null) {
+          tiempoAEnviar = tiempoEspecifico;
+        } else if (tiempoInicioRef.current) {
+          tiempoAEnviar = Math.floor((Date.now() - tiempoInicioRef.current) / 1000);
+        } else {
+          tiempoAEnviar = tiempoReal;
+        }
+        
+        // 🔥 VALIDACIÓN MEJORADA
+        if (!sessionId || sessionId === 'null' || sessionId === 'undefined') {
+          console.error('❌ SessionId inválido:', sessionId);
+          return;
+        }
+        
+        if (tiempoAEnviar <= 0) {
+          console.error('❌ Tiempo inválido:', tiempoAEnviar);
+          return;
+        }
+
+        console.log('🚀 ENVIANDO TIEMPO DETALLADO:', {
+          sessionId,
+          segundos: tiempoAEnviar,
+          formateado: `${Math.floor(tiempoAEnviar/60)}:${(tiempoAEnviar%60).toString().padStart(2, '0')}`,
+          minutos: (tiempoAEnviar / 60).toFixed(2),
+          origen: tiempoEspecifico !== null ? 'especifico' : tiempoInicioRef.current ? 'calculado' : 'actual'
+        });
+
+        try {
+          const token = sessionStorage.getItem('token');
+          if (!token) {
+            console.error('❌ No hay token de autenticación');
+            return;
+          }
+
+          // 🔥 CONFIGURACIÓN PARA PRUEBAS
+          const TEST_MODE = false; // ⚠️ CAMBIAR A false PARA USAR TIEMPO REAL
+          const TEST_DURATION = 3600; // 1 hora = 3600 segundos para pruebas
+          
+          const requestBody = {
+            session_id: sessionId,
+            duration_seconds: TEST_MODE ? TEST_DURATION : tiempoAEnviar
+          };
+
+          console.log(`📤 MODO: ${TEST_MODE ? 'PRUEBA (1 hora fija)' : 'PRODUCCIÓN (tiempo real)'}`);
+          console.log('📋 Datos enviados:', requestBody);
+
+          const response = await fetch(`${API_BASE_URL}/api/earnings/update-duration`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+          });
+
+          console.log('📡 Response status:', response.status);
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Error HTTP:', response.status, errorText);
+            return;
+          }
+
+          const data = await response.json();
+          console.log('📥 Response data:', data);
+
+          if (data.success) {
+            const timeUsed = TEST_MODE ? TEST_DURATION : tiempoAEnviar;
+            console.log(`✅ Tiempo enviado exitosamente: ${Math.floor(timeUsed/60)}:${(timeUsed%60).toString().padStart(2, '0')}`);
+            console.log('💰 Ganancias calculadas:', data.model_earnings || 'N/A');
+            console.log(`🔧 Duración: ${data.duration_formatted || 'N/A'}`);
+            console.log(`⭐ Califica: ${data.qualifying ? 'SÍ' : 'NO'}`);
+          } else {
+            console.error('❌ Error del servidor:', data.error);
+          }
+        } catch (error) {
+          console.error('❌ Error enviando tiempo:', error);
+        }
+      };
       const cambiarCamara = () => {
         setCamaraPrincipal(prev => prev === "remote" ? "local" : "remote");
       };
@@ -712,11 +849,13 @@
       const handleRoomConnected = () => {
         console.log("🟢 MODELO - Conectada a LiveKit!");
         setConnected(true);
+        iniciarTiempoReal();
       };
       
       const handleRoomDisconnected = () => {
         console.log("🔴 MODELO - Desconectada de LiveKit");
         setConnected(false);
+        detenerTiempoReal();
       };
 
       const enviarMensaje = async () => {
@@ -989,69 +1128,130 @@
 
       // 🔥 FUNCIÓN SIGUIENTE PERSONA - NAVEGACIÓN INSTANTÁNEA
     const siguientePersona = async () => {
-    console.log('🔄 [MODELO] Siguiente persona - NAVEGACIÓN INMEDIATA');
+    console.log('🔄 Siguiente persona iniciado');
     
-    // 🚀 NO ESPERAR NADA - NAVEGAR INMEDIATAMENTE
-    clearUserCache();
-    startSearching();
-    
-    // 🔥 NOTIFICACIÓN ASYNC - NO BLOCKING
-    if (otherUser?.id && roomName) {
-      fetch(`${API_BASE_URL}/api/livekit/notify-partner-next`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ roomName })
-      }).catch(() => {}); // Ignorar errores
+    const tiempoFinalSesion = detenerTiempoReal();
+
+    // 🔥 CORRECCIÓN: Enviar con roomName como sessionId
+    if (roomName && tiempoFinalSesion > 0) {
+      console.log('📤 Enviando tiempo final siguiente:', {
+        sessionId: roomName,
+        tiempoSegundos: tiempoFinalSesion
+      });
+      
+      try {
+        await enviarTiempoReal(roomName, tiempoFinalSesion);
+        console.log('✅ Tiempo enviado exitosamente al siguiente');
+      } catch (error) {
+        console.error('❌ Error enviando tiempo al siguiente:', error);
+      }
+    } else {
+      console.warn('⚠️ No se envió tiempo - datos faltantes:', {
+        roomName,
+        tiempoFinalSesion
+      });
     }
     
-    // 🚀 NAVEGACIÓN INSTANTÁNEA
-    const urlParams = new URLSearchParams({
-      role: 'modelo',
-      action: 'siguiente',
-      from: 'videochat_siguiente',
-      excludeUser: otherUser?.id || '',
-      excludeUserName: otherUser?.name || '',
-      selectedCamera: selectedCamera || '',
-      selectedMic: selectedMic || ''
-    });
-    
-    navigate(`/usersearch?${urlParams}`, { replace: true });
+    // Limpiar referencias
+    tiempoInicioRef.current = null;
+    setTiempoReal(0);
+    clearUserCache();
+    startSearching();
+        
+      if (otherUser?.id && roomName) {
+        fetch(`${API_BASE_URL}/api/livekit/notify-partner-next`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ roomName })
+        }).catch(() => {});
+      }
+      
+      const urlParams = new URLSearchParams({
+        role: 'modelo',
+        action: 'siguiente',
+        from: 'videochat_siguiente',
+        excludeUser: otherUser?.id || '',
+        excludeUserName: otherUser?.name || '',
+        selectedCamera: selectedCamera || '',
+        selectedMic: selectedMic || ''
+      });
+      
+      navigate(`/usersearch?${urlParams}`, { replace: true });
     };
-
     const finalizarChat = useCallback(async () => {
     console.log('🛑 [MODELO] Stop presionado - NAVEGACIÓN INMEDIATA');
     
-    if (isProcessingLeave) return; // Prevenir doble ejecución
-    setIsProcessingLeave(true);
+    // Detener contador y obtener tiempo final
+    const tiempoFinalSesion = detenerTiempoReal();
     
-    // 🔥 NOTIFICACIÓN ASYNC - NO BLOCKING
-    if (otherUser?.id && roomName) {
-      fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ roomName })
-      }).catch(() => {}); // Ignorar errores
+    // 🔥 CORRECCIÓN: Enviar tiempo con mejor logging
+    if (roomName && tiempoFinalSesion > 0) {
+      console.log('📤 Enviando tiempo final stop:', {
+        sessionId: roomName,
+        tiempoSegundos: tiempoFinalSesion,
+        tiempoFormateado: `${Math.floor(tiempoFinalSesion/60)}:${(tiempoFinalSesion%60).toString().padStart(2, '0')}`
+      });
+      
+      try {
+        await enviarTiempoReal(roomName, tiempoFinalSesion);
+        console.log('✅ Tiempo enviado exitosamente al finalizar');
+      } catch (error) {
+        console.error('❌ Error enviando tiempo al finalizar:', error);
+      }
+    } else {
+      console.warn('⚠️ No se envió tiempo al finalizar - datos faltantes:', {
+        roomName,
+        tiempoFinalSesion
+      });
     }
     
-    // 🚀 LIMPIAR Y NAVEGAR INMEDIATAMENTE
-    setModeloStoppedWorking(true);
-    setReceivedNotification(true);
-    clearUserCache();
-    
-    sessionStorage.removeItem('roomName');
-    sessionStorage.removeItem('userName');
-    sessionStorage.removeItem('currentRoom');
-    sessionStorage.removeItem('inCall');
-    
-    // 🚀 NAVEGACIÓN INSTANTÁNEA - SIN DELAYS
-    navigate('/homellamadas', { replace: true });
+    // Limpiar referencias
+    tiempoInicioRef.current = null;
+    setTiempoReal(0);
+
+  
+      
+      setTimeout(() => {
+        console.log('💰 Ganancias procesadas');
+      }, 2000);
+      
+      // Resto del código igual...
+      if (otherUser?.id && roomName) {
+        fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ roomName })
+        }).catch(() => {});
+      }
+      
+      setModeloStoppedWorking(true);
+      setReceivedNotification(true);
+      clearUserCache();
+      
+      sessionStorage.removeItem('roomName');
+      sessionStorage.removeItem('userName');
+      sessionStorage.removeItem('currentRoom');
+      sessionStorage.removeItem('inCall');
+      
+      navigate('/homellamadas', { replace: true });
     }, [roomName, userName, otherUser, navigate, isProcessingLeave]);
+
+    useEffect(() => {
+      return () => {
+        // Limpieza al desmontar componente
+        if (tiempoIntervalRef.current) {
+          clearInterval(tiempoIntervalRef.current);
+          tiempoIntervalRef.current = null;
+        }
+        tiempoInicioRef.current = null;
+      };
+    }, []);
 
     // 🔥 FUNCIÓN sendHeartbeat CORREGIDA - VIDEOCHAT.JSX (MODELO)
     const sendHeartbeat = async (activityType = 'videochat') => {
@@ -1682,9 +1882,18 @@
 
       // Timer
       useEffect(() => {
+        // Mantener el timer legacy para compatibilidad
         const intervalo = setInterval(() => setTiempo((prev) => prev + 1), 1000);
-        return () => clearInterval(intervalo);
+        
+        return () => {
+          clearInterval(intervalo);
+          // 🔥 LIMPIAR TIEMPO REAL AL DESMONTAR
+          if (tiempoIntervalRef.current) {
+            clearInterval(tiempoIntervalRef.current);
+          }
+        };
       }, []);
+      
       useEffect(() => {
         if (otherUser?.id) {
           checkIfFavorite(otherUser.id);
@@ -1922,19 +2131,32 @@
               </div>
             </div>
 
-            {/* DESKTOP - Header con información de la llamada */}
-            <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs sm:text-sm text-white/70 mt-4 mb-2 font-mono gap-2">
+          {/* DESKTOP - Header con información de la llamada */}
+          <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs sm:text-sm text-white/70 mt-4 mb-2 font-mono gap-2">
+            <div className="flex items-center gap-4">
+              {/* Tiempo de la llamada */}
               <div className="flex items-center gap-2">
                 <Clock size={14} className="text-[#ff007a]" />
-                  <span>{t('time.callDuration')}: </span>
+                <span>{t('time.callDuration')}: </span>
                 <span className="text-[#ff007a] font-bold">{formatoTiempo()}</span>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {connected && (
-                  <span className="text-green-400 text-xs">🟢 {t('status.online')}</span>
-                )}
-              </div>
+              
+              {/* 🔥 MINUTOS RESTANTES DEL CLIENTE - AL LADO DEL TIEMPO */}
+              {otherUser && (
+                <ClientRemainingMinutes 
+                  roomName={roomName}
+                  clientUserId={otherUser.id}
+                  connected={connected}
+                />
+              )}
             </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              {connected && (
+                <span className="text-green-400 text-xs">🟢 {t('status.online')}</span>
+              )}
+            </div>
+          </div>
 
             {/* DESKTOP - Layout principal */}
             <div className="hidden lg:flex flex-col lg:flex-row gap-4 lg:gap-6">

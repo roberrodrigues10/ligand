@@ -26,7 +26,9 @@ let hasLoggedOut = false;
 instance.interceptors.response.use(
   (response) => response,
   (error) => {
-
+    // 🔥 AQUÍ ESTABA EL ERROR: config no estaba definido
+    // Necesitas obtenerlo desde error.config
+    const config = error.config || {};
 
     // Saltar si está marcado para omitir
     if (config.skipInterceptor) {
@@ -68,17 +70,18 @@ instance.interceptors.response.use(
         isRefreshing = false;
       }, 1000);
     }
-    const customEvent = new CustomEvent("axiosError", {
-  detail: {
-    status,
-    mensaje,
-    codigo,
-    url: config.url,
-    method: config.method,
-  },
-});
-window.dispatchEvent(customEvent);
 
+    // 🔥 Aquí también usar error.config en lugar de config
+    const customEvent = new CustomEvent("axiosError", {
+      detail: {
+        status,
+        mensaje,
+        codigo,
+        url: error.config?.url,
+        method: error.config?.method,
+      },
+    });
+    window.dispatchEvent(customEvent);
 
     return Promise.reject(error);
   }

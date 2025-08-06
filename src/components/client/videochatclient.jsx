@@ -298,6 +298,8 @@
     const [isAddingFavorite, setIsAddingFavorite] = useState(false);
     const [isFavorite, setIsFavorite] = useState(false);
     const [showCameraAudioModal, setShowCameraAudioModal] = useState(false);
+    const [isMonitoringBalance, setIsMonitoringBalance] = useState(false);
+
     
     // Estados para controles
     const [micEnabled, setMicEnabled] = useState(true);
@@ -607,79 +609,376 @@
       
       startRedirectCountdown();
     };
-    // 🔥 FUNCIÓN FINALIZAR CHAT CORREGIDA  
-    const finalizarChat = useCallback(async () => {
-      console.log('🛑 [CLIENTE] Stop presionado...');
+    
+
+
+    const finalizarChat = useCallback(async (forceEnd = false) => {
+      console.log('🛑 [CLIENTE] finalizarChat iniciado...', { 
+        forceEnd,
+        roomName,
+        otherUserId: otherUser?.id,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Prevenir ejecuciones múltiples
+      if (window.finalizandoChat) {
+        console.log('⚠️ [CLIENTE] finalizarChat ya en proceso - ignorando');
+        return;
+      }
+      
+      window.finalizandoChat = true;
       
       try {
-        const authToken = sessionStorage.getItem('token'); // ✅ OBTENER TOKEN AQUÍ
-        
-        if (otherUser?.id && roomName && authToken) {
-          fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({ roomName })
-          }).catch(() => {});
-        }
-        
-        sessionStorage.removeItem('roomName');
-        sessionStorage.removeItem('userName');
-        sessionStorage.removeItem('currentRoom');
-        sessionStorage.removeItem('inCall');
-        sessionStorage.removeItem('callToken');
-        sessionStorage.removeItem('videochatActive');
-        
-        clearUserCache();
-        
-        if (authToken) {
-          fetch(`${API_BASE_URL}/api/heartbeat`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({
-              activity_type: 'browsing',
-              room: null
-            })
-          }).catch(() => {});
-        }
-        
-        navigate('/homecliente', { replace: true });
-        
-      } catch (error) {
-        console.error('❌ [CLIENTE] Error finalizando chat:', error);
-        sessionStorage.removeItem('roomName');
-        sessionStorage.removeItem('userName');
-        clearUserCache();
-        navigate('/homecliente', { replace: true });
-      }
-    }, [roomName, userName, otherUser, navigate]);
-    const sendHeartbeat = async (activityType = 'videochat') => {
-      try {
         const authToken = sessionStorage.getItem('token');
-        if (!authToken) return;
+        
+        if (!authToken) {
+          console.warn('⚠️ [CLIENTE] No hay token de auth');
+          throw new Error('No auth token');
+        }
 
-        // 🔥 FIRE-AND-FORGET - Sin await, sin manejo de errores
-        fetch(`${API_BASE_URL}/api/heartbeat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            activity_type: activityType,
-            room: activityType === 'browsing' ? null : roomName
-          })
-        }).catch(() => {}); // 🔥 Ignorar errores completamente
-
+        // Mostrar mensaje si es automático
+        if (forceEnd) {
+          console.log('🚨 [CLIENTE] FINALIZACIÓN AUTOMÁTICA - SALDO AGOTADO');
+          
+          setMessages(prev => [{
+            id: Date.now(),
+            type: 'system', 
+            text: '⚠️ Sesión finalizando automáticamente - saldo insuficiente',
+            timestamp: Date.now(),
+            isOld: false
+          }, ...prev]);
+        }
+        
+        // 1. Finalizar sesión de monedas
+        if (roomName && authToken) {
+          try {
+            console.log('💰 [CLIENTE] Finalizando sesión de monedas...');
+            
+            const endResponse = await Promise.race([
+              fetch(`${API_BASE_URL}/api/livekit/end-coin-session`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${authToken}`,
+                },
+                body: JSON.stringify({ 
+                  roomName,
+                  reason: forceEnd ? 'balance_exhausted' : 'user_ended'
+                })
+              }),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]);
+            
+            if (endResponse.ok) {
+              console.log('✅ [CLIENTE] Sesión finalizada');
+            } else {
+              console.warn('⚠️ [CLIENTE] Error:', endResponse.status);
+            }
+            
+          } catch (error) {
+            console.warn('⚠️ [CLIENTE] Error finalizando sesión:', error.message);
+          }
+        }
+        
+        // 2. Notificar al partner
+        if (otherUser?.id && roomName && authToken) {
+          try {
+            console.log('📡 [CLIENTE] Notificando partner...');
+            
+            const notifyResponse = await Promise.race([
+              fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${authToken}`,
+                },
+                body: JSON.stringify({ 
+                  roomName,
+                  reason: forceEnd ? 'client_balance_exhausted' : 'client_ended_session'
+                })
+              }),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]);
+            
+            if (notifyResponse.ok) {
+              console.log('✅ [CLIENTE] Partner notificado');
+            }
+            
+          } catch (error) {
+            console.warn('⚠️ [CLIENTE] Error notificando:', error.message);
+          }
+        }
+        
+        // 3. Limpiar datos
+        console.log('🧹 [CLIENTE] Limpiando datos...');
+        
+        const itemsToRemove = [
+          'roomName', 'userName', 'currentRoom', 
+          'inCall', 'callToken', 'videochatActive'
+        ];
+        
+        itemsToRemove.forEach(item => sessionStorage.removeItem(item));
+        
+        // 4. Limpiar cache
+        if (typeof clearUserCache === 'function') {
+          clearUserCache();
+        }
+        
+        // 5. Actualizar heartbeat
+        try {
+          await Promise.race([
+            fetch(`${API_BASE_URL}/api/heartbeat`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
+              },
+              body: JSON.stringify({
+                activity_type: 'browsing',
+                room: null
+              })
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+          ]);
+          
+          console.log('✅ [CLIENTE] Heartbeat actualizado');
+        } catch (error) {
+          console.warn('⚠️ [CLIENTE] Error heartbeat:', error.message);
+        }
+        
+        // 6. Navegar
+        console.log('🏠 [CLIENTE] Navegando...');
+        
+        const stateData = forceEnd ? {
+          message: 'Tu sesión terminó automáticamente porque se agotaron las monedas o el tiempo disponible.',
+          type: 'warning',
+          autoEnded: true
+        } : undefined;
+        
+        // Navegar inmediatamente
+        navigate('/homecliente', { 
+          replace: true,
+          state: stateData
+        });
+        
+        console.log('✅ [CLIENTE] finalizarChat completado');
+        
       } catch (error) {
-        // 🔥 No hacer nada - continuar sin heartbeat
+        console.error('❌ [CLIENTE] Error crítico:', error);
+        
+        // Fallback
+        try {
+          sessionStorage.clear();
+          navigate('/homecliente', { replace: true });
+        } catch (fallbackError) {
+          console.error('❌ Fallback error:', fallbackError);
+          window.location.href = '/homecliente';
+        }
+      } finally {
+        // Limpiar flag después de un delay
+        setTimeout(() => {
+          window.finalizandoChat = false;
+        }, 3000);
       }
+    }, [roomName, otherUser, navigate, setMessages]); // 🔥 DEPENDENCIAS MÍNIMAS NECESARIAS
+
+    // 🔧 Función de debug para testing
+    window.testFinalizarChat = (autoEnd = false) => {
+      console.log('🧪 TESTING finalizarChat con autoEnd:', autoEnd);
+      finalizarChat(autoEnd);
     };
+    useEffect(() => {
+  if (roomName && connected && !isMonitoringBalance) {
+    console.log('🟢 [CLIENTE] Iniciando monitoreo de saldo...');
+    setIsMonitoringBalance(true);
+  } else if ((!roomName || !connected) && isMonitoringBalance) {
+    console.log('🔴 [CLIENTE] Deteniendo monitoreo de saldo...');
+    setIsMonitoringBalance(false);
+  }
+    }, [roomName, connected, isMonitoringBalance]);
+
+    // 3️⃣ TERCERO: useEffect separado para el monitoreo real
+    useEffect(() => {
+      if (!isMonitoringBalance) return;
+
+      console.log('🔄 [CLIENTE] Iniciando loop de monitoreo automático...');
+      
+      let intervalId;
+      let timeoutId;
+      let isActive = true;
+
+      const executeBalanceCheck = async () => {
+        if (!isActive || !isMonitoringBalance) {
+          console.log('🛑 [CLIENTE] Monitoreo inactivo - saliendo');
+          return;
+        }
+
+        try {
+          const authToken = sessionStorage.getItem('token');
+          
+          if (!authToken) {
+            console.warn('⚠️ [CLIENTE] No hay token - deteniendo monitoreo');
+            setIsMonitoringBalance(false);
+            return;
+          }
+
+          console.log('🔍 [CLIENTE] Ejecutando verificación de saldo...');
+          
+          const response = await fetch(`${API_BASE_URL}/api/client-balance/my-balance/quick`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (!response.ok) {
+            console.warn('❌ [CLIENTE] Error en verificación:', response.status);
+            return;
+          }
+
+          const data = await response.json();
+          
+          if (!data.success) {
+            console.warn('⚠️ [CLIENTE] Respuesta sin datos válidos');
+            return;
+          }
+
+          const totalCoins = data.total_coins;
+          const remainingMinutes = data.remaining_minutes;
+          
+          console.log('💰 [CLIENTE] Estado actual:', {
+            coins: totalCoins,
+            minutes: remainingMinutes,
+            shouldEnd: totalCoins <= 25 || remainingMinutes <= 2
+          });
+          
+          // 🚨 VERIFICAR CONDICIÓN DE FINALIZACIÓN
+          if (totalCoins <= 25 || remainingMinutes <= 2) {
+            console.log('🚨 [CLIENTE] ¡SALDO CRÍTICO! Finalizando sesión automáticamente...');
+            
+            // Detener monitoreo inmediatamente
+            isActive = false;
+            setIsMonitoringBalance(false);
+            
+            // Clear intervals
+            if (intervalId) clearInterval(intervalId);
+            if (timeoutId) clearTimeout(timeoutId);
+            
+            // Ejecutar finalización con delay mínimo
+            setTimeout(() => {
+              console.log('🔚 [CLIENTE] Ejecutando finalizarChat(true)...');
+              finalizarChat(true);
+            }, 500);
+            
+            return;
+          }
+          
+          // Advertencia si está cerca
+          if (totalCoins <= 50 || remainingMinutes <= 5) {
+            console.log('⚠️ [CLIENTE] Advertencia - saldo bajo');
+          }
+          
+        } catch (error) {
+          console.error('❌ [CLIENTE] Error en monitoreo:', error);
+        }
+      };
+
+      // 🔥 INICIAR VERIFICACIÓN INMEDIATA
+      timeoutId = setTimeout(() => {
+        if (isActive && isMonitoringBalance) {
+          executeBalanceCheck();
+          
+          // 🔥 LUEGO ESTABLECER INTERVALO REGULAR
+          intervalId = setInterval(() => {
+            if (isActive && isMonitoringBalance) {
+              executeBalanceCheck();
+            }
+          }, 8000); // Cada 8 segundos
+        }
+      }, 3000); // Esperar solo 3 segundos inicial
+
+      // Cleanup
+      return () => {
+        console.log('🧹 [CLIENTE] Limpiando monitoreo de saldo');
+        isActive = false;
+        if (intervalId) clearInterval(intervalId);
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+    }, [isMonitoringBalance, finalizarChat]); // 🔥 DEPENDENCIAS CORRECTAS
+
+    // 4️⃣ CUARTO: Función debug mejorada
+    useEffect(() => {
+      // Exponer funciones de debug globalmente
+      window.debugBalance = async () => {
+        console.log('🔍 [DEBUG] Estado del monitoreo:');
+        console.log('- roomName:', roomName);
+        console.log('- connected:', connected);
+        console.log('- isMonitoringBalance:', isMonitoringBalance);
+        
+        try {
+          const authToken = sessionStorage.getItem('token');
+          if (!authToken) {
+            console.log('❌ No hay token');
+            return;
+          }
+          
+          const response = await fetch(`${API_BASE_URL}/api/client-balance/my-balance/quick`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('💰 SALDO ACTUAL:', data.total_coins, 'monedas');
+            console.log('⏰ TIEMPO:', data.remaining_minutes, 'minutos');
+            console.log('🚨 ¿Debería finalizar?', (data.total_coins <= 25 || data.remaining_minutes <= 2) ? 'SÍ' : 'NO');
+          }
+        } catch (error) {
+          console.error('❌ Error:', error);
+        }
+      };
+
+      window.forceBalance = () => {
+        console.log('🧪 [DEBUG] Forzando verificación de saldo...');
+        setIsMonitoringBalance(false);
+        setTimeout(() => setIsMonitoringBalance(true), 1000);
+      };
+
+      window.forceEnd = () => {
+        console.log('🚨 [DEBUG] Forzando finalización...');
+        finalizarChat(true);
+      };
+
+      // Cleanup
+      return () => {
+        delete window.debugBalance;
+        delete window.forceBalance; 
+        delete window.forceEnd;
+      };
+    }, [roomName, connected, isMonitoringBalance, finalizarChat]);
+
+    // 5️⃣ QUINTO: Log inicial para debugging
+    useEffect(() => {
+      console.log('🎛️ [CLIENTE] VideoChat montado - estado inicial:', {
+        roomName,
+        connected,
+        isMonitoringBalance
+      });
+    }, []);
+
+    // 🔧 INSTRUCCIONES DE DEBUG
+    console.log('🔧 [CLIENTE] Funciones de debug disponibles:');
+    console.log('- window.debugBalance() // Ver estado actual');
+    console.log('- window.forceBalance() // Reiniciar monitoreo'); 
+    console.log('- window.forceEnd() // Forzar finalización');
+
+
+    
+
     useEffect(() => {
     if (!roomName) return;
 

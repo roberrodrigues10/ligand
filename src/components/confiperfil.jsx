@@ -17,10 +17,15 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import PaymentManager from "./PaymentManager";
+import MinimumPayoutManager from "./MinimumPayoutManager";
+
 
 export default function ModeloConfiguracion() {
   const [modalActivo, setModalActivo] = useState(null);
   const { t } = useTranslation();
+  const [userId, setUserId] = useState(1); // O obtén el userId del contexto/auth
+
 
   const abrirModal = (id) => setModalActivo(id);
   const cerrarModal = () => setModalActivo(null);
@@ -54,7 +59,6 @@ export default function ModeloConfiguracion() {
         {/* Pagos */}
         <Seccion titulo={t("settings.payments")}>
           <ConfigBoton icon={<CreditCard size={18} />} texto={t("settings.managePaymentMethod")} onClick={() => abrirModal("managePaymentMethod")} />
-          <ConfigBoton icon={<Globe size={18} />} texto={t("settings.country")} onClick={() => abrirModal("country")} />
           <ConfigBoton icon={<Banknote size={18} />} texto={t("settings.minimumPayout")} onClick={() => abrirModal("minimumPayout")} />
         </Seccion>
 
@@ -67,7 +71,15 @@ export default function ModeloConfiguracion() {
       </div>
 
       {/* Modal */}
-      {modalActivo && (
+      {modalActivo === "managePaymentMethod" ? (
+        <PaymentManager 
+          onClose={cerrarModal}
+        />
+      ) : modalActivo === "minimumPayout" ? (
+        <MinimumPayoutManager 
+          onClose={cerrarModal}
+        />
+      ) : modalActivo && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4"
           onClick={cerrarModal}

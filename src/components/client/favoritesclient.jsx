@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "./header";
+import Header from "./headercliente";
 
 // 🔥 IMPORTAR COMPONENTES DE LLAMADA (como en mensajes)
-import CallingSystem from './CallingOverlay';
-import IncomingCallOverlay from './IncomingCallOverlay';
+import CallingSystem from '../CallingOverlay';
+import IncomingCallOverlay from '../IncomingCallOverlay';
 
 import {
   Home,
@@ -22,12 +22,11 @@ import {
   X,
   Shield
 } from "lucide-react";
-import logoproncipal from "./imagenes/logoprincipal.png";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function Favoritos() {
-  const [favoritos, setFavoritos] = useState([]);
+  const [favoritas, setFavoritos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [opcionesAbiertas, setOpcionesAbiertas] = useState(null);
@@ -80,7 +79,7 @@ export default function Favoritos() {
     loadFavorites();
     cargarUsuariosOnline();
     
-    // Actualizar usuarios online cada 15 segundos (como en mensajes)
+    // Actualizar chicas online cada 15 segundos (como en mensajes)
     const interval = setInterval(cargarUsuariosOnline, 15000);
     return () => clearInterval(interval);
   }, []);
@@ -103,7 +102,7 @@ export default function Favoritos() {
         }
       }
     } catch (error) {
-      console.error('❌ Error cargando usuarios bloqueados:', error);
+      console.error('❌ Error cargando chicas bloqueados:', error);
     } finally {
       setLoadingBloqueados(false);
     }
@@ -127,7 +126,7 @@ export default function Favoritos() {
       if (data.success) {
         // Remover de la lista local
         setUsuariosBloqueados(prev => prev.filter(user => user.id !== blockedUserId));
-        console.log('✅ Chico desbloqueado:', nombre);
+        console.log('✅ Chica desbloqueado:', nombre);
         
         // 🔥 RECARGAR FAVORITOS POR SI ERA UN FAVORITO BLOQUEADO
         loadFavorites();
@@ -135,7 +134,7 @@ export default function Favoritos() {
         console.error('Error desbloqueando:', data.error);
       }
     } catch (error) {
-      console.error('❌ Error desbloqueando chico:', error);
+      console.error('❌ Error desbloqueando chica:', error);
     } finally {
       setProcessingAction(null);
     }
@@ -168,7 +167,7 @@ export default function Favoritos() {
         }
       }
     } catch (error) {
-      console.error('❌ Error cargando usuarios online:', error);
+      console.error('❌ Error cargando chicas online:', error);
     }
   };
 
@@ -238,7 +237,7 @@ export default function Favoritos() {
           setConfirmAction({
             type: 'blocked',
             title: 'No disponible',
-            message: `${otherUserName} te ha bloqueado. No puedes realizar llamadas a este chico.`,
+            message: `${otherUserName} te ha bloqueado. No puedes realizar llamadas a este chica.`,
             confirmText: 'Entendido',
             action: () => setShowConfirmModal(false)
           });
@@ -284,7 +283,7 @@ export default function Favoritos() {
           setConfirmAction({
             type: 'blocked',
             title: 'No disponible',
-            message: `No puedes llamar a ${otherUserName}. Este chico te ha bloqueado.`,
+            message: `No puedes llamar a ${otherUserName}. Este chica te ha bloqueado.`,
             confirmText: 'Entendido',
             action: () => setShowConfirmModal(false)
           });
@@ -388,7 +387,7 @@ export default function Favoritos() {
     const userData = JSON.parse(sessionStorage.getItem('user') || '{}');
     
     sessionStorage.setItem('roomName', callData.room_name);
-    sessionStorage.setItem('userName', userData.name || userData.alias || 'Chico');
+    sessionStorage.setItem('userName', userData.name || userData.alias || 'Chica');
     sessionStorage.setItem('currentRoom', callData.room_name);
     sessionStorage.setItem('inCall', 'true');
     
@@ -404,7 +403,7 @@ export default function Favoritos() {
     navigate('/videochat', {
       state: {
         roomName: callData.room_name,
-        userName: userData.name || userData.alias || 'Chico',
+        userName: userData.name || userData.alias || 'Chica',
         callId: callData.call_id || callData.id,
         from: 'call'
       }
@@ -440,11 +439,11 @@ export default function Favoritos() {
         setFavoritos(data.favorites || []);
         console.log('✅ Favoritos cargados:', data.favorites.length);
       } else {
-        throw new Error(data.error || 'Error cargando favoritos');
+        throw new Error(data.error || 'Error cargando favoritas');
       }
 
     } catch (err) {
-      console.error('❌ Error cargando favoritos:', err);
+      console.error('❌ Error cargando favoritas:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -486,7 +485,7 @@ export default function Favoritos() {
   };
 
   // 🔥 FUNCIÓN PARA BLOQUEAR USUARIO
-  const bloquearUsuario = async (favoriteId, nombre, reason = "Bloqueado desde favoritos") => {
+  const bloquearUsuario = async (favoriteId, nombre, reason = "Bloqueado desde favoritas") => {
   try {
     setProcessingAction(favoriteId);
           
@@ -508,7 +507,7 @@ export default function Favoritos() {
     if (data.success) {
       setFavoritos(prev => prev.filter(fav => fav.id !== favoriteId));
       setOpcionesAbiertas(null);
-      console.log('✅ Chico bloqueado y removido de favoritos:', nombre);
+      console.log('✅ Chica bloqueado y removido de favoritas:', nombre);
       
       if (showBloqueadosModal) {
         cargarUsuariosBloqueados();
@@ -517,7 +516,7 @@ export default function Favoritos() {
       console.error('Error bloqueando:', data.error);
     }
   } catch (error) {
-    console.error('❌ Error bloqueando chico:', error);
+    console.error('❌ Error bloqueando chica:', error);
   } finally {
     setProcessingAction(null);
     setShowBlockModal(false); // Cierra el modal si estaba abierto
@@ -549,12 +548,12 @@ export default function Favoritos() {
                 <Ban size={24} className="text-[#ff007a]" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Bloquear Chico</h3>
+                <h3 className="text-lg font-bold text-white">Bloquear Chica</h3>
                 <p className="text-[#ff007a] text-sm">{userData.name}</p>
               </div>
             </div>
             <p className="text-white/70 text-sm">
-              ¿Estás seguro que quieres bloquear a este chico?
+              ¿Estás seguro que quieres bloquear a este chica?
             </p>
           </div>
   
@@ -583,11 +582,11 @@ export default function Favoritos() {
   
             {/* Consecuencias */}
             <div className="bg-[#ff007a]/10 border border-[#ff007a]/30 rounded-lg p-3 mb-4">
-              <h4 className="text-[#ff007a] font-medium text-sm mb-2">Al bloquear este chico:</h4>
+              <h4 className="text-[#ff007a] font-medium text-sm mb-2">Al bloquear este chica:</h4>
               <ul className="text-[#ff007a]/90 text-xs space-y-1">
                 <li>• No podrá enviarte mensajes</li>
                 <li>• No podrá realizarte llamadas</li>
-                <li>• Será removido de tus favoritos</li>
+                <li>• Será removido de tus favoritas</li>
                 <li>• No verá cuando estés en línea</li>
               </ul>
             </div>
@@ -615,7 +614,7 @@ export default function Favoritos() {
               ) : (
                 <>
                   <Ban size={16} />
-                  Bloquear Chico
+                  Bloquear Chica
                 </>
               )}
             </button>
@@ -636,7 +635,7 @@ export default function Favoritos() {
           openChatWith: {
             userId: favoriteId,
             userName: nombre,
-            userRole: 'cliente' // Los favoritos de las modelos son clientes
+            userRole: 'modelo' // Los favoritas de las modelos son clientes
           }
         }
       });
@@ -693,7 +692,7 @@ export default function Favoritos() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ff007a] mx-auto mb-4"></div>
-            <p className="text-gray-400">Cargando favoritos...</p>
+            <p className="text-gray-400">Cargando favoritas...</p>
           </div>
         </div>
       </div>
@@ -708,7 +707,7 @@ export default function Favoritos() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="text-red-500 text-6xl mb-4">⚠️</div>
-            <h3 className="text-xl font-bold mb-2">Error cargando favoritos</h3>
+            <h3 className="text-xl font-bold mb-2">Error cargando favoritas</h3>
             <p className="text-gray-400 mb-4">{error}</p>
             <button
               onClick={loadFavorites}
@@ -736,7 +735,7 @@ export default function Favoritos() {
             Tus Favoritos
           </h2>
           <p className="text-gray-400 text-sm mt-1">
-            {favoritos.length} {favoritos.length === 1 ? 'favorito' : 'favoritos'}
+            {favoritas.length} {favoritas.length === 1 ? 'favorito' : 'favoritas'}
           </p>
         </div>
         
@@ -750,7 +749,7 @@ export default function Favoritos() {
             className="bg-[#2b2d31] hover:bg-[#373a40] text-red-400 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
           >
             <Ban size={16} />
-            Chicos Bloqueados
+            Chicas Bloqueadas
           </button>
           
           <button
@@ -764,23 +763,23 @@ export default function Favoritos() {
         </div>
       </div>
 
-      {/* Lista de favoritos */}
-      {favoritos.length === 0 ? (
+      {/* Lista de favoritas */}
+      {favoritas.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">💝</div>
-          <h3 className="text-xl font-bold mb-2">No tienes favoritos aún</h3>
-          <p className="text-gray-400 mb-6">Cuando agregues usuarios como favoritos, aparecerán aquí</p>
+          <h3 className="text-xl font-bold mb-2">No tienes favoritas aún</h3>
+          <p className="text-gray-400 mb-6">Cuando agregues chicas como favoritas, aparecerán aquí</p>
           <button
             onClick={() => navigate('/esperandocall')}
             className="bg-[#ff007a] hover:bg-[#e6006e] px-6 py-3 rounded-lg flex items-center gap-2 mx-auto"
           >
             <Users size={16} />
-            Buscar usuarios
+            Buscar chicas
           </button>
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {favoritos.map((fav) => {
+          {favoritas.map((fav) => {
             const estadoConexion = obtenerEstadoConexion(fav.id);
             
             return (
@@ -852,7 +851,7 @@ export default function Favoritos() {
                           className="flex items-center w-full px-4 py-2 gap-2 hover:bg-[#373a40] text-sm rounded-b-xl"
                         >
                           <Trash2 size={16} />
-                          Eliminar de favoritos
+                          Eliminar de favoritas
                         </button>
                       </div>
                     )}
@@ -929,9 +928,9 @@ export default function Favoritos() {
                 <div className="flex items-center gap-3">
                   <Ban size={24} className="text-[#ff007a]" />
                   <div>
-                    <h3 className="text-lg font-bold text-white">Chicos Bloqueados</h3>
+                    <h3 className="text-lg font-bold text-white">Chicas Bloqueadas</h3>
                     <p className="text-gray-400 text-sm mt-1">
-                      {usuariosBloqueados.length} {usuariosBloqueados.length === 1 ? 'chico bloqueado' : 'chicos bloqueados'}
+                      {usuariosBloqueados.length} {usuariosBloqueados.length === 1 ? 'chica bloqueado' : 'chicos bloqueados'}
                     </p>
                   </div>
                 </div>
@@ -956,7 +955,7 @@ export default function Favoritos() {
               ) : usuariosBloqueados.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">🛡️</div>
-                  <h4 className="text-xl font-bold mb-2">No has bloqueado a ningún chico</h4>
+                  <h4 className="text-xl font-bold mb-2">No has bloqueado a ningún chica</h4>
                   <p className="text-gray-400">Los chicos que bloquees desde el chat aparecerán aquí</p>
                 </div>
               ) : (
@@ -966,7 +965,7 @@ export default function Favoritos() {
                       key={user.id}
                       className="bg-[#2b2d31] rounded-xl p-5 shadow-lg border border-[#ff007a]/10 relative hover:border-[#ff007a]/30 transition-colors"
                     >
-                      {/* Chico info */}
+                      {/* Chica info */}
                       <div className="flex items-center gap-3 mb-4">
                         <div className="relative">
                           <div className="w-12 h-12 bg-gradient-to-br from-[#ff007a] to-[#cc0062] rounded-full flex items-center justify-center font-bold text-white text-lg">
@@ -1026,7 +1025,7 @@ export default function Favoritos() {
                         ) : (
                           <>
                             <Shield size={14} />
-                            Desbloquear chico
+                            Desbloquear chica
                           </>
                         )}
                       </button>
