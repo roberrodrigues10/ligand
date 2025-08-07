@@ -78,6 +78,80 @@ export const useGiftSystem = (userId, userRole, getAuthHeaders, apiBaseUrl) => {
     }
   }, [userRole, API_BASE_URL, getAuthHeaders]);
 
+  const acceptGiftRequest = useCallback(async (requestId, roomName) => {
+    try {
+      console.log(`🎁 Aceptando regalo ${requestId}`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/gifts/requests/${requestId}/accept`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ 
+          request_id: requestId  // ← EL BACKEND ESPERA ESTO
+        })
+      });
+
+      console.log('📡 Response status:', response.status);
+      const data = await response.json();
+      console.log('📦 Response data:', data);
+      
+      if (response.ok && data.success) {
+        // Remover la solicitud de la lista de pendientes
+        setPendingRequests(prev => prev.filter(req => req.id !== requestId));
+        
+        console.log('✅ Regalo aceptado correctamente');
+        
+        return { 
+          success: true, 
+          transaction: data.transaction,
+          newBalance: data.new_balance,
+          // Crear estructura para los mensajes del chat
+          giftInfo: {
+            name: data.transaction?.gift_name,
+            image: data.transaction?.gift_image,
+            price: data.transaction?.amount,
+            recipient: data.transaction?.recipient
+          }
+        };
+      } else {
+        console.error('❌ Error aceptando regalo:', data);
+        return { 
+          success: false, 
+          error: data.message || data.error || 'Error desconocido'
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error de conexión aceptando regalo:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }, [API_BASE_URL, getAuthHeaders]);
+
+  const rejectGiftRequest = useCallback(async (requestId) => {
+    try {
+      console.log(`❌ Rechazando regalo ${requestId}`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/gifts/requests/${requestId}/reject`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remover la solicitud de la lista de pendientes
+        setPendingRequests(prev => prev.filter(req => req.id !== requestId));
+        console.log('✅ Regalo rechazado correctamente');
+        return { success: true };
+      } else {
+        console.error('❌ Error rechazando regalo:', data.error);
+        return { success: false, error: data.error };
+      }
+    } catch (error) {
+      console.error('❌ Error de conexión rechazando regalo:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }, [API_BASE_URL, getAuthHeaders]);
+
+
   return {
     gifts,
     loadingGifts,
@@ -85,6 +159,8 @@ export const useGiftSystem = (userId, userRole, getAuthHeaders, apiBaseUrl) => {
     loadingRequests,
     loadGifts,
     loadPendingRequests,
-    setPendingRequests
+    setPendingRequests,
+    acceptGiftRequest,      // ← NUEVO
+    rejectGiftRequest   
   };
 };

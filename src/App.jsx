@@ -64,6 +64,7 @@ function App() {
               {/* 🔒 RUTAS PROTEGIDAS (dentro del RouteGuard Y ProtectedPage) */}
               <Route path="/*" element={
                 <RouteGuard>
+                  <ProtectedPage>
                     <Routes>
                       
                       {/* 🏠 RUTA RAÍZ */}
@@ -117,6 +118,7 @@ function App() {
                       <Route path="*" element={<Navigate to="/home" replace />} />
                       
                     </Routes>
+                  </ProtectedPage>
                 </RouteGuard>
               } />
             </Routes>

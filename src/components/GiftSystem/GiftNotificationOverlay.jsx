@@ -70,21 +70,21 @@ export const GiftNotificationOverlay = ({
           </div>
         </div>
 
-        {/* Botones */}
-        <div className="p-6 border-t border-[#ff007a]/20 flex gap-3">
-          <button
-            onClick={() => onReject(request.id)}
-            className="flex-1 bg-gray-600/50 hover:bg-gray-600/70 text-white px-4 py-3 rounded-xl font-bold transition-all"
-          >
-            Rechazar
-          </button>
-          <button
-            onClick={() => onAccept(request.id)}
-            className="flex-1 bg-gradient-to-r from-[#ff007a] to-[#cc0062] hover:from-[#e6006f] hover:to-[#b3005a] text-white px-4 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
-          >
-            ¡Enviar Regalo!
-          </button>
-        </div>
+      {/* Botones */}
+      <div className="p-6 border-t border-[#ff007a]/20 flex gap-3">
+        <button
+          onClick={() => onReject(request.id)}
+          className="flex-1 bg-gray-600/50 hover:bg-gray-600/70 text-white px-4 py-3 rounded-xl font-bold transition-all"
+        >
+          Rechazar
+        </button>
+        <button
+          onClick={() => onAccept(request.id)}
+          className="flex-1 bg-gradient-to-r from-[#ff007a] to-[#cc0062] hover:from-[#e6006f] hover:to-[#b3005a] text-white px-4 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
+        >
+          ¡Enviar Regalo!
+        </button>
+      </div>
 
         {/* Botón cerrar */}
         <button

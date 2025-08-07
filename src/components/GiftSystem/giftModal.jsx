@@ -115,7 +115,7 @@ export const GiftsModal = ({
                 {/* Imagen del regalo */}
                 <div className="w-16 h-16 sm:w-24 sm:h-24 mx-auto mb-2 sm:mb-3 flex items-center justify-center">
                   <img 
-                    src={gift.image} 
+                    src={gift.image_path} 
                     alt={gift.name}
                     className="w-12 h-12 sm:w-20 sm:h-20 object-contain filter group-hover:brightness-110 transition-all duration-300"
                     onError={(e) => {
