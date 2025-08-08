@@ -801,59 +801,126 @@ export default function ChatPrivado() {
   }, [pedirRegalo]);
 
   const handleAcceptGift = useCallback(async (requestId) => {
-    try {
-      setLoadingGift(true);
+  try {
+    setLoadingGift(true);
+    
+    console.log(`🎁 Cliente aceptando regalo ${requestId}`);
+    
+    const result = await acceptGiftRequest(requestId, conversacionActiva);
+    
+    if (result.success) {
+      console.log('✅ Regalo aceptado exitosamente');
+      console.log('💰 Nuevo saldo:', result.newBalance);
+      console.log('📩 Mensajes del chat:', result.chatMessages);
       
-      console.log(`🎁 Cliente aceptando regalo ${requestId}`);
-      
-      const result = await acceptGiftRequest(requestId, conversacionActiva);
-      
-      if (result.success) {
-        console.log('✅ Regalo aceptado exitosamente');
-        console.log('💰 Nuevo saldo:', result.newBalance);
+      // 🔥 USAR MENSAJES DIRECTAMENTE DEL BACKEND (más eficiente)
+      if (result.chatMessages && conversacionActiva) {
+        const newMessages = [];
         
-        // El backend ya creó los mensajes automáticamente
-        // Solo necesitamos refrescar los mensajes de la conversación
-        if (conversacionActiva) {
-          await cargarMensajes(conversacionActiva);
-          
-          // Actualizar preview en conversaciones
-          setConversaciones(prev => 
-            prev.map(conv => 
-              conv.room_name === conversacionActiva
-                ? {
-                    ...conv,
-                    last_message_time: new Date().toISOString(),
-                    last_message_sender_id: usuario.id
-                  }
-                : conv
-            )
-          );
-          
-          // Scroll al final
-          setTimeout(() => {
-            if (mensajesRef.current) {
-              mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
-            }
-          }, 200);
+        // Agregar mensaje del cliente (gift_sent)
+        if (result.chatMessages.client_message) {
+          newMessages.push({
+            id: result.chatMessages.client_message.id,
+            user_id: result.chatMessages.client_message.user_id,
+            user_name: result.chatMessages.client_message.user_name,
+            user_role: result.chatMessages.client_message.user_role,
+            message: result.chatMessages.client_message.message,
+            type: 'gift_sent',
+            // 🔥 AGREGAR: Construir extra_data desde transaction
+            extra_data: JSON.stringify({
+              gift_id: result.transaction?.gift_id || 'unknown',
+              gift_name: result.transaction?.gift_name || result.giftInfo?.name,
+              gift_image: result.transaction?.gift_image || result.giftInfo?.image,
+              gift_price: result.transaction?.amount || result.giftInfo?.price,
+              client_name: result.chatMessages.client_message.user_name,
+              modelo_name: result.transaction?.recipient || 'Modelo',
+              transaction_id: result.transaction?.id
+            }),
+            created_at: result.chatMessages.client_message.created_at,
+            room_name: conversacionActiva
+          });
         }
         
-        // Mostrar mensaje de éxito con el nuevo saldo
-        alert(`¡Regalo enviado! Nuevo saldo: ${result.newBalance} monedas`);
+        // Agregar mensaje de la modelo (gift_received)
+        if (result.chatMessages.modelo_message) {
+          newMessages.push({
+            id: result.chatMessages.modelo_message.id,
+            user_id: result.chatMessages.modelo_message.user_id,
+            user_name: result.chatMessages.modelo_message.user_name,
+            user_role: result.chatMessages.modelo_message.user_role,
+            message: result.chatMessages.modelo_message.message,
+            type: 'gift_received', // Asegurar el tipo correcto
+            extra_data: result.chatMessages.modelo_message.extra_data,
+            created_at: result.chatMessages.modelo_message.created_at,
+            room_name: conversacionActiva
+          });
+        }
+        
+        console.log('🎯 Agregando mensajes al chat:', newMessages);
+        
+        // Agregar los mensajes al estado actual inmediatamente
+        setMensajes(prev => [...prev, ...newMessages]);
+        
+        // Actualizar preview en conversaciones
+        setConversaciones(prev => 
+          prev.map(conv => 
+            conv.room_name === conversacionActiva
+              ? {
+                  ...conv,
+                  last_message_time: new Date().toISOString(),
+                  last_message_sender_id: usuario.id,
+                  last_message: `🎁 Regalo enviado: ${result.giftInfo?.name || 'regalo'}`
+                }
+              : conv
+          )
+        );
+        
+        // Scroll al final inmediatamente
+        setTimeout(() => {
+          if (mensajesRef.current) {
+            mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+          }
+        }, 100);
+        
+        // 🔥 FALLBACK: Recargar mensajes después de un momento (por si acaso)
+        setTimeout(async () => {
+          await cargarMensajes(conversacionActiva);
+        }, 1000);
         
       } else {
-        alert(result.error || 'Error enviando el regalo');
+        // Si no hay chatMessages, usar el método anterior
+        console.log('⚠️ No hay chatMessages, recargando mensajes...');
+        await cargarMensajes(conversacionActiva);
+        
+        setTimeout(() => {
+          if (mensajesRef.current) {
+            mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+          }
+        }, 200);
       }
       
-      return result;
-    } catch (error) {
-      console.error('❌ Error manejando aceptación de regalo:', error);
-      alert('Error inesperado enviando el regalo');
-      return { success: false, error: 'Error inesperado' };
-    } finally {
-      setLoadingGift(false);
+      // Mostrar mensaje de éxito con información del regalo
+      const successMessage = result.giftInfo?.name 
+        ? `¡${result.giftInfo.name} enviado exitosamente! 🎁\nNuevo saldo: ${result.newBalance} monedas`
+        : `¡Regalo enviado! Nuevo saldo: ${result.newBalance} monedas`;
+        
+      alert(successMessage);
+      
+    } else {
+      console.error('❌ Error en la respuesta:', result.error);
+      alert(result.error || 'Error enviando el regalo');
     }
-  }, [acceptGiftRequest, conversacionActiva, usuario.id, cargarMensajes]);
+    
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Error manejando aceptación de regalo:', error);
+    alert('Error inesperado enviando el regalo');
+    return { success: false, error: 'Error inesperado' };
+  } finally {
+    setLoadingGift(false);
+  }
+  }, [acceptGiftRequest, conversacionActiva, usuario.id, cargarMensajes, setMensajes, setConversaciones, mensajesRef]);
 
   const handleRejectGift = useCallback(async (requestId) => {
     try {
@@ -1046,12 +1113,13 @@ const renderMensaje = useCallback((mensaje) => {
         // CLIENTE ve: "Regalo Enviado" + imagen + nombre
         const sentGiftData = mensaje.gift_data || mensaje.extra_data || {};
         
-        // Parsear si es string
-        let finalSentGiftData = sentGiftData;
+       let finalSentGiftData = sentGiftData;
         if (typeof mensaje.extra_data === 'string') {
           try {
             finalSentGiftData = JSON.parse(mensaje.extra_data);
+            console.log('✅ extra_data parseado gift_sent:', finalSentGiftData);
           } catch (e) {
+            console.error('❌ Error parseando gift_sent:', e);
             finalSentGiftData = sentGiftData;
           }
         }
@@ -1130,9 +1198,13 @@ const renderMensaje = useCallback((mensaje) => {
         return <div className="text-2xl">{textoMensaje}</div>;
       
       default:
-        if (!textoMensaje || textoMensaje.trim() === '') {
-          return null; // ✅ No renderizar nada si no hay mensaje
+        // 🔥 FIX: No aplicar la condición de mensaje vacío a los regalos
+        if ((!textoMensaje || textoMensaje.trim() === '') && 
+            mensaje.type !== 'gift_sent' && 
+            mensaje.type !== 'gift_received') {
+          return null;
         }
+  
         if (translationSettings?.enabled && TranslatedMessage && textoMensaje?.trim()) {
           const tipoMensaje = esUsuarioActual ? 'local' : 'remote';
           const shouldShowTranslation = !esUsuarioActual || translationSettings.translateOutgoing;

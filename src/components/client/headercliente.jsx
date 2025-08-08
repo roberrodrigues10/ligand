@@ -1,28 +1,79 @@
 import { useState, useRef, useEffect } from "react";
-import { Home, Star, MessageSquare, LogOut, Settings, DollarSign, Menu, X, Coins } from "lucide-react";
+import { 
+  Home, 
+  Star, 
+  MessageSquare, 
+  LogOut, 
+  Settings, 
+  DollarSign, 
+  Menu, 
+  X, 
+  Coins,
+  Search, // ICONO DE BÚSQUEDA DE USUARIOS
+  Play    // ICONO DE HISTORIAS
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
 import logoproncipal from "../imagenes/logoprincipal.png";
 import LanguageSelector from "../../components/languageSelector";
 import { getUser } from "../../utils/auth";
-import CoinsBalanceWidget from '../CoinsBalanceWidget'; // 🔥 CAMBIO: Actualizado nombre del widget
-import StripeBuyCoins from '../StripeBuyCoins'; // 🔥 CAMBIO: Componente de compra de monedas
+import CoinsBalanceWidget from '../CoinsBalanceWidget';
+import StripeBuyCoins from '../StripeBuyCoins';
+import StoriesModal from './StoriesModal'; // 👈 IMPORTAR EL MODAL
+import { useAppNotifications } from '../../contexts/NotificationContext'; // 👈 IMPORTAR NOTIFICACIONES
 
 export default function HeaderCliente() {
   const navigate = useNavigate();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [comprasAbierto, setComprasAbierto] = useState(false);
   const [mobileMenuAbierto, setMobileMenuAbierto] = useState(false);
-  const [showBuyCoins, setShowBuyCoins] = useState(false); // 🔥 CAMBIO: showBuyMinutes -> showBuyCoins
+  const [showBuyCoins, setShowBuyCoins] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
+  
+  // 👈 NUEVOS ESTADOS PARA MODALES
+  const [showStoriesModal, setShowStoriesModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   
   const menuRef = useRef(null);
   const comprasRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const { t, i18n } = useTranslation();
+  const notifications = useAppNotifications(); // 👈 HOOK DE NOTIFICACIONES
 
-  // 🔥 CAMBIO: Función actualizada para monedas
+  // 👈 CARGAR USUARIO AL INICIALIZAR
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userData = await getUser();
+        setCurrentUser(userData);
+        console.log('👤 Usuario cargado en header:', userData);
+      } catch (error) {
+        console.error('Error cargando usuario:', error);
+      }
+    };
+
+    loadUser();
+  }, []);
+
+  // 👈 FUNCIÓN PARA ABRIR MODAL DE HISTORIAS
+  const handleOpenStories = () => {
+    console.log('🎬 Abriendo modal de historias...');
+    setShowStoriesModal(true);
+  };
+
+  // 👈 FUNCIÓN PARA CERRAR MODAL DE HISTORIAS
+  const handleCloseStories = () => {
+    console.log('🚪 Cerrando modal de historias...');
+    setShowStoriesModal(false);
+  };
+
+  // 👈 FUNCIÓN PARA ABRIR BÚSQUEDA DE USUARIOS (FUTURO)
+  const handleOpenSearch = () => {
+    console.log('🔍 Búsqueda de usuarios...');
+    notifications.info('Funcionalidad de búsqueda próximamente');
+  };
+
   const abrirModalCompraMonedas = () => {
     setShowBuyCoins(true);
   };
@@ -57,24 +108,6 @@ export default function HeaderCliente() {
     setMobileMenuAbierto(false);
   }, [navigate]);
 
-  // Debug del usuario
-  useEffect(() => {
-    const checkUserRole = async () => {
-      try {
-        const user = await getUser();
-        console.log('🔍 DEBUG - Usuario en header:', {
-          rol: user?.rol,
-          name: user?.name,
-          verificacion: user?.verificacion?.estado
-        });
-      } catch (error) {
-        console.error('Error obteniendo usuario:', error);
-      }
-    };
-    
-    checkUserRole();
-  }, []);
-
   return (
     <>
       <header className="flex justify-between items-center mb-4 px-4 relative">
@@ -93,15 +126,32 @@ export default function HeaderCliente() {
         <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-lg">
           <LanguageSelector />
           
+          {/* 👈 ICONO DE BÚSQUEDA DE USUARIOS */}
+          <button
+            onClick={handleOpenSearch}
+            className="hover:scale-110 transition p-2"
+            title="Buscar usuarios"
+          >
+            <Search size={24} className="text-[#ff007a]" />
+          </button>
+
+          {/* 👈 ICONO DE HISTORIAS - ABRE EL MODAL */}
+          <button
+            onClick={handleOpenStories}
+            className="hover:scale-110 transition p-2"
+            title="Ver historias"
+          >
+            <Play size={24} className="text-[#ff007a]" />
+          </button>
+          
           {/* ICONO DE COMPRAS DESKTOP */}
           <div ref={comprasRef} className="relative">
             <button
-              onClick={setShowBuyCoins}
+              onClick={toggleCompras}
               className="hover:scale-110 transition p-2 relative"
-              title="Comprar monedas" // 🔥 CAMBIO: Texto actualizado
+              title="Comprar monedas"
             >
-              <Coins size={24} strokeWidth={2.5} className="text-[#ff007a]" /> {/* 🔥 CAMBIO: DollarSign -> Coins */}
-              {/* Indicador de ofertas */}
+              <Coins size={24} strokeWidth={2.5} className="text-[#ff007a]" />
               <div className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
             </button>
 
@@ -109,8 +159,8 @@ export default function HeaderCliente() {
             {comprasAbierto && (
               <div className="absolute right-0 mt-2 w-80 bg-[#1f2125] rounded-xl shadow-xl border border-[#ff007a]/30 z-50 overflow-hidden">
                 <div className="text-white text-sm p-4 border-b border-[#ff007a]/20 font-semibold bg-[#1f2125] flex items-center gap-2">
-                  <span className="text-lg">🪙</span> {/* 🔥 CAMBIO: Emoji de monedas */}
-                  Paquetes de monedas {/* 🔥 CAMBIO: Texto actualizado */}
+                  <span className="text-lg">🪙</span>
+                  Paquetes de monedas
                 </div>
 
                 <div className="p-4 space-y-3 bg-[#1f2125]">
@@ -123,7 +173,6 @@ export default function HeaderCliente() {
                   >
                     <div className="flex justify-between items-center">
                       <div>
-                        {/* 🔥 CAMBIO: Mostrar monedas en lugar de minutos */}
                         <div className="text-white font-bold text-lg">100 monedas</div>
                         <div className="text-sm text-gray-400">≈ 10 minutos de videochat</div>
                       </div>
@@ -145,7 +194,6 @@ export default function HeaderCliente() {
                     </div>
                     <div className="flex justify-between items-center">
                       <div>
-                        {/* 🔥 CAMBIO: Mostrar monedas en lugar de minutos */}
                         <div className="text-white font-bold text-lg">300 monedas</div>
                         <div className="text-sm text-gray-400">≈ 30 minutos + 50 bonus</div>
                       </div>
@@ -162,7 +210,6 @@ export default function HeaderCliente() {
                   >
                     <div className="flex justify-between items-center">
                       <div>
-                        {/* 🔥 CAMBIO: Mostrar monedas en lugar de minutos */}
                         <div className="text-white font-bold text-lg">800 monedas</div>
                         <div className="text-sm text-gray-400">≈ 80 minutos + 200 bonus</div>
                       </div>
@@ -245,7 +292,7 @@ export default function HeaderCliente() {
         {/* Botón menú móvil - solo visible en móvil */}
         <div className="md:hidden flex items-center gap-2">
           {/* Widget de balance de monedas */}
-          <CoinsBalanceWidget // 🔥 CAMBIO: Componente actualizado
+          <CoinsBalanceWidget
             onBuyClick={abrirModalCompraMonedas}
             showFullStats={true}
             showHistory={true}
@@ -269,12 +316,37 @@ export default function HeaderCliente() {
                   <LanguageSelector />
                 </div>
 
+                {/* 👈 OPCIONES MÓVILES PARA HISTORIAS Y BÚSQUEDA */}
+                <div className="py-2 border-b border-[#ff007a]/20">
+                  <button
+                    onClick={() => {
+                      handleOpenSearch();
+                      setMobileMenuAbierto(false);
+                    }}
+                    className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
+                  >
+                    <Search size={18} className="mr-3 text-[#ff007a]"/>
+                    Buscar usuarios
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      handleOpenStories();
+                      setMobileMenuAbierto(false);
+                    }}
+                    className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
+                  >
+                    <Play size={18} className="mr-3 text-[#ff007a]"/>
+                    Ver historias
+                  </button>
+                </div>
+
                 {/* Sección de compras móvil */}
                 <div className="px-4 py-3 border-b border-[#ff007a]/20">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <Coins size={18} className="text-[#ff007a]" strokeWidth={2.5} /> {/* 🔥 CAMBIO: DollarSign -> Coins */}
-                      <span className="text-white font-semibold">🪙 Paquetes de monedas</span> {/* 🔥 CAMBIO: Texto actualizado */}
+                      <Coins size={18} className="text-[#ff007a]" strokeWidth={2.5} />
+                      <span className="text-white font-semibold">🪙 Paquetes de monedas</span>
                     </div>
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   </div>
@@ -290,7 +362,6 @@ export default function HeaderCliente() {
                     className="flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                   >
                     <div>
-                      {/* 🔥 CAMBIO: Mostrar monedas en lugar de minutos */}
                       <div className="font-semibold">100 monedas</div>
                       <div className="text-xs text-gray-400">≈ 10 minutos de videochat</div>
                     </div>
@@ -306,7 +377,6 @@ export default function HeaderCliente() {
                   >
                     <div>
                       <div className="font-semibold flex items-center gap-2">
-                        {/* 🔥 CAMBIO: Mostrar monedas en lugar de minutos */}
                         300 monedas
                         <span className="bg-[#ff007a] text-white text-xs px-1.5 py-0.5 rounded-full">Popular</span>
                       </div>
@@ -323,7 +393,6 @@ export default function HeaderCliente() {
                     className="flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                   >
                     <div>
-                      {/* 🔥 CAMBIO: Mostrar monedas en lugar de minutos */}
                       <div className="font-semibold">800 monedas</div>
                       <div className="text-xs text-gray-400">≈ 80 minutos + 200 bonus</div>
                     </div>
@@ -397,6 +466,13 @@ export default function HeaderCliente() {
         </div>
       </header>
 
+      {/* 👈 MODAL DE HISTORIAS INTEGRADO */}
+      <StoriesModal 
+        isOpen={showStoriesModal}
+        onClose={handleCloseStories}
+        currentUser={currentUser}
+      />
+
       {/* Modal de confirmación */}
       {showConfirmModal && confirmAction && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -418,10 +494,10 @@ export default function HeaderCliente() {
       )}
 
       {/* Modal de compra de monedas */}
-      {showBuyCoins && ( // 🔥 CAMBIO: showBuyMinutes -> showBuyCoins
+      {showBuyCoins && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
           <div className="bg-[#1a1c20] rounded-xl p-1 w-[80vw] shadow-xl border border-[#ff007a]/40 relative">
-            <StripeBuyCoins onClose={cerrarModalCompraMonedas} /> {/* 🔥 CAMBIO: Componente actualizado */}
+            <StripeBuyCoins onClose={cerrarModalCompraMonedas} />
             <button 
               onClick={cerrarModalCompraMonedas}
               className="absolute top-2 right-2 text-white hover:text-[#ff007a]"

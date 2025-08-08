@@ -4,7 +4,7 @@ import api from "../../../api/axios";
 import { User, Heart, X } from "lucide-react";
 import logoproncipal from "../../imagenes/logoprincipal.png";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-import { ProtectedPage } from '../../usePageAccess'; // Asegúrate de que esta ruta sea correcta
+import { ProtectedPage } from '../../hooks/usePageAccess'; // Asegúrate de que esta ruta sea correcta
 
 export default function SeleccionGenero() {
   const [genero, setGenero] = useState("");

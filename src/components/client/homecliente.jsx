@@ -2,7 +2,7 @@ import React from "react";
 import { MessageSquare, Star, Home, Phone, Clock, CheckCircle, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "./headercliente";
-import { ProtectedPage } from '../usePageAccess';
+import { ProtectedPage } from '../hooks/usePageAccess';
 import { getUser } from "../../utils/auth";
 import CallingSystem from '../../components/CallingOverlay';
 import IncomingCallOverlay from '../../components/IncomingCallOverlay';
@@ -709,6 +709,7 @@ React.useEffect(() => {
       }
     };
   }, []);
+  
 
   return (
     <ProtectedPage requiredConditions={{

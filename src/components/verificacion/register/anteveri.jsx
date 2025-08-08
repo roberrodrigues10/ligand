@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import logoproncipal from "../../imagenes/logoprincipal.png";
-import { ProtectedPage } from '../../usePageAccess'; // Asegúrate de que esta ruta sea correcta
+import { ProtectedPage } from '../../hooks/usePageAccess'; // Asegúrate de que esta ruta sea correcta
 
 export default function InicioVerificacion() {
   const [mostrarModal, setMostrarModal] = useState(false);

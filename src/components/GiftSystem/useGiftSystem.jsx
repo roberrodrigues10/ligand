@@ -99,11 +99,14 @@ export const useGiftSystem = (userId, userRole, getAuthHeaders, apiBaseUrl) => {
         setPendingRequests(prev => prev.filter(req => req.id !== requestId));
         
         console.log('✅ Regalo aceptado correctamente');
-        
+        console.log('✅ Regalo aceptado exitosamente');
+  
         return { 
           success: true, 
           transaction: data.transaction,
           newBalance: data.new_balance,
+          // 🔥 AGREGAR: Los mensajes del chat del backend
+          chatMessages: data.chat_messages,
           // Crear estructura para los mensajes del chat
           giftInfo: {
             name: data.transaction?.gift_name,
@@ -112,6 +115,7 @@ export const useGiftSystem = (userId, userRole, getAuthHeaders, apiBaseUrl) => {
             recipient: data.transaction?.recipient
           }
         };
+
       } else {
         console.error('❌ Error aceptando regalo:', data);
         return { 
@@ -125,31 +129,38 @@ export const useGiftSystem = (userId, userRole, getAuthHeaders, apiBaseUrl) => {
     }
   }, [API_BASE_URL, getAuthHeaders]);
 
-  const rejectGiftRequest = useCallback(async (requestId) => {
-    try {
-      console.log(`❌ Rechazando regalo ${requestId}`);
-      
-      const response = await fetch(`${API_BASE_URL}/api/gifts/requests/${requestId}/reject`, {
-        method: 'POST',
-        headers: getAuthHeaders()
-      });
+  const rejectGiftRequest = useCallback(async (requestId, reason = null) => {
+  try {
+    console.log(`❌ Rechazando regalo ${requestId}`);
+    
+    const requestOptions = {
+      method: 'POST',
+      headers: getAuthHeaders()
+    };
 
-      const data = await response.json();
-      
-      if (data.success) {
-        // Remover la solicitud de la lista de pendientes
-        setPendingRequests(prev => prev.filter(req => req.id !== requestId));
-        console.log('✅ Regalo rechazado correctamente');
-        return { success: true };
-      } else {
-        console.error('❌ Error rechazando regalo:', data.error);
-        return { success: false, error: data.error };
-      }
-    } catch (error) {
-      console.error('❌ Error de conexión rechazando regalo:', error);
-      return { success: false, error: 'Error de conexión' };
+    // Solo agregar body si hay una razón
+    if (reason) {
+      requestOptions.headers['Content-Type'] = 'application/json';
+      requestOptions.body = JSON.stringify({ reason });
     }
-  }, [API_BASE_URL, getAuthHeaders]);
+    
+    const response = await fetch(`${API_BASE_URL}/api/gifts/requests/${requestId}/reject`, requestOptions);
+
+    const data = await response.json();
+    
+    if (data.success) {
+      setPendingRequests(prev => prev.filter(req => req.id !== requestId));
+      console.log('✅ Regalo rechazado correctamente');
+      return { success: true };
+    } else {
+      console.error('❌ Error rechazando regalo:', data.error);
+      return { success: false, error: data.error };
+    }
+  } catch (error) {
+    console.error('❌ Error de conexión rechazando regalo:', error);
+    return { success: false, error: 'Error de conexión' };
+  }
+}, [API_BASE_URL, getAuthHeaders]);
 
 
   return {

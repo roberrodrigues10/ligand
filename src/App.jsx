@@ -2,8 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { initializeAuth } from "./utils/auth";
 
-// 🔥 IMPORTAR EL HOOK SIMPLE DE ROL
-import { ProtectedPage } from "./components/usePageAccess";
+// 🔥 IMPORTAR AMBOS SISTEMAS DE PROTECCIÓN
+import { ProtectedPage } from "./components/hooks/usePageAccess.jsx";
+import { RegistrationProtectedPage } from "./components/hooks/useRegistrationAccess.jsx";
 
 import LigandHome from "./components/ligandHome";
 import LoginLigand from "./components/verificacion/login/loginligand";
@@ -40,6 +41,8 @@ import RateLimitWait from "./components/RateLimitWait";
 
 import { SearchingProvider } from './contexts/SearchingContext.jsx';
 import { GlobalTranslationProvider } from './contexts/GlobalTranslationContext.jsx';
+import { NotificationProvider } from './contexts/NotificationContext.jsx';
+
 
 function App() {
   useEffect(() => {
@@ -51,77 +54,219 @@ function App() {
       <RateLimitProvider>
         <SearchingProvider>
           <GlobalTranslationProvider>
-            
+            <NotificationProvider>
+
             <ToastContainer />
               
             <Routes>
-              {/* 🔓 RUTAS PÚBLICAS (fuera del RoleGuard) */}
+              {/* 🔓 RUTAS PÚBLICAS (sin protección) */}
               <Route path="/home" element={<LigandHome />} />
               <Route path="/login" element={<LoginLigand />} />
               <Route path="/logout" element={<Logout />} />
               <Route path="/rate-limit-wait" element={<RateLimitWait />} />
 
-              {/* 🔒 RUTAS PROTEGIDAS (dentro del RouteGuard Y ProtectedPage) */}
+              {/* 🔒 RUTAS PROTEGIDAS */}
               <Route path="/*" element={
                 <RouteGuard>
-                  <ProtectedPage>
-                    <Routes>
-                      
-                      {/* 🏠 RUTA RAÍZ */}
-                      <Route 
-                        path="/" 
-                        element={<Navigate to="/dashboard" replace />} 
-                      />
+                  <Routes>
+                    
+                    {/* 🏠 RUTA RAÍZ */}
+                    <Route 
+                      path="/" 
+                      element={<Navigate to="/dashboard" replace />} 
+                    />
 
-                      {/* 🎯 DASHBOARD - El RoleGuard se encargará de redirigir */}
-                      <Route 
-                        path="/dashboard" 
-                        element={
+                    {/* 🎯 DASHBOARD - Los hooks se encargarán de redirigir */}
+                    <Route 
+                      path="/dashboard" 
+                      element={
+                        <ProtectedPage>
                           <div className="min-h-screen flex items-center justify-center bg-black text-white">
                             <div className="text-center">
                               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500 mx-auto mb-4"></div>
                               <p>Redirigiendo al área correspondiente...</p>
                             </div>
                           </div>
-                        } 
-                      />
+                        </ProtectedPage>
+                      } 
+                    />
 
-                      {/* 📧 PROCESO DE REGISTRO (públicas dentro del RouteGuard) */}
-                      <Route path="/verificaremail" element={<VerificarCodigo />} />
-                      <Route path="/genero" element={<Genero />} />
-                      <Route path="/verificacion" element={<Verificacion />} />
-                      <Route path="/anteveri" element={<Anteveri />} />
-                      <Route path="/esperando" element={<Esperando />} />
+                    {/* 📧 PROCESO DE REGISTRO - Protegidas por RegistrationProtectedPage */}
+                    <Route 
+                      path="/verificaremail" 
+                      element={
+                        <RegistrationProtectedPage>
+                          <VerificarCodigo />
+                        </RegistrationProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/genero" 
+                      element={
+                        <RegistrationProtectedPage>
+                          <Genero />
+                        </RegistrationProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/anteveri" 
+                      element={
+                        <RegistrationProtectedPage>
+                          <Anteveri />
+                        </RegistrationProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/verificacion" 
+                      element={
+                        <RegistrationProtectedPage>
+                          <Verificacion />
+                        </RegistrationProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/esperando" 
+                      element={
+                        <RegistrationProtectedPage>
+                          <Esperando />
+                        </RegistrationProtectedPage>
+                      } 
+                    />
 
-                      {/* 👨‍💼 ÁREA DEL CLIENTE - Solo clientes pueden acceder */}
-                      <Route path="/homecliente" element={<Homecliente />} />
-                      <Route path="/esperandocallcliente" element={<EsperandoCallCliente />} />
-                      <Route path="/videochatclient" element={<VideochatClient />} />
-                      <Route path="/message" element={<MessageClient />} />
-                      <Route path="/favoritesboy" element={<Favoritesboy />} />
+                    {/* 👨‍💼 ÁREA DEL CLIENTE - Protegidas por ProtectedPage */}
+                    <Route 
+                      path="/homecliente" 
+                      element={
+                        <ProtectedPage>
+                          <Homecliente />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/esperandocallcliente" 
+                      element={
+                        <ProtectedPage>
+                          <EsperandoCallCliente />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/videochatclient" 
+                      element={
+                        <ProtectedPage>
+                          <VideochatClient />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/message" 
+                      element={
+                        <ProtectedPage>
+                          <MessageClient />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/favoritesboy" 
+                      element={
+                        <ProtectedPage>
+                          <Favoritesboy />
+                        </ProtectedPage>
+                      } 
+                    />
 
-                      {/* 👩‍💼 ÁREA DE LA MODELO - Solo modelos pueden acceder */}
-                      <Route path="/homellamadas" element={<HomeLlamadas />} />
-                      <Route path="/mensajes" element={<Mensajes />} />
-                      <Route path="/favorites" element={<Favoritos />} />
-                      <Route path="/historysu" element={<HistorySub />} />
-                      <Route path="/esperandocall" element={<EsperancoCall />} />
-                      <Route path="/videochat" element={<Videochat />} />
-                      <Route path="/configuracion" element={<ConfiPerfil />} />
-                      <Route path="/VideoRecorderUpload" element={<VideoRecorderUpload />} />
-                      <Route path="/usersearch" element={<UserSearch />} />
+                    {/* 👩‍💼 ÁREA DE LA MODELO - Protegidas por ProtectedPage */}
+                    <Route 
+                      path="/homellamadas" 
+                      element={
+                        <ProtectedPage>
+                          <HomeLlamadas />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/mensajes" 
+                      element={
+                        <ProtectedPage>
+                          <Mensajes />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/favorites" 
+                      element={
+                        <ProtectedPage>
+                          <Favoritos />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/historysu" 
+                      element={
+                        <ProtectedPage>
+                          <HistorySub />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/esperandocall" 
+                      element={
+                        <ProtectedPage>
+                          <EsperancoCall />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/videochat" 
+                      element={
+                        <ProtectedPage>
+                          <Videochat />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/configuracion" 
+                      element={
+                        <ProtectedPage>
+                          <ConfiPerfil />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/VideoRecorderUpload" 
+                      element={
+                        <ProtectedPage>
+                          <VideoRecorderUpload />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/usersearch" 
+                      element={
+                        <ProtectedPage>
+                          <UserSearch />
+                        </ProtectedPage>
+                      } 
+                    />
 
-                      {/* 🛡️ ADMIN - Solo admins pueden acceder */}
-                      <Route path="/verificacionesadmin" element={<VerificacionesAdmin />} />
+                    {/* 🛡️ ADMIN - Protegida por ProtectedPage */}
+                    <Route 
+                      path="/verificacionesadmin" 
+                      element={
+                        <ProtectedPage>
+                          <VerificacionesAdmin />
+                        </ProtectedPage>
+                      } 
+                    />
 
-                      {/* 🚫 FALLBACK */}
-                      <Route path="*" element={<Navigate to="/home" replace />} />
-                      
-                    </Routes>
-                  </ProtectedPage>
+                    {/* 🚫 FALLBACK */}
+                    <Route path="*" element={<Navigate to="/home" replace />} />
+                    
+                  </Routes>
                 </RouteGuard>
               } />
             </Routes>
+      </NotificationProvider>
 
           </GlobalTranslationProvider>
         </SearchingProvider>

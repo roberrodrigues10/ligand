@@ -110,6 +110,97 @@ export default function ChatPrivado() {
   const getDisplayName = useCallback((userId, originalName) => {
     return apodos[userId] || originalName;
   }, [apodos]);
+  const playGiftReceivedSound = useCallback(async () => {
+  try {
+    console.log('🎁🔊 Reproduciendo sonido de regalo recibido...');
+    
+    // Crear audio para regalo recibido
+    const audio = new Audio('/sounds/gift-received.mp3');
+    audio.volume = 0.8;
+    audio.preload = 'auto';
+    
+    try {
+      await audio.play();
+      console.log('🎵 Sonido de regalo reproducido correctamente');
+    } catch (playError) {
+      console.error('❌ Error reproduciendo sonido de regalo:', playError);
+      if (playError.name === 'NotAllowedError') {
+        console.log('🚫 AUTOPLAY BLOQUEADO - Usando sonido alternativo');
+        // Sonido alternativo más corto
+        playAlternativeGiftSound();
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error general creando audio de regalo:', error);
+    playAlternativeGiftSound();
+  }
+  }, []);
+
+  const playAlternativeGiftSound = useCallback(() => {
+    try {
+      // Sonido sintetizado como alternativa
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Crear una melodía alegre para regalos
+      const playNote = (frequency, startTime, duration) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+        oscillator.type = 'triangle';
+        
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.01);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+      
+      // Melodía alegre: Do-Mi-Sol-Do
+      const now = audioContext.currentTime;
+      playNote(523.25, now, 0.2);      // Do
+      playNote(659.25, now + 0.15, 0.2); // Mi
+      playNote(783.99, now + 0.3, 0.2);  // Sol
+      playNote(1046.5, now + 0.45, 0.3); // Do (octava alta)
+      
+      console.log('🎵 Sonido alternativo de regalo reproducido');
+    } catch (error) {
+      console.error('❌ Error con sonido alternativo:', error);
+    }
+  }, []);
+
+  // 🎁 FUNCIÓN PARA REPRODUCIR NOTIFICACIÓN DE REGALO
+  const playGiftNotification = useCallback(async (giftName) => {
+    try {
+      // Reproducir sonido
+      await playGiftReceivedSound();
+      
+      // Mostrar notificación visual si está permitido
+      if (Notification.permission === 'granted') {
+        new Notification('🎁 ¡Regalo Recibido!', {
+          body: `Has recibido: ${giftName}`,
+          icon: '/favicon.ico',
+          tag: 'gift-received',
+          requireInteraction: true // La notificación permanece hasta que el usuario la cierre
+        });
+      }
+      
+      // Vibrar en dispositivos móviles
+      if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 400]);
+      }
+      
+      console.log('🎉 Notificación completa de regalo ejecutada');
+    } catch (error) {
+      console.error('❌ Error en notificación de regalo:', error);
+    }
+  }, [playGiftReceivedSound]);
+
+
 
   // MARCAR COMO VISTO MEJORADO - DEFINIR ANTES DE abrirConversacion
   const marcarComoVisto = useCallback(async (roomName) => {
@@ -1098,54 +1189,95 @@ const renderMensaje = useCallback((mensaje) => {
 
   // Polling de mensajes en conversación activa - TIEMPO REAL
   useEffect(() => {
-    let interval;
-    if (conversacionActiva) {
-      console.log(`📡 Iniciando polling de mensajes para: ${conversacionActiva}`);
-      
-      interval = setInterval(async () => {
-        console.log(`🔄 Polling mensajes en conversación: ${conversacionActiva}`);
-        try {
-          const response = await fetch(`${API_BASE_URL}/api/chat/messages/${conversacionActiva}`, {
-            method: 'GET',
-            headers: getAuthHeaders()
-          });
+  let interval;
+  if (conversacionActiva) {
+    console.log(`📡 Iniciando polling de mensajes para: ${conversacionActiva}`);
+    
+    interval = setInterval(async () => {
+      console.log(`🔄 Polling mensajes en conversación: ${conversacionActiva}`);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/chat/messages/${conversacionActiva}`, {
+          method: 'GET',
+          headers: getAuthHeaders()
+        });
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.messages) {
-              // Comparar si hay mensajes nuevos
-              const currentMessageIds = new Set(mensajes.map(m => m.id));
-              const newMessages = data.messages.filter(m => !currentMessageIds.has(m.id));
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.messages) {
+            // Comparar si hay mensajes nuevos
+            const currentMessageIds = new Set(mensajes.map(m => m.id));
+            const newMessages = data.messages.filter(m => !currentMessageIds.has(m.id));
+            
+            if (newMessages.length > 0) {
+              console.log(`✅ ${newMessages.length} mensajes nuevos recibidos`);
               
-              if (newMessages.length > 0) {
-                console.log(`✅ ${newMessages.length} mensajes nuevos recibidos`);
-                setMensajes(data.messages);
+              // 🎁 DETECTAR REGALOS RECIBIDOS EN MENSAJES NUEVOS
+              const newGiftMessages = newMessages.filter(msg => 
+                msg.type === 'gift_received' && 
+                msg.user_id !== usuario.id // Solo si no soy yo quien envió
+              );
+              
+              if (newGiftMessages.length > 0) {
+                console.log('🎁 ¡Regalo(s) recibido(s) detectado(s)!', newGiftMessages);
                 
-                // Marcar como visto inmediatamente si estás en la conversación
-                await marcarComoVisto(conversacionActiva);
-                
-                // Auto-scroll al final
-                setTimeout(() => {
-                  if (mensajesRef.current) {
-                    mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+                // Reproducir sonido para cada regalo
+                for (const giftMsg of newGiftMessages) {
+                  try {
+                    // Extraer nombre del regalo
+                    let giftData = giftMsg.gift_data || giftMsg.extra_data || {};
+                    
+                    // Parsear si es string
+                    if (typeof giftData === 'string') {
+                      try {
+                        giftData = JSON.parse(giftData);
+                      } catch (e) {
+                        giftData = { gift_name: 'Regalo Especial' };
+                      }
+                    }
+                    
+                    const giftName = giftData.gift_name || 'Regalo Especial';
+                    console.log(`🎵 Reproduciendo sonido para regalo: ${giftName}`);
+                    
+                    // Reproducir notificación con sonido
+                    await playGiftNotification(giftName);
+                    
+                    // Esperar un poco entre regalos para no saturar
+                    if (newGiftMessages.length > 1) {
+                      await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                  } catch (error) {
+                    console.error('❌ Error procesando sonido de regalo:', error);
                   }
-                }, 100);
+                }
               }
+              
+              setMensajes(data.messages);
+              
+              // Marcar como visto inmediatamente si estás en la conversación
+              await marcarComoVisto(conversacionActiva);
+              
+              // Auto-scroll al final
+              setTimeout(() => {
+                if (mensajesRef.current) {
+                  mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+                }
+              }, 100);
             }
           }
-        } catch (error) {
-          console.error('❌ Error en polling de mensajes:', error);
         }
-      }, 3000); // Cada 3 segundos
-    }
-    
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-        console.log('🛑 Polling de mensajes detenido');
+      } catch (error) {
+        console.error('❌ Error en polling de mensajes:', error);
       }
-    };
-  }, [conversacionActiva, mensajes, getAuthHeaders, marcarComoVisto]);
+    }, 3000); // Cada 3 segundos
+  }
+  
+  return () => {
+    if (interval) {
+      clearInterval(interval);
+      console.log('🛑 Polling de mensajes detenido');
+    }
+  };
+  }, [conversacionActiva, mensajes, getAuthHeaders, marcarComoVisto, usuario.id, playGiftNotification]);
 
   // Detectar móvil
   useEffect(() => {
@@ -1242,6 +1374,7 @@ const renderMensaje = useCallback((mensaje) => {
     }
   }, [usuario.id, getAuthHeaders]);
 
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1c20] to-[#2b2d31] text-white p-6">
       <div className="relative">

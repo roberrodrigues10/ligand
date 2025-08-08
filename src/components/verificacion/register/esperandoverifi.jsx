@@ -3,7 +3,7 @@ import { Lock, CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "../../header";
 import api from "../../../api/axios";
-import { ProtectedPage } from '../../usePageAccess'; // Asegúrate de que esta ruta sea correcta
+import { ProtectedPage } from '../../hooks/usePageAccess'; // Asegúrate de que esta ruta sea correcta
 
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;

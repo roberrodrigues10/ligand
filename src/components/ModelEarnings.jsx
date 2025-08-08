@@ -14,21 +14,24 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentsError, setPaymentsError] = useState(null);
+  const [balanceData, setBalanceData] = useState(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const ITEMS_PER_PAGE = 3;
 
   useEffect(() => {
-    if (isOpen) {
-      if (activeTab === 'weekly') {
-        fetchWeeklyEarnings();
-      } else if (activeTab === 'pending') {
-        fetchPendingPayments();
-      } else if (activeTab === 'history') {
-        fetchPaymentHistory();
-      }
+  if (isOpen) {
+    if (activeTab === 'weekly') {
+      fetchWeeklyEarnings();
+      fetchUserBalance(); // 🔥 AGREGAR esta línea
+    } else if (activeTab === 'pending') {
+      fetchPendingPayments();
+    } else if (activeTab === 'history') {
+      fetchPaymentHistory();
     }
-  }, [isOpen, activeTab]);
+  }
+}, [isOpen, activeTab]);
 
   const fetchWeeklyEarnings = async () => {
     try {
@@ -181,6 +184,30 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
     const startIndex = (page - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     return earnings.slice(startIndex, endIndex);
+  };
+  const fetchUserBalance = async () => {
+  try {
+    setBalanceLoading(true);
+    const token = sessionStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/balance`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('💰 Balance data recibida:', data);
+      setBalanceData(data);
+    } else {
+      console.error('Error al obtener balance');
+    }
+  } catch (error) {
+    console.error('Error fetching balance:', error);
+  } finally {
+    setBalanceLoading(false);
+  }
   };
 
   const getTotalPages = (earnings) => {
@@ -443,66 +470,99 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
           {activeTab === 'weekly' && (
             <>
               {/* 🔥 NUEVO: Weekly Summary con Stripe */}
-              {weeklyData && (
-                <div className="p-6 bg-gradient-to-r from-[#ff007a]/10 to-purple-600/10 border-b border-[#ff007a]/20">
-                  {/* Earnings Summary - Solo ganancias finales */}
-                  <div className="flex justify-center mb-6">
-                    <div className="bg-[#2b2d31] rounded-lg p-6 border border-[#ff007a]/20 text-center min-w-80">
-                      <div className="flex items-center justify-center gap-2 mb-3">
-                        <DollarSign className="text-[#ff007a]" size={24} />
-                        <h3 className="text-white font-medium text-lg">Ganancias Semanales</h3>
-                      </div>
-                      <p className="text-3xl font-bold text-[#ff007a]">
-                        ${weeklyData.net_earnings?.model_earnings?.toFixed(2) || '0.00'}
-                      </p>
-                      <p className="text-sm text-gray-400 mt-1">Total a recibir</p>
+            {balanceData && (
+              <div className="p-6 bg-gradient-to-r from-[#ff007a]/10 to-purple-600/10 border-b border-[#ff007a]/20">
+                {/* Saldo General Principal */}
+                <div className="flex justify-center mb-6">
+                  <div className="bg-[#2b2d31] rounded-lg p-6 border border-[#ff007a]/20 text-center min-w-80">
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <DollarSign className="text-[#ff007a]" size={28} />
+                      <h3 className="text-white font-medium text-xl">Saldo General</h3>
                     </div>
+                    <p className="text-4xl font-bold text-[#ff007a] mb-2">
+                      ${balanceData.balance?.current_balance?.toFixed(2) || '0.00'}
+                    </p>
+                    <p className="text-sm text-gray-400">Balance disponible total</p>
                   </div>
+                </div>
 
-                  {/* Session Stats */}
+                {/* Desglose Semanal */}
+                <div className="bg-[#36393f]/50 rounded-lg p-4 mb-4">
+                  <h4 className="text-white font-medium text-center mb-3">
+                    📊 Desglose Esta Semana ({balanceData.weekly_breakdown?.week_range})
+                  </h4>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-gray-400 text-sm">Sesiones Totales</p>
-                      <p className="text-xl font-bold text-white">
-                        {weeklyData.session_stats?.total_sessions || 0}
+                    <div className="bg-[#2b2d31] rounded-lg p-3 border border-blue-500/20">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <Clock className="text-blue-400" size={16} />
+                        <span className="text-blue-400 text-sm font-medium">Por Tiempo</span>
+                      </div>
+                      <p className="text-xl font-bold text-blue-400">
+                        ${balanceData.weekly_breakdown?.time_earnings?.toFixed(2) || '0.00'}
                       </p>
+                      <p className="text-xs text-gray-500">Sesiones de chat</p>
                     </div>
-                    <div>
-                      <p className="text-gray-400 text-sm">Sesiones Válidas</p>
-                      <p className="text-xl font-bold text-green-400">
-                        {weeklyData.session_stats?.qualifying_sessions || 0}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-sm">Tasa de Éxito</p>
-                      <p className="text-xl font-bold text-purple-400">
-                        {weeklyData.session_stats?.qualification_rate || 0}%
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Payment Status */}
-                  <div className="mt-6 text-center">
-                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
-                      weeklyData.payment_status?.is_paid 
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/20' 
-                        : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/20'
-                    }`}>
-                      {weeklyData.payment_status?.is_paid ? (
-                        <>
-                          <CheckCircle size={16} />
-                          <span>Pagado: ${weeklyData.payment_status.final_amount_to_pay?.toFixed(2) || '0.00'}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Loader2 size={16} className="animate-spin" />
-                          <span>Por pagar: ${weeklyData.payment_status?.final_amount_to_pay?.toFixed(2) || '0.00'}</span>
-                        </>
-                      )}
+                    <div className="bg-[#2b2d31] rounded-lg p-3 border border-purple-500/20">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <DollarSign className="text-purple-400" size={16} />
+                        <span className="text-purple-400 text-sm font-medium">Por Regalos</span>
+                      </div>
+                      <p className="text-xl font-bold text-purple-400">
+                        ${balanceData.weekly_breakdown?.gift_earnings?.toFixed(2) || '0.00'}
+                      </p>
+                      <p className="text-xs text-gray-500">Regalos recibidos</p>
+                    </div>
+
+                    <div className="bg-[#2b2d31] rounded-lg p-3 border border-[#ff007a]/20">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <CheckCircle className="text-[#ff007a]" size={16} />
+                        <span className="text-[#ff007a] text-sm font-medium">Total Semanal</span>
+                      </div>
+                      <p className="text-xl font-bold text-[#ff007a]">
+                        ${balanceData.weekly_breakdown?.total_weekly?.toFixed(2) || '0.00'}
+                      </p>
+                      <p className="text-xs text-gray-500">{balanceData.weekly_breakdown?.sessions_count || 0} sesiones</p>
                     </div>
                   </div>
                 </div>
-              )}
+
+                {/* Estadísticas Generales */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center text-sm">
+                  <div>
+                    <p className="text-gray-400">Total Histórico Ganado</p>
+                    <p className="text-lg font-bold text-green-400">
+                      ${balanceData.balance?.total_earned?.toFixed(2) || '0.00'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Última Ganancia</p>
+                    <p className="text-lg font-bold text-white">
+                      {balanceData.balance?.last_earning_at 
+                        ? new Date(balanceData.balance.last_earning_at).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'Ninguna'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          {/* Loading state para balance */}
+          {balanceLoading && (
+            <div className="p-6 border-b border-[#ff007a]/20">
+              <div className="text-center">
+                <Loader2 className="animate-spin h-6 w-6 text-[#ff007a] mx-auto mb-2" />
+                <p className="text-gray-400 text-sm">Cargando balance...</p>
+              </div>
+            </div>
+          )}
 
               {/* Daily Breakdown */}
               <div className="p-6">

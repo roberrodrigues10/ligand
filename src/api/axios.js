@@ -57,7 +57,6 @@ instance.interceptors.response.use(
       console.log("🧹 Interceptor: Token inválido detectado");
       
       // Limpiar token
-      sessionStorage.removeItem("token");
       
       // Opcional: Notificar al usuario
       console.warn("🚫 Sesión expirada. Por favor, inicia sesión nuevamente.");

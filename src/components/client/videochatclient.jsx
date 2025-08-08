@@ -43,7 +43,7 @@
   import SimpleChat from "../messages";
   import { getUser } from "../../utils/auth";
   import { useSessionCleanup } from '../closesession';
-  import { ProtectedPage } from '../usePageAccess';
+  import { ProtectedPage } from '../hooks/usePageAccess.jsx';
   import { updateHeartbeatRoom } from '../../utils/auth';
   import { sendHeartbeat, useVideoChatHeartbeat  } from '../../utils/heartbeat';
   import { initHeartbeatSync } from '../../utils/heartbeatManager';
