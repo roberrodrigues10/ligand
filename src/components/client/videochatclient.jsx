@@ -53,6 +53,9 @@
     TranslatedMessage 
   } from '../../utils/translationSystem.jsx';
   import CameraAudioSettings from '../../utils/cameraaudiosettings.jsx';
+  import { useVideoChatGifts } from '../../components/GiftSystem/useVideoChatGifts'; // ← AGREGAR IMPORT
+  import { GiftNotificationOverlay } from '../../components/GiftSystem/GiftNotificationOverlay'; // ← AGREGAR IMPORT
+  import { GiftMessageComponent } from '../../components/GiftSystem/GiftMessageComponent.jsx'; // ← AGREGAR IMPORT
 
 
   // 🔥 IMPORT DEL CONTEXTO DE BÚSQUEDA
@@ -258,6 +261,7 @@
         forced: searchParams.get('forced')
       };
     };
+    
 
     const stateData = location.state || {};
     const urlParams = getParamsFromUrl();
@@ -281,6 +285,18 @@
       const saved = localStorage.getItem("mirrorMode");
       return saved ? JSON.parse(saved) : true;
     });
+    const [userData, setUserData] = useState({
+            name: "",
+            role: "",
+            id: null,
+          });
+          const [otherUser, setOtherUser] = useState(() => {
+            if (!roomName || !userName) return null;
+            const cacheKey = getRoomCacheKey(roomName, userName);
+            const cached = USER_CACHE.get(cacheKey);
+            console.log('🔄 Inicializando VideoChat con cache:', cached);
+            return cached || null;
+          });
     // 🔥 ESTADOS BÁSICOS
     const [token, setToken] = useState('');
     const [serverUrl, setServerUrl] = useState('');
@@ -299,6 +315,7 @@
     const [isFavorite, setIsFavorite] = useState(false);
     const [showCameraAudioModal, setShowCameraAudioModal] = useState(false);
     const [isMonitoringBalance, setIsMonitoringBalance] = useState(false);
+    
 
     
     // Estados para controles
@@ -306,7 +323,6 @@
     const [cameraEnabled, setCameraEnabled] = useState(true);
     useVideoChatHeartbeat(roomName, 'cliente');
 
-    
     // Estados para UI
     const [camaraPrincipal, setCamaraPrincipal] = useState("remote");
     const [tiempo, setTiempo] = useState(0);
@@ -322,20 +338,26 @@
       }
     ]);
 
-    // 🔥 ESTADOS DE USUARIO CON CACHE PERSISTENTE
-    const [userData, setUserData] = useState({
-      name: "",
-      role: "",
-      id: null,
-    });
+    // 🎁 HOOK DE REGALOS VIDEOCHAT
+    const {
+      gifts,
+      pendingRequests,
+      userBalance,
+      loading: giftLoading,
+      acceptGift,
+      rejectGift,
+      loadPendingRequests,
+      loadUserBalance,
+      setPendingRequests
+    } = useVideoChatGifts(
+      roomName,
+      { id: userData.id, role: userData.role, name: userData.name },
+      otherUser ? { id: otherUser.id, name: otherUser.name } : null
+    );
 
-    const [otherUser, setOtherUser] = useState(() => {
-      if (!roomName || !userName) return null;
-      const cacheKey = getRoomCacheKey(roomName, userName);
-      const cached = USER_CACHE.get(cacheKey);
-      console.log('🔄 [CLIENTE] Inicializando VideoChat con cache:', cached);
-      return cached || null;
-    });
+    // Estados para notificaciones de regalo
+    const [showGiftNotification, setShowGiftNotification] = useState(false);
+    const [processingGift, setProcessingGift] = useState(null);
 
     const [isDetectingUser, setIsDetectingUser] = useState(() => {
       if (!roomName || !userName) return false;
@@ -609,6 +631,104 @@
       
       startRedirectCountdown();
     };
+
+  useEffect(() => {
+    if (pendingRequests.length > 0 && userData.role === 'cliente') {
+      setShowGiftNotification(true);
+      console.log('🎁 [CLIENTE] Mostrando notificación de regalo:', pendingRequests[0]);
+    } else {
+      setShowGiftNotification(false);
+    }
+  }, [pendingRequests, userData.role]);
+
+  // 🎁 FUNCIÓN PARA ACEPTAR REGALO (CLIENTE)
+  const handleAcceptGift = async (requestId, securityHash) => {
+    if (processingGift === requestId) {
+      console.warn('⚠️ [CLIENTE] Regalo ya siendo procesado');
+      return;
+    }
+
+    try {
+      setProcessingGift(requestId);
+      console.log('✅ [CLIENTE] Aceptando regalo:', { requestId, hasHash: !!securityHash });
+      
+      const result = await acceptGift(requestId, securityHash);
+      
+      if (result.success) {
+        console.log('✅ [CLIENTE] Regalo aceptado exitosamente');
+        
+        // Cerrar notificación
+        setShowGiftNotification(false);
+        
+        // Agregar mensaje al chat
+        const giftMessage = {
+          id: Date.now(),
+          type: 'gift_sent',
+          text: `🎁 Enviaste: ${result.giftInfo?.name}`,
+          timestamp: Date.now(),
+          isOld: false,
+          sender: userData.name,
+          senderRole: userData.role
+        };
+        setMessages(prev => [giftMessage, ...prev]);
+        
+        // Actualizar balance en el estado si es necesario
+        if (result.newBalance !== undefined) {
+          console.log('💰 [CLIENTE] Nuevo balance:', result.newBalance);
+        }
+        
+        return { success: true };
+      } else {
+        console.error('❌ [CLIENTE] Error aceptando regalo:', result.error);
+        alert(`Error: ${result.error}`);
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      console.error('❌ [CLIENTE] Error de conexión:', error);
+      alert('Error de conexión');
+      return { success: false, error: 'Error de conexión' };
+    } finally {
+      setProcessingGift(null);
+    }
+  };
+
+  // 🎁 FUNCIÓN PARA RECHAZAR REGALO (CLIENTE)
+  const handleRejectGift = async (requestId, reason = '') => {
+    try {
+      console.log('❌ [CLIENTE] Rechazando regalo:', requestId);
+      
+      const result = await rejectGift(requestId, reason);
+      
+      if (result.success) {
+        console.log('✅ [CLIENTE] Regalo rechazado exitosamente');
+        
+        // Cerrar notificación
+        setShowGiftNotification(false);
+        
+        // Agregar mensaje al chat
+        const rejectMessage = {
+          id: Date.now(),
+          type: 'gift_rejected',
+          text: '❌ Rechazaste una solicitud de regalo',
+          timestamp: Date.now(),
+          isOld: false,
+          sender: userData.name,
+          senderRole: userData.role
+        };
+        setMessages(prev => [rejectMessage, ...prev]);
+        
+        return { success: true };
+      } else {
+        console.error('❌ [CLIENTE] Error rechazando regalo:', result.error);
+        alert(`Error: ${result.error}`);
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      console.error('❌ [CLIENTE] Error de conexión:', error);
+      alert('Error de conexión');
+      return { success: false, error: 'Error de conexión' };
+    }
+  };
     
 
 
@@ -1601,6 +1721,13 @@
         audioCaptureDefaults: selectedMic ? { deviceId: selectedMic } : undefined,
       }}
       >
+        <GiftNotificationOverlay
+          pendingRequests={pendingRequests}
+          onAccept={handleAcceptGift}
+          onReject={handleRejectGift}
+          onClose={() => setShowGiftNotification(false)}
+          isVisible={showGiftNotification && userData.role === 'cliente'}
+        />
         <RoomAudioRenderer />
         
         <SimpleChat
@@ -1701,6 +1828,13 @@
                 </div>
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={16} className="text-green-400" title="Verificado" />
+                  {/* 💰 MOSTRAR BALANCE DE REGALOS */}
+                  {userBalance > 0 && (
+                    <div className="flex items-center gap-1 bg-[#ff007a]/20 px-2 py-1 rounded-full">
+                      <Gift size={12} className="text-[#ff007a]" />
+                      <span className="text-[#ff007a] text-xs font-bold">{userBalance}</span>
+                    </div>
+                  )}
                   <button title="Favorito" className="text-[#ff007a] hover:scale-110 transition">
                     <Heart size={16} />
                   </button>
@@ -1710,73 +1844,64 @@
                 </div>
               </div>
 
-              {/* Chat */}
               <div 
                 ref={messagesContainerRef}
                 className="max-h-[360px] p-4 space-y-3 overflow-y-auto custom-scroll"
               >
-              {messages.filter(msg => msg.id > 2).reverse().map((msg, index) => (
-                <div key={msg.id} className={msg.type === 'local' ? 'text-right' : 'text-xs sm:text-sm'}>
-                  {msg.type === 'local' ? (
-                    <p className="bg-[#ff007a] inline-block px-3 py-2 mt-1 rounded-xl text-white max-w-[280px] text-xs sm:text-sm break-words">
-                      <TranslatedMessage 
-                        message={msg} 
-                        settings={translationSettings}
-                        className="text-white"
+                {messages.filter(msg => msg.id > 2).reverse().map((msg, index) => (
+                  <div key={msg.id}>
+                    {/* 🎁 RENDERIZAR MENSAJES DE REGALO PARA CLIENTE */}
+                    {msg.type === 'gift_request' && (
+                      <GiftMessageComponent
+                        giftRequest={{
+                          id: msg.id,
+                          gift: {
+                            name: msg.extra_data?.gift_name || 'Regalo',
+                            image: msg.extra_data?.gift_image || '',
+                            price: msg.extra_data?.gift_price || 0
+                          },
+                          message: msg.extra_data?.original_message || '',
+                          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 min
+                        }}
+                        isClient={true}
+                        onAccept={handleAcceptGift}
+                        onReject={handleRejectGift}
+                        className="mb-3"
                       />
-                    </p>
-                  ) : msg.type === 'system' ? (
-                    <>
-                      <span className="font-bold text-green-400">🎰 Sistema</span>
-                      <p className="bg-[#1f2937] inline-block px-3 py-2 mt-1 rounded-xl border border-green-400/30 max-w-[280px] break-words text-white">
-                        {msg.text}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="bg-[#2b2d31] inline-block px-3 py-2 mt-1 rounded-xl max-w-[280px] break-words text-white">
-                      <TranslatedMessage 
-                        message={msg} 
-                        settings={translationSettings}
-                        className="text-white"
-                      />
-                    </p>
-                  )}
-                </div>
-              ))}
-              </div>
-
-              {/* Modal de regalos */}
-              {mostrarRegalos && (
-                <div className="absolute bottom-[70px] left-1/2 transform -translate-x-1/2 bg-[#1a1c20] p-3 sm:p-5 rounded-xl shadow-2xl w-[280px] sm:w-[300px] max-h-[300px] sm:max-h-[360px] overflow-y-auto z-50 border border-[#ff007a]/30">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-white font-semibold text-xs sm:text-sm">🎁 Regalos</h3>
-                    <button onClick={() => setMostrarRegalos(false)} className="text-white/50 hover:text-white text-sm">✕</button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    {[
-                      { nombre: "🌹 Rosa", valor: 10 },
-                      { nombre: "💖 Corazón", valor: 20 },
-                      { nombre: "🍾 Champán", valor: 30 },
-                      { nombre: "💍 Anillo", valor: 50 },
-                      { nombre: "🍰 Pastel", valor: 15 },
-                      { nombre: "🐻 Peluche", valor: 25 },
-                      { nombre: "🎸 Canción", valor: 35 },
-                      { nombre: "🚗 Coche", valor: 70 },
-                      { nombre: "📱 Celular", valor: 80 },
-                      { nombre: "💎 Diamante", valor: 100 },
-                    ].map((regalo, i) => (
-                      <div 
-                        key={i} 
-                        className="bg-[#2b2d31] px-2 sm:px-3 py-2 rounded-xl flex items-center justify-between hover:bg-[#383c44] cursor-pointer transition"
-                        onClick={() => enviarRegalo(regalo)}
-                      >
-                        <span className="text-xs sm:text-sm text-white">{regalo.nombre}</span>
-                        <span className="text-[10px] sm:text-xs text-[#ff007a] font-bold">{regalo.valor}m</span>
+                    )}
+                    
+                    {/* MENSAJES NORMALES */}
+                    {msg.type !== 'gift_request' && (
+                      <div className={msg.type === 'local' ? 'text-right' : 'text-xs sm:text-sm'}>
+                        {msg.type === 'local' ? (
+                          <p className="bg-[#ff007a] inline-block px-3 py-2 mt-1 rounded-xl text-white max-w-[280px] text-xs sm:text-sm break-words">
+                            <TranslatedMessage 
+                              message={msg} 
+                              settings={translationSettings}
+                              className="text-white"
+                            />
+                          </p>
+                        ) : msg.type === 'system' ? (
+                          <>
+                            <span className="font-bold text-green-400">🎰 Sistema</span>
+                            <p className="bg-[#1f2937] inline-block px-3 py-2 mt-1 rounded-xl border border-green-400/30 max-w-[280px] break-words text-white">
+                              {msg.text}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="bg-[#2b2d31] inline-block px-3 py-2 mt-1 rounded-xl max-w-[280px] break-words text-white">
+                            <TranslatedMessage 
+                              message={msg} 
+                              settings={translationSettings}
+                              className="text-white"
+                            />
+                          </p>
+                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
 
               {/* Input de chat */}
               <div className="border-t border-[#ff007a]/20 p-3 flex gap-2 items-center">
@@ -1805,7 +1930,6 @@
               </div>
             </div>
           </div>
-
           {/* CONTROLES RESPONSIVOS */}
           <div className="flex justify-center items-center gap-4 sm:gap-6 lg:gap-10 mt-4 lg:mt-6 px-4 relative">
                     {/* MICRÓFONO */}

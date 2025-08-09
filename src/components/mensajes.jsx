@@ -96,13 +96,15 @@ export default function ChatPrivado() {
 
   // 🔥 SISTEMA DE REGALOS (DESPUÉS DE getAuthHeaders)
   const {
-    gifts,
-    loadingGifts,
-    pendingRequests,
-    loadingRequests,
-    loadGifts,
-    loadPendingRequests,
-    setPendingRequests
+  gifts,
+  loadingGifts,
+  pendingRequests,
+  loadingRequests,
+  loadGifts,
+  loadPendingRequests,
+  setPendingRequests,
+  requestGift,          // ← NUEVO
+  generateSessionToken  // ← NUEVO
   } = useGiftSystem(usuario.id, usuario.rol, getAuthHeaders, API_BASE_URL);
 
   const getInitial = useCallback((name) => name ? name.charAt(0).toUpperCase() : '?', []);
@@ -410,25 +412,54 @@ export default function ChatPrivado() {
     }
   }, [loading, getAuthHeaders, conversaciones, conversacionActiva]);
 
-  const cargarMensajes = useCallback(async (roomName) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/messages/${roomName}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
+const cargarMensajes = useCallback(async (roomName) => {
+  try {
+    console.log('🔍 Cargando mensajes para:', roomName, 'Rol:', usuario.rol);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.messages) {
-          setMensajes(data.messages);
-          localStorage.setItem(`messages_${roomName}`, JSON.stringify(data.messages));
-        }
+    let allMessages = [];
+
+    // 1. Cargar mensajes principales
+    const mainResponse = await fetch(`${API_BASE_URL}/api/chat/messages/${roomName}`, {
+      headers: getAuthHeaders()
+    });
+
+    if (mainResponse.ok) {
+      const mainData = await mainResponse.json();
+      if (mainData.success && mainData.messages) {
+        allMessages = [...allMessages, ...mainData.messages];
+        console.log('✅ Mensajes principales:', mainData.messages.length);
       }
-    } catch (error) {
-      console.error('❌ Error cargando mensajes:', error);
     }
-  }, [getAuthHeaders]);
 
+    // 2. Cargar room específico según rol
+    const specificRoom = usuario.rol === 'cliente' 
+      ? `${roomName}_client` 
+      : `${roomName}_modelo`;
+
+    console.log('🎯 Cargando room específico:', specificRoom);
+
+    const specificResponse = await fetch(`${API_BASE_URL}/api/chat/messages/${specificRoom}`, {
+      headers: getAuthHeaders()
+    });
+
+    if (specificResponse.ok) {
+      const specificData = await specificResponse.json();
+      if (specificData.success && specificData.messages) {
+        allMessages = [...allMessages, ...specificData.messages];
+        console.log('✅ Mensajes específicos:', specificData.messages.length);
+      }
+    }
+
+    // 3. Ordenar por fecha
+    allMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    
+    console.log('📊 Total mensajes:', allMessages.length);
+    setMensajes(allMessages);
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  }
+}, [getAuthHeaders, usuario.rol]);
   // 🔥 FUNCIÓN DE ENVÍO DE MENSAJES OPTIMIZADA
   const enviarMensaje = useCallback(async (tipo = 'text', contenido = null) => {
   const mensaje = contenido || nuevoMensaje.trim();
@@ -784,110 +815,195 @@ export default function ChatPrivado() {
   };
 
   // =================== 2. MODIFICAR SOLO pedirRegalo (reemplaza tu función actual) ===================
-  const pedirRegalo = useCallback(async (giftId, clientId, roomName, message = '') => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/gifts/request`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          gift_id: giftId,
-          client_id: clientId,
-          room_name: roomName,
-          message: message
-        })
-      });
-
-      const data = await response.json();
+ const pedirRegalo = useCallback(async (giftId, clientId, roomName, message = '') => {
+  try {
+    console.log('🎁 MODELO enviando solicitud de regalo...');
+    
+    // 🔥 USAR LA FUNCIÓN DEL HOOK
+    const result = await requestGift(clientId, giftId, message, roomName);
+    
+    if (result.success) {
+      console.log('✅ Solicitud exitosa, procesando mensaje...');
       
-      console.log('📦 Respuesta completa del servidor:', data);
-      
-      if (data.success) {
-        if (data.chat_message) {
-          console.log('💬 Chat message recibido:', data.chat_message);
-          console.log('🔍 Extra data original:', data.chat_message.extra_data);
-          
-          // 🔥 CONSTRUIR URL COMPLETA DESDE EL FRONTEND
-          let processedExtraData = { ...data.chat_message.extra_data };
-          
-          if (processedExtraData.gift_image) {
-            const originalImagePath = processedExtraData.gift_image;
-            const completeImageUrl = buildCompleteImageUrl(originalImagePath);
-            
-            console.log('🖼️ Procesando imagen:');
-            console.log('   - Path original:', originalImagePath);
-            console.log('   - URL completa:', completeImageUrl);
-            console.log('   - Base URL:', API_BASE_URL);
-            
-            // Actualizar con la URL completa
-            processedExtraData.gift_image = completeImageUrl;
-          }
-          
-          // 🔥 FIX: No hacer JSON.parse si ya es un objeto - MANTENER TU LÓGICA
-          let processedMessage = {
-            ...data.chat_message,
-            // Asegurar que gift_data esté disponible para el renderizado
-            gift_data: processedExtraData, // 🔥 AHORA CON URL COMPLETA
-            extra_data: processedExtraData  // También actualizar extra_data
-          };
-          
-          console.log('✨ Mensaje procesado final:', processedMessage);
-          console.log('🔍 Gift data con URL completa:', processedMessage.gift_data);
-          
-          // Agregar el mensaje directamente a la lista
-          setMensajes(prev => {
-            const newMessages = [...prev, processedMessage];
-            console.log('📝 Lista completa de mensajes:', newMessages);
-            return newMessages;
-          });
-          
-          // Actualizar conversación activa con preview
-          setConversaciones(prev => 
-            prev.map(conv => 
-              conv.room_name === roomName
-                ? {
-                    ...conv,
-                    last_message: `🎁 Solicitud: ${processedExtraData.gift_name || 'Regalo'}`,
-                    last_message_time: new Date().toISOString(),
-                    last_message_sender_id: usuario.id
-                  }
-                : conv
-            )
-          );
-          
-          // Scroll al final
-          setTimeout(() => {
-            if (mensajesRef.current) {
-              mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
-            }
-          }, 100);
+      // 🔥 PROCESAR MENSAJE PARA EL CHAT (SOLO SI VIENE)
+      if (result.chatMessage) {
+        console.log('💬 Chat message recibido:', result.chatMessage);
+        
+        // Construir URL completa de imagen
+        let processedExtraData = { ...result.chatMessage.extra_data };
+        
+        if (processedExtraData.gift_image) {
+          const completeImageUrl = buildCompleteImageUrl(processedExtraData.gift_image);
+          processedExtraData.gift_image = completeImageUrl;
         }
         
-        console.log('✅ Solicitud de regalo enviada correctamente');
-        return { success: true, data: data.request };
-      } else {
-        console.error('❌ Error del servidor:', data.error);
-        return { success: false, error: data.error || 'Error desconocido' };
+        let processedMessage = {
+          ...result.chatMessage,
+          gift_data: processedExtraData,
+          extra_data: processedExtraData
+        };
+        
+        // Agregar mensaje al chat
+        setMensajes(prev => [...prev, processedMessage]);
+        
+        // Actualizar conversación
+        setConversaciones(prev => 
+          prev.map(conv => 
+            conv.room_name === roomName
+              ? {
+                  ...conv,
+                  last_message: `🎁 Solicitud: ${processedExtraData.gift_name || 'Regalo'}`,
+                  last_message_time: new Date().toISOString(),
+                  last_message_sender_id: usuario.id
+                }
+              : conv
+          )
+        );
+        
+        // Scroll al final
+        setTimeout(() => {
+          if (mensajesRef.current) {
+            mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+          }
+        }, 100);
       }
-    } catch (error) {
-      console.error('❌ Error de conexión pidiendo regalo:', error);
-      return { success: false, error: 'Error de conexión' };
+      
+      return result;
+    } else {
+      console.error('❌ Error en solicitud:', result.error);
+      return result;
     }
-  }, [getAuthHeaders, usuario.id]);
+  } catch (error) {
+    console.error('❌ Error de conexión:', error);
+    return { success: false, error: 'Error de conexión' };
+  }
+  }, [requestGift, usuario.id, buildCompleteImageUrl, setMensajes, setConversaciones, mensajesRef]);
 
   const handleRequestGift = useCallback(async (giftId, recipientId, roomName, message) => {
-    try {
-      setLoadingGift(true);
-      const result = await pedirRegalo(giftId, recipientId, roomName, message);
-      if (result.success) {
-        setShowGiftsModal(false);
+  try {
+    setLoadingGift(true);
+    
+    console.log('🎁 HandleRequestGift llamado con:', {
+      giftId,
+      recipientId, 
+      roomName,
+      message
+    });
+    
+    const result = await pedirRegalo(giftId, recipientId, roomName, message);
+    
+    console.log('📦 Resultado de pedirRegalo:', result);
+    
+    if (result.success) {
+      setShowGiftsModal(false);
+      console.log('🎉 Solicitud enviada exitosamente - Modal cerrado');
+      
+      // 🎊 NOTIFICACIÓN DE ÉXITO (OPCIONAL)
+      if (Notification.permission === 'granted') {
+        new Notification('🎁 Solicitud Enviada', {
+          body: 'Tu solicitud de regalo ha sido enviada exitosamente',
+          icon: '/favicon.ico'
+        });
       }
-      return result;
-    } catch (error) {
-      return { success: false, error: 'Error inesperado' };
-    } finally {
-      setLoadingGift(false);
+    } else {
+      console.error('❌ Error en handleRequestGift:', result.error);
+      
+      // 🚨 MOSTRAR ERROR AL USUARIO
+      alert(`Error al enviar solicitud: ${result.error}`);
     }
-  }, [pedirRegalo]);
+    
+    return result;
+  } catch (error) {
+    console.error('❌ Error inesperado en handleRequestGift:', error);
+    alert('Error inesperado al enviar solicitud');
+    return { success: false, error: 'Error inesperado' };
+  } finally {
+    setLoadingGift(false);
+  }
+  }, [pedirRegalo, setLoadingGift, setShowGiftsModal]);
+  const debugGiftRequest = useCallback(async () => {
+  try {
+    console.log('🔍 DEBUGGING: Enviando solicitud de prueba...');
+    
+    // Generar token
+    const token = await generateSessionToken();
+    
+    // Datos de prueba con TODOS los campos posibles
+    const debugData = {
+      // Campos principales
+      client_id: parseInt(conversacionSeleccionada?.other_user_id || 2),
+      gift_id: 1, // ID de regalo de prueba
+      session_token: token,
+      
+      // Campos adicionales comunes
+      message: 'Mensaje de prueba',
+      room_name: conversacionActiva || 'chat_test',
+      timestamp: Math.floor(Date.now() / 1000),
+      user_agent: navigator.userAgent.substring(0, 150),
+      
+      // Campos que podrían estar faltando
+      modelo_id: parseInt(usuario.id),
+      request_type: 'gift_request',
+      platform: 'web',
+      ip_address: 'web_client',
+      security_level: 'high',
+      
+      // Información de sesión adicional
+      session_id: sessionStorage.getItem('app_session_id'),
+      browser_info: {
+        language: navigator.language,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        screen: `${screen.width}x${screen.height}`
+      }
+    };
+
+    console.log('📤 Enviando datos de debug:', {
+      ...debugData,
+      session_token: 'HIDDEN',
+      user_agent: 'HIDDEN'
+    });
+
+    const response = await fetch(`${API_BASE_URL}/api/gifts/request`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-Debug-Mode': 'true'
+      },
+      body: JSON.stringify(debugData)
+    });
+
+    const responseText = await response.text();
+    console.log('📡 Debug Response Status:', response.status);
+    console.log('📄 Debug Raw Response:', responseText);
+
+    try {
+      const data = JSON.parse(responseText);
+      console.log('📦 Debug Parsed Response:', data);
+      
+      if (data.error === 'missing_parameters') {
+        console.log('❌ CAMPOS FALTANTES DETECTADOS');
+        console.log('📋 Campos que enviamos:', Object.keys(debugData));
+        
+        // Intentar obtener más información del error
+        if (data.required_fields) {
+          console.log('✅ Campos requeridos por el servidor:', data.required_fields);
+        }
+        if (data.missing_fields) {
+          console.log('❌ Campos específicos que faltan:', data.missing_fields);
+        }
+      }
+    } catch (e) {
+      console.log('❌ No se pudo parsear la respuesta como JSON');
+    }
+
+  } catch (error) {
+    console.error('❌ Error en debug:', error);
+  }
+}, [generateSessionToken, conversacionSeleccionada, conversacionActiva, usuario.id, getAuthHeaders]);
+
 
   // 🔥 FUNCIONES DE APODOS
   const abrirModalApodo = useCallback((userId, userName) => {
@@ -924,238 +1040,298 @@ export default function ChatPrivado() {
     }
   }, [nicknameTarget, nicknameValue, getAuthHeaders]);
 
-// 🔥 SOLUCIÓN MÁS SIMPLE: Construir URL directamente en renderMensaje
+  const renderMensaje = useCallback((mensaje) => {
+  const textoMensaje = mensaje.message || mensaje.text || null;
+  const esUsuarioActual = mensaje.user_id === usuario.id;
 
-const renderMensaje = useCallback((mensaje) => {
-    const textoMensaje = mensaje.message || null;
-    const esUsuarioActual = mensaje.user_id === usuario.id;
+  // 🔥 FIX: Permitir que los regalos se rendericen SIN texto
+  if ((!textoMensaje || textoMensaje.trim() === '') && 
+      !['gift_request', 'gift_sent', 'gift_received', 'gift'].includes(mensaje.type)) {
+    return null; // Solo bloquear si NO es regalo
+  }
 
-    switch (mensaje.type) {
-      // Reemplaza el case 'gift_request' en tu función renderMensaje:
-      case 'gift_request':
-        // 🔥 ACCESO DIRECTO A gift_data (ya no necesitas JSON.parse)
-        const giftData = mensaje.gift_data || mensaje.extra_data || {};
-        
-        // 🔥 CONSTRUIR URL COMPLETA AQUÍ MISMO
-        let imageUrl = null;
-        let finalGiftData = giftData;
-        
-        // 🔥 INTENTAR PARSEAR SI ES STRING
-        if (typeof mensaje.extra_data === 'string') {
-          try {
-            finalGiftData = JSON.parse(mensaje.extra_data);
-          } catch (e) {
-            finalGiftData = giftData;
-          }
-        } else if (typeof mensaje.gift_data === 'string') {
-          try {
-            finalGiftData = JSON.parse(mensaje.gift_data);
-            console.log('✅ gift_data parseado:', finalGiftData);
-          } catch (e) {
-            finalGiftData = giftData;
-          }
-        }
-        
-        if (finalGiftData.gift_image) {
-          const imagePath = finalGiftData.gift_image;
-          
-          // Si ya es una URL completa
-          if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-            imageUrl = imagePath;
-          } else {
-            // Limpiar barras escapadas y construir URL
-            const cleanPath = imagePath.replace(/\\/g, '');
-            
-            // Obtener URL base - solo usar import.meta.env para Vite
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || 
-                          API_BASE_URL || 
-                          'http://localhost:8000';
-            const cleanBaseUrl = baseUrl.replace(/\/$/, '');
-            
-            if (cleanPath.startsWith('storage/')) {
-              imageUrl = `${cleanBaseUrl}/${cleanPath}`;
-            } else if (cleanPath.startsWith('/')) {
-              imageUrl = `${cleanBaseUrl}${cleanPath}`;
-            } else {
-              imageUrl = `${cleanBaseUrl}/storage/gifts/${cleanPath}`;
-            }
-          }
-        }
-        
-        return (
-          <div className="bg-gradient-to-br from-[#ff007a]/20 via-[#cc0062]/20 to-[#990047]/20 rounded-xl p-4 max-w-xs border border-[#ff007a]/30 shadow-lg backdrop-blur-sm">            {/* Header con icono y título */}
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <div className="bg-gradient-to-r from-[#ff007a] to-[#cc0062] rounded-full p-2">
-                  <Gift size={16} className="text-white" />
-              </div>
-              <span className="text-pink-100 text-sm font-semibold">Solicitud de Regalo</span>
-            </div>
-            
-            {/* Imagen del regalo */}
-            {imageUrl && (
-              <div className="mb-3 flex justify-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-xl flex items-center justify-center overflow-hidden border-2 border-purple-300/30">
-                  <img 
-                    src={imageUrl} 
-                    alt={finalGiftData.gift_name || 'Regalo'}
-                    className="w-12 h-12 object-contain"
-                    onLoad={() => {
-                      console.log('✅ Imagen cargada exitosamente:', imageUrl);
-                    }}
-                    onError={(e) => {
-                      console.log('❌ Error cargando imagen:', imageUrl);
-                      e.target.style.display = 'none';
-                      const fallback = e.target.parentNode.querySelector('.gift-fallback');
-                      if (fallback) fallback.style.display = 'flex';
-                    }}
-                  />
-                  <div className="gift-fallback hidden w-12 h-12 items-center justify-center">
-                    <Gift size={20} className="text-purple-300" />
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Información del regalo */}
-            <div className="text-center space-y-2">
-              <p className="text-white font-bold text-base">
-                {finalGiftData.gift_name || 'Regalo Especial'}
-              </p>
-              
-              {finalGiftData.gift_price && (
-                <div className="bg-gradient-to-r from-amber-500/20 to-yellow-500/20 rounded-lg px-3 py-1 border border-amber-300/30">
-                  <span className="text-amber-200 font-bold text-sm">
-                    ✨ {finalGiftData.gift_price} monedas
-                  </span>
-                </div>
-              )}
-              
-              {/* Mensaje personalizado */}
-              {finalGiftData.original_message && (
-                <div className="bg-black/20 rounded-lg p-2 mt-3 border-l-4 border-[#ff007a]">
-                  <p className="text-purple-100 text-xs italic">
-                    💭 "{finalGiftData.original_message}"
-                  </p>
-                </div>
-              )}
-              
-            </div>
-          </div>
-        );
+  switch (mensaje.type) {
+    case 'gift':
+      return (
+        <div className="flex items-center gap-2 text-yellow-400">
+          <Gift size={16} />
+          <span>Envió: {textoMensaje}</span>
+        </div>
+      );
+
+    case 'gift_request':
+      // 🔥 TU CÓDIGO ACTUAL ESTÁ BIEN - MANTENERLO
+      const giftData = mensaje.gift_data || mensaje.extra_data || {};
+      let finalGiftData = giftData;
       
-      case 'gift_received':
-        // MODELO ve: "¡Regalo Recibido!" + imagen + nombre
-        const receivedGiftData = mensaje.gift_data || mensaje.extra_data || {};
-        
-        // Parsear si es string
-        let finalReceivedGiftData = receivedGiftData;
-        if (typeof mensaje.extra_data === 'string') {
-          try {
-            finalReceivedGiftData = JSON.parse(mensaje.extra_data);
-          } catch (e) {
-            finalReceivedGiftData = receivedGiftData;
-          }
+      if (typeof mensaje.extra_data === 'string') {
+        try {
+          finalGiftData = JSON.parse(mensaje.extra_data);
+        } catch (e) {
+          finalGiftData = giftData;
         }
+      }
+      
+      // Construir URL de imagen
+      let imageUrl = null;
+      if (finalGiftData.gift_image) {
+        const imagePath = finalGiftData.gift_image;
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || API_BASE_URL;
+        const cleanBaseUrl = baseUrl.replace(/\/$/, '');
         
-        // Construir URL de imagen
-        let receivedImageUrl = null;
-        if (finalReceivedGiftData.gift_image) {
-          const imagePath = finalReceivedGiftData.gift_image;
-          
-          if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-            receivedImageUrl = imagePath;
+        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+          imageUrl = imagePath;
+        } else {
+          const cleanPath = imagePath.replace(/\\/g, '');
+          if (cleanPath.startsWith('storage/')) {
+            imageUrl = `${cleanBaseUrl}/${cleanPath}`;
+          } else if (cleanPath.startsWith('/')) {
+            imageUrl = `${cleanBaseUrl}${cleanPath}`;
           } else {
-            const cleanPath = imagePath.replace(/\\/g, '');
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || API_BASE_URL || 'http://localhost:8000';
-            const cleanBaseUrl = baseUrl.replace(/\/$/, '');
-            
-            if (cleanPath.startsWith('storage/')) {
-              receivedImageUrl = `${cleanBaseUrl}/${cleanPath}`;
-            } else if (cleanPath.startsWith('/')) {
-              receivedImageUrl = `${cleanBaseUrl}${cleanPath}`;
-            } else {
-              receivedImageUrl = `${cleanBaseUrl}/storage/gifts/${cleanPath}`;
-            }
+            imageUrl = `${cleanBaseUrl}/storage/gifts/${cleanPath}`;
           }
         }
-        
-        return (
-          <div className="bg-gradient-to-br from-green-900/40 via-emerald-900/40 to-teal-900/40 rounded-xl p-4 max-w-xs border border-green-300/30 shadow-lg backdrop-blur-sm animate-pulse">
-            {/* Header con animación de éxito */}
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-full p-2 animate-bounce">
-                <Gift size={16} className="text-white" />
-              </div>
-              <span className="text-green-100 text-sm font-semibold">¡Regalo Recibido!</span>
+      }
+      
+      return (
+        <div className="bg-gradient-to-br from-[#ff007a]/20 via-[#cc0062]/20 to-[#990047]/20 rounded-xl p-4 max-w-xs border border-[#ff007a]/30 shadow-lg backdrop-blur-sm">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="bg-gradient-to-r from-[#ff007a] to-[#cc0062] rounded-full p-2">
+              <Gift size={16} className="text-white" />
             </div>
-            
-            {/* Imagen del regalo */}
-            {receivedImageUrl && (
-              <div className="mb-3 flex justify-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl flex items-center justify-center overflow-hidden border-2 border-green-300/30">
-                  <img 
-                    src={receivedImageUrl} 
-                    alt={finalReceivedGiftData.gift_name || 'Regalo'}
-                    className="w-12 h-12 object-contain"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      const fallback = e.target.parentNode.querySelector('.gift-fallback');
-                      if (fallback) fallback.style.display = 'flex';
-                    }}
-                  />
-                  <div className="gift-fallback hidden w-12 h-12 items-center justify-center">
-                    <Gift size={20} className="text-green-300" />
-                  </div>
+            <span className="text-pink-100 text-sm font-semibold">Solicitud de Regalo</span>
+          </div>
+          
+          {imageUrl && (
+            <div className="mb-3 flex justify-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-xl flex items-center justify-center overflow-hidden border-2 border-purple-300/30">
+                <img 
+                  src={imageUrl} 
+                  alt={finalGiftData.gift_name || 'Regalo'}
+                  className="w-12 h-12 object-contain"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const fallback = e.target.parentNode.querySelector('.gift-fallback');
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+                <div className="gift-fallback hidden w-12 h-12 items-center justify-center">
+                  <Gift size={20} className="text-purple-300" />
                 </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="text-center space-y-2">
+            <p className="text-white font-bold text-base">
+              {finalGiftData.gift_name || 'Regalo Especial'}
+            </p>
+            
+            {finalGiftData.gift_price && (
+              <div className="bg-gradient-to-r from-amber-500/20 to-yellow-500/20 rounded-lg px-3 py-1 border border-amber-300/30">
+                <span className="text-amber-200 font-bold text-sm">
+                  ✨ {finalGiftData.gift_price} monedas
+                </span>
               </div>
             )}
             
-            {/* Información del regalo */}
-            <div className="text-center space-y-2">
-              <p className="text-white font-bold text-base">
-                {finalReceivedGiftData.gift_name || 'Regalo Especial'}
-              </p>
-              
-              {/* Mensaje de confirmación para la modelo */}
-              <div className="bg-black/20 rounded-lg p-2 mt-3 border-l-4 border-green-400">
-                <p className="text-green-100 text-xs font-medium">
-                  💰 ¡{finalReceivedGiftData.client_name || 'El cliente'} te envió este regalo!
+            {finalGiftData.original_message && (
+              <div className="bg-black/20 rounded-lg p-2 mt-3 border-l-4 border-[#ff007a]">
+                <p className="text-purple-100 text-xs italic">
+                  💭 "{finalGiftData.original_message}"
                 </p>
               </div>
-              
-            </div>
+            )}
           </div>
-        );
-      case 'emoji':
-      return <div className="text-2xl">{textoMensaje}</div>;
-      
-      default:
-        // Resto del código para mensajes normales y traducción...
-        if (translationSettings?.enabled && TranslatedMessage && textoMensaje?.trim()) {
-          const tipoMensaje = esUsuarioActual ? 'local' : 'remote';
-          const shouldShowTranslation = !esUsuarioActual || translationSettings.translateOutgoing;
+        </div>
+      );
 
-          if (shouldShowTranslation) {
-            return (
-              <TranslatedMessage
-                message={{
-                  text: textoMensaje.trim(),
-                  type: tipoMensaje,
-                  id: mensaje.id,
-                  timestamp: mensaje.created_at,
-                  sender: mensaje.user_name,
-                  senderRole: mensaje.user_role
-                }}
-                settings={translationSettings}
-                className="text-white"
-              />
-            );
+    // 🔥 AGREGAR CASO FALTANTE: gift_received
+    case 'gift_received':
+      const receivedGiftData = mensaje.gift_data || mensaje.extra_data || {};
+      
+      let finalReceivedGiftData = receivedGiftData;
+      if (typeof mensaje.extra_data === 'string') {
+        try {
+          finalReceivedGiftData = JSON.parse(mensaje.extra_data);
+        } catch (e) {
+          finalReceivedGiftData = receivedGiftData;
+        }
+      }
+      
+      // Construir URL de imagen
+      let receivedImageUrl = null;
+      if (finalReceivedGiftData.gift_image) {
+        const imagePath = finalReceivedGiftData.gift_image;
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || API_BASE_URL;
+        const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+        
+        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+          receivedImageUrl = imagePath;
+        } else {
+          const cleanPath = imagePath.replace(/\\/g, '');
+          if (cleanPath.startsWith('storage/')) {
+            receivedImageUrl = `${cleanBaseUrl}/${cleanPath}`;
+          } else if (cleanPath.startsWith('/')) {
+            receivedImageUrl = `${cleanBaseUrl}${cleanPath}`;
+          } else {
+            receivedImageUrl = `${cleanBaseUrl}/storage/gifts/${cleanPath}`;
           }
         }
-        return <span className="text-white">{textoMensaje}</span>;
-    }
-  }, [usuario.id, translationSettings, TranslatedMessage]); // 🔥 DEPENDENCIAS IGUALES
+      }
+      
+      return (
+        <div className="bg-gradient-to-br from-green-900/40 via-emerald-900/40 to-teal-900/40 rounded-xl p-4 max-w-xs border border-green-300/30 shadow-lg backdrop-blur-sm">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-full p-2">
+              <Gift size={16} className="text-white" />
+            </div>
+            <span className="text-green-100 text-sm font-semibold">¡Regalo Recibido!</span>
+          </div>
+          
+          {receivedImageUrl && (
+            <div className="mb-3 flex justify-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl flex items-center justify-center overflow-hidden border-2 border-green-300/30">
+                <img 
+                  src={receivedImageUrl} 
+                  alt={finalReceivedGiftData.gift_name || 'Regalo'}
+                  className="w-12 h-12 object-contain"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const fallback = e.target.parentNode.querySelector('.gift-fallback');
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+                <div className="gift-fallback hidden w-12 h-12 items-center justify-center">
+                  <Gift size={20} className="text-green-300" />
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="text-center space-y-2">
+            <p className="text-white font-bold text-base">
+              {finalReceivedGiftData.gift_name || 'Regalo Especial'}
+            </p>
+            
+            <div className="bg-black/20 rounded-lg p-2 mt-3 border-l-4 border-green-400">
+              <p className="text-green-100 text-xs font-medium">
+                💰 ¡{finalReceivedGiftData.client_name || 'El cliente'} te envió este regalo!
+              </p>
+            </div>
+          </div>
+        </div>
+      );
 
+    case 'gift_sent':
+      // Para clientes que enviaron el regalo
+      const sentGiftData = mensaje.gift_data || mensaje.extra_data || {};
+      
+      let finalSentGiftData = sentGiftData;
+      if (typeof mensaje.extra_data === 'string') {
+        try {
+          finalSentGiftData = JSON.parse(mensaje.extra_data);
+        } catch (e) {
+          finalSentGiftData = sentGiftData;
+        }
+      }
+      
+      // Construir URL de imagen
+      let sentImageUrl = null;
+      if (finalSentGiftData.gift_image) {
+        const imagePath = finalSentGiftData.gift_image;
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || API_BASE_URL;
+        const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+        
+        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+          sentImageUrl = imagePath;
+        } else {
+          const cleanPath = imagePath.replace(/\\/g, '');
+          if (cleanPath.startsWith('storage/')) {
+            sentImageUrl = `${cleanBaseUrl}/${cleanPath}`;
+          } else if (cleanPath.startsWith('/')) {
+            sentImageUrl = `${cleanBaseUrl}${cleanPath}`;
+          } else {
+            sentImageUrl = `${cleanBaseUrl}/storage/gifts/${cleanPath}`;
+          }
+        }
+      }
+      
+      return (
+        <div className="bg-gradient-to-br from-blue-900/40 via-cyan-900/40 to-teal-900/40 rounded-xl p-4 max-w-xs border border-blue-300/30 shadow-lg backdrop-blur-sm">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full p-2">
+              <Gift size={16} className="text-white" />
+            </div>
+            <span className="text-blue-100 text-sm font-semibold">Regalo Enviado</span>
+          </div>
+          
+          {sentImageUrl && (
+            <div className="mb-3 flex justify-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-xl flex items-center justify-center overflow-hidden border-2 border-blue-300/30">
+                <img 
+                  src={sentImageUrl} 
+                  alt={finalSentGiftData.gift_name || 'Regalo'}
+                  className="w-12 h-12 object-contain"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const fallback = e.target.parentNode.querySelector('.gift-fallback');
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+                <div className="gift-fallback hidden w-12 h-12 items-center justify-center">
+                  <Gift size={20} className="text-blue-300" />
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="text-center space-y-2">
+            <p className="text-white font-bold text-base">
+              {finalSentGiftData.gift_name || 'Regalo Especial'}
+            </p>
+            
+            {finalSentGiftData.gift_price && (
+              <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-lg px-3 py-1 border border-blue-300/30">
+                <span className="text-blue-200 font-bold text-sm">
+                  -{finalSentGiftData.gift_price} monedas
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+
+    case 'emoji':
+      return <div className="text-2xl">{textoMensaje}</div>;
+    
+    default:
+      // Mensajes normales con traducción
+      if (translationSettings?.enabled && TranslatedMessage && textoMensaje?.trim()) {
+        const tipoMensaje = esUsuarioActual ? 'local' : 'remote';
+        const shouldShowTranslation = !esUsuarioActual || translationSettings.translateOutgoing;
+
+        if (shouldShowTranslation) {
+          return (
+            <TranslatedMessage
+              message={{
+                text: textoMensaje.trim(),
+                type: tipoMensaje,
+                id: mensaje.id,
+                timestamp: mensaje.created_at,
+                sender: mensaje.user_name,
+                senderRole: mensaje.user_role
+              }}
+              settings={translationSettings}
+              className="text-white"
+            />
+          );
+        }
+      }
+      return <span className="text-white">{textoMensaje}</span>;
+  }
+  }, [usuario.id, translationSettings, TranslatedMessage]);
+  
   const formatearTiempo = useCallback((timestamp) => {
     const fecha = new Date(timestamp);
     return fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -1188,96 +1364,153 @@ const renderMensaje = useCallback((mensaje) => {
   }, [usuario.id, usuario.rol, cargarEstadosIniciales]);
 
   // Polling de mensajes en conversación activa - TIEMPO REAL
-  useEffect(() => {
-  let interval;
-  if (conversacionActiva) {
-    console.log(`📡 Iniciando polling de mensajes para: ${conversacionActiva}`);
-    
-    interval = setInterval(async () => {
-      console.log(`🔄 Polling mensajes en conversación: ${conversacionActiva}`);
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/chat/messages/${conversacionActiva}`, {
-          method: 'GET',
-          headers: getAuthHeaders()
-        });
+ // 🔥 REEMPLAZA tu useEffect actual con esta versión modificada:
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.messages) {
-            // Comparar si hay mensajes nuevos
-            const currentMessageIds = new Set(mensajes.map(m => m.id));
-            const newMessages = data.messages.filter(m => !currentMessageIds.has(m.id));
-            
-            if (newMessages.length > 0) {
-              console.log(`✅ ${newMessages.length} mensajes nuevos recibidos`);
-              
-              // 🎁 DETECTAR REGALOS RECIBIDOS EN MENSAJES NUEVOS
-              const newGiftMessages = newMessages.filter(msg => 
-                msg.type === 'gift_received' && 
-                msg.user_id !== usuario.id // Solo si no soy yo quien envió
-              );
-              
-              if (newGiftMessages.length > 0) {
-                console.log('🎁 ¡Regalo(s) recibido(s) detectado(s)!', newGiftMessages);
-                
-                // Reproducir sonido para cada regalo
-                for (const giftMsg of newGiftMessages) {
-                  try {
-                    // Extraer nombre del regalo
-                    let giftData = giftMsg.gift_data || giftMsg.extra_data || {};
-                    
-                    // Parsear si es string
-                    if (typeof giftData === 'string') {
-                      try {
-                        giftData = JSON.parse(giftData);
-                      } catch (e) {
-                        giftData = { gift_name: 'Regalo Especial' };
-                      }
-                    }
-                    
-                    const giftName = giftData.gift_name || 'Regalo Especial';
-                    console.log(`🎵 Reproduciendo sonido para regalo: ${giftName}`);
-                    
-                    // Reproducir notificación con sonido
-                    await playGiftNotification(giftName);
-                    
-                    // Esperar un poco entre regalos para no saturar
-                    if (newGiftMessages.length > 1) {
-                      await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-                  } catch (error) {
-                    console.error('❌ Error procesando sonido de regalo:', error);
-                  }
-                }
-              }
-              
-              setMensajes(data.messages);
-              
-              // Marcar como visto inmediatamente si estás en la conversación
-              await marcarComoVisto(conversacionActiva);
-              
-              // Auto-scroll al final
-              setTimeout(() => {
-                if (mensajesRef.current) {
-                  mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
-                }
-              }, 100);
+  useEffect(() => {
+    let interval;
+    if (conversacionActiva) {
+      console.log(`📡 Iniciando polling MEJORADO para: ${conversacionActiva}`);
+      
+      interval = setInterval(async () => {
+        console.log(`🔄 Polling mensajes en conversación: ${conversacionActiva}`);
+        try {
+          let allMessages = [];
+
+          // 🔥 PASO 1: Cargar mensajes del room principal (como antes)
+          const mainResponse = await fetch(`${API_BASE_URL}/api/chat/messages/${conversacionActiva}`, {
+            method: 'GET',
+            headers: getAuthHeaders()
+          });
+
+          if (mainResponse.ok) {
+            const mainData = await mainResponse.json();
+            if (mainData.success && mainData.messages) {
+              allMessages = [...allMessages, ...mainData.messages];
+              console.log(`📥 Mensajes principales cargados: ${mainData.messages.length}`);
             }
           }
+
+          // 🔥 PASO 2: NUEVO - Cargar mensajes del room específico según rol
+          const specificRoomName = usuario.rol === 'cliente' 
+            ? `${conversacionActiva}_client`   // Cliente ve gift_sent
+            : `${conversacionActiva}_modelo`;  // Modelo ve gift_received
+
+          console.log(`🎯 Cargando room específico: ${specificRoomName}`);
+
+          const specificResponse = await fetch(`${API_BASE_URL}/api/chat/messages/${specificRoomName}`, {
+            method: 'GET',
+            headers: getAuthHeaders()
+          });
+
+          if (specificResponse.ok) {
+            const specificData = await specificResponse.json();
+            if (specificData.success && specificData.messages) {
+              allMessages = [...allMessages, ...specificData.messages];
+              console.log(`🎁 Mensajes específicos cargados: ${specificData.messages.length}`);
+            }
+          } else {
+            console.log(`ℹ️ Room específico ${specificRoomName} no encontrado (normal si no hay regalos)`);
+          }
+
+          // 🔥 PASO 3: Ordenar todos los mensajes por fecha
+          allMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+          // 🔥 PASO 4: Comparar con mensajes actuales (como antes)
+          const currentMessageIds = new Set(mensajes.map(m => m.id));
+          const newMessages = allMessages.filter(m => !currentMessageIds.has(m.id));
+          
+          if (newMessages.length > 0) {
+            console.log(`✅ ${newMessages.length} mensajes nuevos recibidos`);
+            
+            // 🎁 DETECTAR REGALOS RECIBIDOS EN MENSAJES NUEVOS
+            const newGiftMessages = newMessages.filter(msg => 
+              msg.type === 'gift_received' && 
+              msg.user_id !== usuario.id // Solo si no soy yo quien envió
+            );
+            
+            if (newGiftMessages.length > 0) {
+              console.log('🎁 ¡Regalo(s) recibido(s) detectado(s)!', newGiftMessages);
+              
+              // Reproducir sonido para cada regalo
+              for (const giftMsg of newGiftMessages) {
+                try {
+                  // Extraer nombre del regalo
+                  let giftData = giftMsg.gift_data || giftMsg.extra_data || {};
+                  
+                  // Parsear si es string
+                  if (typeof giftData === 'string') {
+                    try {
+                      giftData = JSON.parse(giftData);
+                    } catch (e) {
+                      giftData = { gift_name: 'Regalo Especial' };
+                    }
+                  }
+                  
+                  const giftName = giftData.gift_name || 'Regalo Especial';
+                  console.log(`🎵 Reproduciendo sonido para regalo: ${giftName}`);
+                  
+                  // Reproducir notificación con sonido
+                  await playGiftNotification(giftName);
+                  
+                  // Esperar un poco entre regalos para no saturar
+                  if (newGiftMessages.length > 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                  }
+                } catch (error) {
+                  console.error('❌ Error procesando sonido de regalo:', error);
+                }
+              }
+            }
+
+            // 🔥 DETECTAR REGALOS ENVIADOS (para clientes)
+            const newSentGiftMessages = newMessages.filter(msg => 
+              msg.type === 'gift_sent' && 
+              msg.user_id === usuario.id && // Solo si soy yo quien envió
+              usuario.rol === 'cliente' // Solo los clientes envían regalos
+            );
+            
+            if (newSentGiftMessages.length > 0) {
+              console.log('💸 Regalo(s) enviado(s) detectado(s)!', newSentGiftMessages);
+              
+              // Notificación silenciosa para regalo enviado
+              if (Notification.permission === 'granted') {
+                new Notification('🎁 Regalo Enviado', {
+                  body: 'Tu regalo ha sido enviado exitosamente',
+                  icon: '/favicon.ico'
+                });
+              }
+            }
+            
+            // 🔥 PASO 5: Actualizar con TODOS los mensajes (principales + específicos)
+            setMensajes(allMessages);
+            
+            // Marcar como visto inmediatamente si estás en la conversación
+            await marcarComoVisto(conversacionActiva);
+            
+            // Auto-scroll al final
+            setTimeout(() => {
+              if (mensajesRef.current) {
+                mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+              }
+            }, 100);
+
+            console.log(`📊 Total mensajes después del polling: ${allMessages.length}`);
+          } else {
+            console.log('ℹ️ No hay mensajes nuevos en ningún room');
+          }
+        } catch (error) {
+          console.error('❌ Error en polling de mensajes:', error);
         }
-      } catch (error) {
-        console.error('❌ Error en polling de mensajes:', error);
-      }
-    }, 3000); // Cada 3 segundos
-  }
-  
-  return () => {
-    if (interval) {
-      clearInterval(interval);
-      console.log('🛑 Polling de mensajes detenido');
+      }, 3000); // Cada 3 segundos
     }
-  };
-  }, [conversacionActiva, mensajes, getAuthHeaders, marcarComoVisto, usuario.id, playGiftNotification]);
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+        console.log('🛑 Polling de mensajes detenido');
+      }
+    };
+  }, [conversacionActiva, mensajes, getAuthHeaders, marcarComoVisto, usuario.id, usuario.rol, playGiftNotification]);
 
   // Detectar móvil
   useEffect(() => {

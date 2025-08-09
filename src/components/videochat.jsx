@@ -54,6 +54,9 @@
     import CameraAudioSettings from '../utils/cameraaudiosettings.jsx';
     import ClientRemainingMinutes  from './ClientRemainingMinutes.jsx';
     import { useSearching } from '../contexts/SearchingContext.jsx';
+    import { useVideoChatGifts } from '../components/GiftSystem/useVideoChatGifts';
+    import { GiftsModal } from '../components/GiftSystem/giftModal.jsx'; 
+    import { GiftMessageComponent } from '../components/GiftSystem/GiftMessageComponent.jsx'; 
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -357,6 +360,7 @@
       // 🔥 HOOK DE SEARCHING CONTEXT
       const { startSearching, stopSearching, forceStopSearching } = useSearching();
 
+      
       // 🔥 PRIMERO: Declarar roomName y userName
       const modelo = location.state?.modelo;
       const getParam = (key) => {
@@ -384,6 +388,7 @@
         const saved = localStorage.getItem("mirrorMode");
         return saved ? JSON.parse(saved) : true;
       });
+
       const [isBlocking, setIsBlocking] = useState(false);
       const [isAddingFavorite, setIsAddingFavorite] = useState(false);
       const [isFavorite, setIsFavorite] = useState(false);
@@ -394,8 +399,20 @@
       const [disconnectionType, setDisconnectionType] = useState(''); // 'stop', 'next', 'left'
       const [redirectCountdown, setRedirectCountdown] = useState(0);
       const [showClientBalance, setShowClientBalance] = useState(true);
+      const [showGiftsModal, setShowGiftsModal] = useState(false);
+        const [userData, setUserData] = useState({
+          name: "",
+          role: "",
+          id: null,
+        });
 
-
+        const [otherUser, setOtherUser] = useState(() => {
+          if (!roomName || !userName) return null;
+          const cacheKey = getRoomCacheKey(roomName, userName);
+          const cached = USER_CACHE.get(cacheKey);
+          console.log('🔄 Inicializando VideoChat con cache:', cached);
+          return cached || null;
+        });
 
       // 🔥 ESTADOS BÁSICOS
       const [token, setToken] = useState('');
@@ -425,22 +442,6 @@
       const { finalizarSesion, limpiarDatosSession } = useSessionCleanup(roomName, connected);
       const [messages, setMessages] = useState([]);
       const [isSendingMessage, setIsSendingMessage] = useState(false); // 🔥 AGREGAR ESTA LÍNEA
-
-
-      // 🔥 ESTADOS DE USUARIO CON CACHE PERSISTENTE
-      const [userData, setUserData] = useState({
-        name: "",
-        role: "",
-        id: null,
-      });
-
-      const [otherUser, setOtherUser] = useState(() => {
-        if (!roomName || !userName) return null;
-        const cacheKey = getRoomCacheKey(roomName, userName);
-        const cached = USER_CACHE.get(cacheKey);
-        console.log('🔄 Inicializando VideoChat con cache:', cached);
-        return cached || null;
-      });
 
       const [isDetectingUser, setIsDetectingUser] = useState(() => {
         if (!roomName || !userName) return false;
@@ -479,6 +480,20 @@
           }
         };
       }, [roomName, modeloStoppedWorking]);
+      
+      const {
+        gifts,
+        pendingRequests,
+        userBalance,
+        loading: giftLoading,
+        requestGift,
+        loadGifts,
+        loadUserBalance
+      } = useVideoChatGifts(
+        roomName,
+        { id: userData.id, role: userData.role, name: userData.name },
+        otherUser ? { id: otherUser.id, name: otherUser.name } : null
+      );
 
       const [chatFunctions, setChatFunctions] = useState(null);
       const messagesContainerRef = useRef(null);
@@ -1919,6 +1934,44 @@
 
         return () => clearTimeout(timer);
       }, [messages]);
+       // 🎁 FUNCIÓN PARA SOLICITAR REGALO (MODELO)
+      const handleRequestGift = async (giftId, recipientId, roomName, message) => {
+        console.log('🎁 [MODELO] Solicitando regalo:', {
+          giftId,
+          recipientId,
+          roomName,
+          message
+        });
+
+    try {
+      const result = await requestGift(giftId, message);
+      
+      if (result.success) {
+        console.log('✅ [MODELO] Regalo solicitado exitosamente');
+        
+        // Agregar mensaje al chat local
+        if (result.chatMessage) {
+          setMessages(prev => [result.chatMessage, ...prev]);
+        }
+        
+        // Mostrar notificación
+        if (Notification.permission === 'granted') {
+          new Notification('🎁 Solicitud Enviada', {
+            body: `Solicitaste ${result.giftInfo?.name} a ${otherUser?.name}`,
+            icon: '/favicon.ico'
+          });
+        }
+        
+        return { success: true };
+      } else {
+        console.error('❌ [MODELO] Error solicitando regalo:', result.error);
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      console.error('❌ [MODELO] Error de conexión:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  };
 
       // Estados de carga y error
   // 🔥 SOLO MOSTRAR LOADING SI NO HAY DESCONEXIÓN Y REALMENTE ESTÁ LOADING
@@ -2040,6 +2093,17 @@
           }}
         >
           <RoomAudioRenderer />
+          <GiftsModal
+            isOpen={showGiftsModal}
+            onClose={() => setShowGiftsModal(false)}
+            recipientName={getDisplayName()}
+            recipientId={otherUser?.id}
+            roomName={roomName}
+            userRole="modelo"
+            gifts={gifts}
+            onRequestGift={handleRequestGift}
+            loading={giftLoading}
+          />
             
           {memoizedRoomName && memoizedUserName && (
             <SimpleChat
@@ -2180,7 +2244,18 @@
                   </div>
                   <div className="flex items-center gap-2">
                   <ShieldCheck size={16} className="text-green-400" title="Verificado" />
-                  
+                  {/* 🎁 BOTÓN DE REGALOS PARA MODELO */}
+                  <button 
+                    onClick={() => setShowGiftsModal(true)}
+                    disabled={!otherUser}
+                    title="Pedir regalo"
+                    className={`
+                      hover:scale-110 transition disabled:opacity-50
+                      ${!otherUser ? 'text-gray-400' : 'text-[#ff007a] hover:text-pink-300'}
+                    `}
+                  >
+                    <Gift size={16} />
+                  </button>
                   {/* Botón de Favorito */}
                   <button 
                     onClick={toggleFavorite}
@@ -2208,81 +2283,72 @@
                     <UserX size={16} />
                   </button>
                 </div>
-                </div>
-
-                {/* Chat */}
+                </div>            
                 <div 
                   ref={messagesContainerRef}
                   className="max-h-[360px] p-4 space-y-3 overflow-y-auto custom-scroll"
                 >
-                {messages.filter(msg => msg.id > 2).reverse().map((msg, index) => (
-                  <div key={msg.id} className={msg.type === 'local' ? 'text-right' : 'text-xs sm:text-sm'}>
-                    {msg.type === 'local' ? (
-                      <p className="bg-[#ff007a] inline-block px-3 py-2 mt-1 rounded-xl text-white max-w-[280px] text-xs sm:text-sm break-words">
-                        <TranslatedMessage 
-                          message={msg} 
-                          settings={translationSettings}
-                          className="text-white"
+                  {messages.filter(msg => msg.id > 2).reverse().map((msg, index) => (
+                    <div key={msg.id}>
+                      {/* 🎁 RENDERIZAR MENSAJES DE REGALO */}
+                      {msg.type === 'gift_request' && (
+                        <GiftMessageComponent
+                          giftRequest={{
+                            id: msg.id,
+                            gift: {
+                              name: msg.extra_data?.gift_name || 'Regalo',
+                              image: msg.extra_data?.gift_image || '',
+                              price: msg.extra_data?.gift_price || 0
+                            },
+                            message: msg.extra_data?.original_message || '',
+                            expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 min
+                          }}
+                          isClient={false}
+                          className="mb-3"
                         />
-                      </p>
-                    ) : msg.type === 'system' ? (
-                      <>
-                        <span className="font-bold text-green-400">🎰 Sistema</span>
-                        <p className="bg-[#1f2937] inline-block px-3 py-2 mt-1 rounded-xl border border-green-400/30 max-w-[280px] break-words text-white">
-                          {msg.text}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="bg-[#2b2d31] inline-block px-3 py-2 mt-1 rounded-xl max-w-[280px] break-words text-white">
-                        <TranslatedMessage 
-                          message={msg} 
-                          settings={translationSettings}
-                          className="text-white"
-                        />
-                      </p>
-                    )}
-                  </div>
-                ))}
-                </div>
-
-                {/* Modal de regalos */}
-                {mostrarRegalos && (
-                  <div className="absolute bottom-[70px] left-1/2 transform -translate-x-1/2 bg-[#1a1c20] p-3 sm:p-5 rounded-xl shadow-2xl w-[280px] sm:w-[300px] max-h-[300px] sm:max-h-[360px] overflow-y-auto z-50 border border-[#ff007a]/30">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="text-white font-semibold text-xs sm:text-sm">🎁 Regalos</h3>
-                      <button onClick={() => setMostrarRegalos(false)} className="text-white/50 hover:text-white text-sm">✕</button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                      {[
-                        { nombre: "🌹 Rosa", valor: 10 },
-                        { nombre: "💖 Corazón", valor: 20 },
-                        { nombre: "🍾 Champán", valor: 30 },
-                        { nombre: "💍 Anillo", valor: 50 },
-                        { nombre: "🍰 Pastel", valor: 15 },
-                        { nombre: "🐻 Peluche", valor: 25 },
-                        { nombre: "🎸 Canción", valor: 35 },
-                        { nombre: "🚗 Coche", valor: 70 },
-                        { nombre: "📱 Celular", valor: 80 },
-                        { nombre: "💎 Diamante", valor: 100 },
-                      ].map((regalo, i) => (
-                        <div 
-                          key={i} 
-                          className="bg-[#2b2d31] px-2 sm:px-3 py-2 rounded-xl flex items-center justify-between hover:bg-[#383c44] cursor-pointer transition"
-                          onClick={() => enviarRegalo(regalo)}
-                        >
-                          <span className="text-xs sm:text-sm text-white">{regalo.nombre}</span>
-                          <span className="text-[10px] sm:text-xs text-[#ff007a] font-bold">+{regalo.valor}m</span>
+                      )}
+                      
+                      {/* MENSAJES NORMALES */}
+                      {msg.type !== 'gift_request' && (
+                        <div className={msg.type === 'local' ? 'text-right' : 'text-xs sm:text-sm'}>
+                          {msg.type === 'local' ? (
+                            <p className="bg-[#ff007a] inline-block px-3 py-2 mt-1 rounded-xl text-white max-w-[280px] text-xs sm:text-sm break-words">
+                              <TranslatedMessage 
+                                message={msg} 
+                                settings={translationSettings}
+                                className="text-white"
+                              />
+                            </p>
+                          ) : msg.type === 'system' ? (
+                            <>
+                              <span className="font-bold text-green-400">🎰 Sistema</span>
+                              <p className="bg-[#1f2937] inline-block px-3 py-2 mt-1 rounded-xl border border-green-400/30 max-w-[280px] break-words text-white">
+                                {msg.text}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="bg-[#2b2d31] inline-block px-3 py-2 mt-1 rounded-xl max-w-[280px] break-words text-white">
+                              <TranslatedMessage 
+                                message={msg} 
+                                settings={translationSettings}
+                                className="text-white"
+                              />
+                            </p>
+                          )}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
 
                 {/* Input de chat */}
                 <div className="border-t border-[#ff007a]/20 p-3 flex gap-2 items-center">
+                  {/* 🎁 BOTÓN DE REGALOS EN INPUT */}
                   <button
                     className="text-[#ff007a] hover:text-white transition"
-                    onClick={() => setMostrarRegalos(!mostrarRegalos)}
+                    onClick={() => setShowGiftsModal(true)}
+                    disabled={!otherUser}
+                    title="Pedir regalo"
                   >
                     <Gift size={18} />
                   </button>
@@ -2293,7 +2359,8 @@
                     value={mensaje}
                     onChange={(e) => setMensaje(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder={t('chat.respondToClient')}                  className="flex-1 bg-[#131418] px-3 sm:px-4 py-2 rounded-full outline-none text-white text-xs sm:text-sm"
+                    placeholder={t('chat.respondToClient')}
+                    className="flex-1 bg-[#131418] px-3 sm:px-4 py-2 rounded-full outline-none text-white text-xs sm:text-sm"
                   />
                   <button 
                     className="text-[#ff007a] hover:text-white transition"
@@ -2306,112 +2373,112 @@
             </div>
 
             {/* CONTROLES RESPONSIVOS */}
-      <div className="flex justify-center items-center gap-4 sm:gap-6 lg:gap-10 mt-4 lg:mt-6 px-4 relative">
-            {/* MICRÓFONO */}
-            <div className="relative">
-              <button
-                className={`w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition`}
-                onClick={() => setMicEnabled(!micEnabled)}
-                title={micEnabled ? 'Silenciar micrófono' : 'Activar micrófono'}
-              >
-                {micEnabled ? <Mic size={30} /> : <MicOff size={32} />}
-              </button>
-            </div>
-
-            {/* CÁMARA */}
-            <div className="relative">
-              <button
-                className={`w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition`}
-                onClick={() => setCameraEnabled(!cameraEnabled)}
-                title={cameraEnabled ? 'Apagar cámara' : 'Encender cámara'}
-              >
-                {cameraEnabled ? <Video size={32} /> : <VideoOff size={32} />}
-              </button>
-            </div>
-
-            {/* SIGUIENTE */}
-            <button
-              onClick={siguientePersona}
-              title="Siguiente persona"
-              disabled={loading}
-              className={`
-                w-16 h-16 rounded-full flex items-center justify-center
-                text-[#ff007a] hover:bg-[#ff007a] hover:text-white
-                transition duration-300 ease-in-out
-                ${loading ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-            >
-              <ArrowRight size={30} />
-            </button>
-
-            {/* FINALIZAR */}
-            <button
-              className="w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition"
-              onClick={finalizarChat}
-              title="Finalizar chat"
-            >
-              <Square size={30} />
-            </button>
-
-            {/* CONFIGURACIÓN */}
-            <div className="relative">
-              <button
-                className="w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition"
-                onClick={() => setShowMainSettings(!showMainSettings)}
-                title="Configuración"
-              >
-                <Settings size={30} />
-              </button>
-              
-              {/* DROPDOWN MENÚ DE CONFIGURACIÓN */}
-              {showMainSettings && (
-                <div className="settings-dropdown absolute bottom-16 right-0 bg-[#1f2125] rounded-xl p-4 shadow-2xl z-50 min-w-[240px] border border-[#ff007a]/20 animate-fadeIn">
-                  <div className="space-y-1">
-                    <div className="px-2 py-1 text-xs text-gray-400 uppercase tracking-wide border-b border-gray-600 mb-3">
-                      {t('navigation.settings')}
-                    </div>
-                    
-                    <button
-                      onClick={() => {
-                        setShowTranslationSettings(true);
-                        setShowMainSettings(false);
-                      }}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-[#2b2d31] rounded-lg transition text-left group"
-                    >
-                      <Globe className="text-[#ff007a] group-hover:scale-110 transition-transform" size={20} />
-                      <div className="flex-1">
-                        <span className="text-white text-sm font-medium">{t('translation.title')}</span>
-                        <div className="text-xs text-gray-400">
-                          {translationSettings.enabled ? 
-                            `${t('translation.translationActive')} (${languages[translationSettings.targetLanguage]?.name})` : 
-                              t('translation.translationInactive')
-                          }
-                        </div>
-                      </div>
-                      <ArrowRight className="text-gray-400 group-hover:text-white" size={16} />
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setShowCameraAudioModal(true); // ← Cambiar esta línea
-                        setShowMainSettings(false);
-                      }}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-[#2b2d31] rounded-lg transition text-left group"
-                    >
-                      <Camera className="text-[#ff007a] group-hover:scale-110 transition-transform" size={20} />
-                      <div className="flex-1">
-                        <span className="text-white text-sm font-medium">{t('controls.camera')} y {t('controls.microphone')}</span>
-                        <div className="text-xs text-gray-400">
-                        </div>
-                      </div>
-                      <ArrowRight className="text-gray-400 group-hover:text-white" size={16} />
-                    </button>
-                  </div>
+          <div className="flex justify-center items-center gap-4 sm:gap-6 lg:gap-10 mt-4 lg:mt-6 px-4 relative">
+                {/* MICRÓFONO */}
+                <div className="relative">
+                  <button
+                    className={`w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition`}
+                    onClick={() => setMicEnabled(!micEnabled)}
+                    title={micEnabled ? 'Silenciar micrófono' : 'Activar micrófono'}
+                  >
+                    {micEnabled ? <Mic size={30} /> : <MicOff size={32} />}
+                  </button>
                 </div>
-              )}
+
+                {/* CÁMARA */}
+                <div className="relative">
+                  <button
+                    className={`w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition`}
+                    onClick={() => setCameraEnabled(!cameraEnabled)}
+                    title={cameraEnabled ? 'Apagar cámara' : 'Encender cámara'}
+                  >
+                    {cameraEnabled ? <Video size={32} /> : <VideoOff size={32} />}
+                  </button>
+                </div>
+
+                {/* SIGUIENTE */}
+                <button
+                  onClick={siguientePersona}
+                  title="Siguiente persona"
+                  disabled={loading}
+                  className={`
+                    w-16 h-16 rounded-full flex items-center justify-center
+                    text-[#ff007a] hover:bg-[#ff007a] hover:text-white
+                    transition duration-300 ease-in-out
+                    ${loading ? 'opacity-50 cursor-not-allowed' : ''}
+                  `}
+                >
+                  <ArrowRight size={30} />
+                </button>
+
+                {/* FINALIZAR */}
+                <button
+                  className="w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition"
+                  onClick={finalizarChat}
+                  title="Finalizar chat"
+                >
+                  <Square size={30} />
+                </button>
+
+                {/* CONFIGURACIÓN */}
+                <div className="relative">
+                  <button
+                    className="w-14 h-14 rounded-full flex items-center justify-center text-[#ff007a] hover:bg-[#ff007a] hover:text-white transition"
+                    onClick={() => setShowMainSettings(!showMainSettings)}
+                    title="Configuración"
+                  >
+                    <Settings size={30} />
+                  </button>
+                  
+                  {/* DROPDOWN MENÚ DE CONFIGURACIÓN */}
+                  {showMainSettings && (
+                    <div className="settings-dropdown absolute bottom-16 right-0 bg-[#1f2125] rounded-xl p-4 shadow-2xl z-50 min-w-[240px] border border-[#ff007a]/20 animate-fadeIn">
+                      <div className="space-y-1">
+                        <div className="px-2 py-1 text-xs text-gray-400 uppercase tracking-wide border-b border-gray-600 mb-3">
+                          {t('navigation.settings')}
+                        </div>
+                        
+                        <button
+                          onClick={() => {
+                            setShowTranslationSettings(true);
+                            setShowMainSettings(false);
+                          }}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-[#2b2d31] rounded-lg transition text-left group"
+                        >
+                          <Globe className="text-[#ff007a] group-hover:scale-110 transition-transform" size={20} />
+                          <div className="flex-1">
+                            <span className="text-white text-sm font-medium">{t('translation.title')}</span>
+                            <div className="text-xs text-gray-400">
+                              {translationSettings.enabled ? 
+                                `${t('translation.translationActive')} (${languages[translationSettings.targetLanguage]?.name})` : 
+                                  t('translation.translationInactive')
+                              }
+                            </div>
+                          </div>
+                          <ArrowRight className="text-gray-400 group-hover:text-white" size={16} />
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            setShowCameraAudioModal(true); // ← Cambiar esta línea
+                            setShowMainSettings(false);
+                          }}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-[#2b2d31] rounded-lg transition text-left group"
+                        >
+                          <Camera className="text-[#ff007a] group-hover:scale-110 transition-transform" size={20} />
+                          <div className="flex-1">
+                            <span className="text-white text-sm font-medium">{t('controls.camera')} y {t('controls.microphone')}</span>
+                            <div className="text-xs text-gray-400">
+                            </div>
+                          </div>
+                          <ArrowRight className="text-gray-400 group-hover:text-white" size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
           <TranslationSettings
             isOpen={showTranslationSettings}

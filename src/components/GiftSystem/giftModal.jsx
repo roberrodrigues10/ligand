@@ -17,24 +17,61 @@ export const GiftsModal = ({
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleGiftSelect = async (gift) => {
-    if (userRole === 'modelo') {
-      // Modelo pide regalo directamente
-      setIsLoading(true);
-      try {
-        const result = await onRequestGift(gift.id, recipientId, roomName, message);
-        if (result.success) {
-          alert(`¡Solicitud de ${gift.name} enviada a ${recipientName}! 🎁`);
-          onClose();
-        } else {
-          alert(`Error: ${result.error}`);
-        }
-      } catch (error) {
-        alert('Error al enviar solicitud');
+
+const handleGiftSelect = async (gift) => {
+  if (userRole === 'modelo') {
+    setIsLoading(true);
+    try {
+      console.log('🎁 Regalo seleccionado:', gift);
+      console.log('🔍 gift.id:', gift.id, typeof gift.id);
+      console.log('🔍 recipientId:', recipientId, typeof recipientId);
+      
+      // 🔥 VALIDACIÓN PARA STRING IDs
+      const giftId = gift.id; // Mantener como string
+      const recipientIdNumber = parseInt(recipientId);
+      
+      // Validar que gift.id existe (puede ser string o number)
+      if (!giftId) {
+        console.error('❌ ERROR: gift.id está vacío:', gift.id);
+        alert('Error: ID de regalo inválido');
+        return;
       }
-      setIsLoading(false);
+      
+      // Validar que recipientId es un número válido
+      if (isNaN(recipientIdNumber)) {
+        console.error('❌ ERROR: recipientId inválido:', recipientId);
+        alert('Error: ID de destinatario inválido');
+        return;
+      }
+      
+      console.log('✅ IDs validados:', {
+        giftId: giftId,           // String ID
+        recipientId: recipientIdNumber, // Number ID
+        roomName: roomName,
+        message: message
+      });
+      
+      // 🔥 LLAMAR con IDs correctos (giftId como string)
+      const result = await onRequestGift(
+        giftId,              // ✅ Mantener como string
+        recipientIdNumber,   // ✅ Como número
+        roomName, 
+        message
+      );
+      
+      if (result.success) {
+        alert(`¡Solicitud de ${gift.name} enviada a ${recipientName}! 🎁`);
+        onClose();
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('❌ Error en handleGiftSelect:', error);
+      alert('Error al enviar solicitud');
     }
-  };
+    setIsLoading(false);
+  }
+};
 
   const handleClose = () => {
     setSelectedGift(null);
