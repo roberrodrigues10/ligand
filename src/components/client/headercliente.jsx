@@ -17,7 +17,6 @@ import { useTranslation } from 'react-i18next';
 import logoproncipal from "../imagenes/logoprincipal.png";
 import LanguageSelector from "../../components/languageSelector";
 import { getUser } from "../../utils/auth";
-import CoinsBalanceWidget from '../CoinsBalanceWidget';
 import StripeBuyCoins from '../StripeBuyCoins';
 import StoriesModal from './StoriesModal'; // 👈 IMPORTAR EL MODAL
 import { useAppNotifications } from '../../contexts/NotificationContext'; // 👈 IMPORTAR NOTIFICACIONES
@@ -291,13 +290,7 @@ export default function HeaderCliente() {
 
         {/* Botón menú móvil - solo visible en móvil */}
         <div className="md:hidden flex items-center gap-2">
-          {/* Widget de balance de monedas */}
-          <CoinsBalanceWidget
-            onBuyClick={abrirModalCompraMonedas}
-            showFullStats={true}
-            showHistory={true}
-          />
-          
+        
           <div className="relative" ref={mobileMenuRef}>
             <button
               onClick={toggleMobileMenu}

@@ -22,7 +22,7 @@ import Favoritos from "./components/favorites";
 import HistorySub from "./components/historysu";
 import EsperancoCall from "./components/esperacall";
 import EsperandoCallCliente from "./components/client/esperacallclient";
-import Videochat from "./components/videochat";
+import Videochat from "./components/modelo/videochat.jsx";
 import VideochatClient from "./components/client/videochatclient";
 import ConfiPerfil from "./components/confiperfil";
 import MessageClient from "./components/client/message.jsx"

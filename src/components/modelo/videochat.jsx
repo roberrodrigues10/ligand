@@ -1,4 +1,4 @@
-// VideoChatClient.jsx - Componente Principal Mejorado COMPLETO
+// VideoChat.jsx - Componente Principal Mejorado COMPLETO
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
@@ -10,37 +10,35 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 
-// Componentes modularizados para cliente
-import Header from "./headercliente.jsx";
-import VideoDisplayImprovedClient from "./components/VideoDisplayImprovedClient";
-import FloatingMessagesImprovedClient from "./components/FloatingMessagesImprovedClient";
-import DesktopChatPanelClient from "./components/DesktopChatPanelClient";
-import MobileControlsImprovedClient from "./components/MobileControlsImprovedClient";
-import DesktopControlsImprovedClient from "./components/DesktopControlsImprovedClient";
-import TimeDisplayImprovedClient from "./components/TimeDisplayImprovedClient";
-import NotificationSystemImprovedClient from "./components/NotificationSystemImprovedClient";
-import DisconnectionScreenImprovedClient from "./components/DisconnectionScreenImprovedClient";
-import MediaControlsImprovedClient from "./components/MediaControlsImprovedClient";
+// Componentes modularizados
+import Header from "../header";
+import VideoDisplayImproved from "./components/VideoDisplayImproved";
+import FloatingMessagesImproved from "./components/FloatingMessagesImproved";
+import DesktopChatPanel from "./components/DesktopChatPanel";
+import MobileControlsImproved from "./components/MobileControlsImproved";
+import DesktopControlsImproved from "./components/DesktopControlsImproved";
+import TimeDisplayImproved from "./components/TimeDisplayImproved";
+import NotificationSystemImproved from "./components/NotificationSystemImproved";
+import DisconnectionScreenImproved from "./components/DisconnectionScreenImproved";
+import MediaControlsImproved from "./components/MediaControlsImproved";
 
 // Componentes originales necesarios
 import SimpleChat from "../messages.jsx";
 import { useVideoChatGifts } from '../../components/GiftSystem/useVideoChatGifts';
 import { GiftsModal } from '../../components/GiftSystem/giftModal.jsx';
 import { GiftMessageComponent } from '../../components/GiftSystem/GiftMessageComponent.jsx';
-import { GiftNotificationOverlay } from '../../components/GiftSystem/GiftNotificationOverlay';
 import {
   useTranslation as useCustomTranslation,
   TranslationSettings,
   TranslatedMessage
 } from '../../utils/translationSystem.jsx';
-import CameraAudioSettings from '../modelo/utils/cameraaudiosettings.jsx';  
+import CameraAudioSettings from './utils/cameraaudiosettings.jsx';  
 
 // Utilities y contextos
 import { getUser } from "../../utils/auth";
 import { useSessionCleanup } from '../closesession.jsx';
 import { useSearching } from '../../contexts/SearchingContext';
-import { ProtectedPage } from '../hooks/usePageAccess.jsx';
-import { useVideoChatHeartbeat } from '../../utils/heartbeat';
+import { GlobalTranslationProvider, useGlobalTranslation } from './contexts/GlobalTranslationContext';
 
 // Configuraciones
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -53,7 +51,7 @@ const getRoomCacheKey = (roomName, currentUserName) => {
 
 // 🔥 FUNCIONES PARA ESPEJO
 const applyMirrorToAllVideos = (shouldMirror) => {
-  console.log('🪞 Aplicando espejo global en videochat cliente:', shouldMirror);
+  console.log('🪞 Aplicando espejo global en videochat:', shouldMirror);
   
   const selectors = [
     '[data-lk-participant-video]',
@@ -118,7 +116,7 @@ const setupMirrorObserver = (shouldMirror) => {
 };
 
 // 🔥 COMPONENTE PRINCIPAL CON ESTRUCTURA MODULAR
-export default function VideoChatClient() {
+export default function VideoChat() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -163,19 +161,21 @@ export default function VideoChatClient() {
   const [error, setError] = useState(null);
   const [connected, setConnected] = useState(false);
   const [room, setRoom] = useState(null);
-  const [modeloDisconnected, setModeloDisconnected] = useState(false);
-  const [modeloWentNext, setModeloWentNext] = useState(false);
+  const [modeloStoppedWorking, setModeloStoppedWorking] = useState(false);
   const [receivedNotification, setReceivedNotification] = useState(false);
   const [isProcessingLeave, setIsProcessingLeave] = useState(false);
 
   // Estados de controles
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
-  const [volumeEnabled, setVolumeEnabled] = useState(true);
   const [camaraPrincipal, setCamaraPrincipal] = useState("remote");
 
   // Estados de UI
   const [tiempo, setTiempo] = useState(0);
+  const [tiempoReal, setTiempoReal] = useState(0);
+  const tiempoInicioRef = useRef(null);
+  const tiempoGuardadoRef = useRef(0);
+  const tiempoIntervalRef = useRef(null);
 
   // Estados de mensajes
   const [messages, setMessages] = useState([]);
@@ -183,6 +183,8 @@ export default function VideoChatClient() {
   const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   // Estados de desconexión
+  const [clientDisconnected, setClientDisconnected] = useState(false);
+  const [clientWentNext, setClientWentNext] = useState(false);
   const [disconnectionReason, setDisconnectionReason] = useState('');
   const [disconnectionType, setDisconnectionType] = useState('');
   const [redirectCountdown, setRedirectCountdown] = useState(0);
@@ -204,7 +206,9 @@ export default function VideoChatClient() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
   const [isAddingFavorite, setIsAddingFavorite] = useState(false);
-  const [isMonitoringBalance, setIsMonitoringBalance] = useState(false);
+  const [showClientBalance, setShowClientBalance] = useState(true);
+  const [mostrarRegalos, setMostrarRegalos] = useState(false);
+  const [showSidePanel, setShowSidePanel] = useState(false);
 
   // Estados de notificaciones
   const [notifications, setNotifications] = useState([]);
@@ -214,10 +218,6 @@ export default function VideoChatClient() {
     const saved = localStorage.getItem("mirrorMode");
     return saved ? JSON.parse(saved) : true;
   });
-
-  // Estados de balance
-  const [userBalance, setUserBalance] = useState(0);        // Balance de COINS (monedas)
-  const [remainingMinutes, setRemainingMinutes] = useState(0);
 
   // Chat functions
   const [chatFunctions, setChatFunctions] = useState(null);
@@ -236,25 +236,16 @@ export default function VideoChatClient() {
   const {
     gifts,
     pendingRequests,
-    userBalance: giftBalance,
+    userBalance,
     loading: giftLoading,
-    acceptGift,
-    rejectGift,
+    requestGift,
     loadGifts,
-    loadUserBalance,
-    setPendingRequests
+    loadUserBalance
   } = useVideoChatGifts(
     roomName,
     { id: userData.id, role: userData.role, name: userData.name },
     otherUser ? { id: otherUser.id, name: otherUser.name } : null
   );
-
-  // Estados para notificaciones de regalo
-  const [showGiftNotification, setShowGiftNotification] = useState(false);
-  const [processingGift, setProcessingGift] = useState(null);
-
-  // Usar heartbeat
-  useVideoChatHeartbeat(roomName, 'cliente');
 
   // 🔥 SISTEMA DE NOTIFICACIONES MEJORADO
   const addNotification = useCallback((type, title, message, duration = 5000) => {
@@ -281,6 +272,119 @@ export default function VideoChatClient() {
   const removeNotification = useCallback((id) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
+
+  // 🔥 FUNCIONES DE TIEMPO MEJORADAS
+  const formatoTiempo = () => {
+    const minutos = Math.floor(tiempoReal / 60).toString().padStart(2, "0");
+    const segundos = (tiempoReal % 60).toString().padStart(2, "0");
+    return `${minutos}:${segundos}`;
+  };
+
+  const iniciarTiempoReal = () => {
+    console.log('⏱️ Iniciando contador de tiempo real');
+    if (tiempoIntervalRef.current) {
+      clearInterval(tiempoIntervalRef.current);
+      tiempoIntervalRef.current = null;
+    }
+    tiempoInicioRef.current = Date.now();
+    setTiempoReal(0);
+    
+    tiempoIntervalRef.current = setInterval(() => {
+      const tiempoTranscurrido = Math.floor((Date.now() - tiempoInicioRef.current) / 1000);
+      setTiempoReal(tiempoTranscurrido);
+    }, 1000);
+  };
+
+  const detenerTiempoReal = () => {
+    if (tiempoIntervalRef.current) {
+      clearInterval(tiempoIntervalRef.current);
+      tiempoIntervalRef.current = null;
+      
+      const tiempoFinal = tiempoInicioRef.current ?
+        Math.floor((Date.now() - tiempoInicioRef.current) / 1000) : tiempoReal;
+      
+      if (tiempoFinal <= 0) {
+        const tiempoSeguro = Math.max(tiempoReal, 30);
+        setTiempoReal(tiempoSeguro);
+        return tiempoSeguro;
+      }
+      
+      setTiempoReal(tiempoFinal);
+      return tiempoFinal;
+    }
+    
+    const tiempoActual = Math.max(tiempoReal, 30);
+    return tiempoActual;
+  };
+
+  // 🔥 FUNCIÓN PARA ENVIAR TIEMPO REAL
+  const enviarTiempoReal = async (sessionId, tiempoEspecifico = null) => {
+    let tiempoAEnviar;
+    
+    if (tiempoEspecifico !== null) {
+      tiempoAEnviar = tiempoEspecifico;
+    } else if (tiempoInicioRef.current) {
+      tiempoAEnviar = Math.floor((Date.now() - tiempoInicioRef.current) / 1000);
+    } else {
+      tiempoAEnviar = tiempoReal;
+    }
+    
+    if (!sessionId || sessionId === 'null' || sessionId === 'undefined') {
+      console.error('❌ SessionId inválido:', sessionId);
+      return;
+    }
+    
+    if (tiempoAEnviar <= 0) {
+      console.error('❌ Tiempo inválido:', tiempoAEnviar);
+      return;
+    }
+
+    console.log('🚀 ENVIANDO TIEMPO DETALLADO:', {
+      sessionId,
+      segundos: tiempoAEnviar,
+      formateado: `${Math.floor(tiempoAEnviar/60)}:${(tiempoAEnviar%60).toString().padStart(2, '0')}`,
+      minutos: (tiempoAEnviar / 60).toFixed(2)
+    });
+
+    try {
+      const token = sessionStorage.getItem('token');
+      if (!token) {
+        console.error('❌ No hay token de autenticación');
+        return;
+      }
+
+      const requestBody = {
+        session_id: sessionId,
+        duration_seconds: tiempoAEnviar
+      };
+
+      const response = await fetch(`${API_BASE_URL}/api/earnings/update-duration`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error HTTP:', response.status, errorText);
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`✅ Tiempo enviado exitosamente: ${Math.floor(tiempoAEnviar/60)}:${(tiempoAEnviar%60).toString().padStart(2, '0')}`);
+        console.log('💰 Ganancias calculadas:', data.model_earnings || 'N/A');
+      } else {
+        console.error('❌ Error del servidor:', data.error);
+      }
+    } catch (error) {
+      console.error('❌ Error enviando tiempo:', error);
+    }
+  };
 
   // 🔥 FUNCIONES DE CACHE MEJORADAS
   const updateOtherUser = (user) => {
@@ -356,7 +460,7 @@ export default function VideoChatClient() {
       ...newMessage,
       id: newMessage.id || Date.now() + Math.random(),
       type: 'remote',
-      senderRole: newMessage.senderRole || 'modelo'
+      senderRole: newMessage.senderRole || 'chico' // 🔥 CAMBIO: chico en lugar de cliente
     };
     
     setMessages(prev => [formattedMessage, ...prev]);
@@ -366,7 +470,7 @@ export default function VideoChatClient() {
     const giftMessage = {
       id: Date.now(),
       type: 'system',
-      text: `¡Enviaste ${gift.nombre}! -${gift.valor} monedas 💰`,
+      text: `¡Recibiste ${gift.nombre}! +${gift.valor} monedas 💰`,
       timestamp: Date.now(),
       isOld: false
     };
@@ -378,52 +482,38 @@ export default function VideoChatClient() {
     updateOtherUser(user);
   };
 
-  // 🔥 FUNCIÓN PARA ACTUALIZAR BALANCE
- const updateBalance = async () => {
-  try {
-    const authToken = sessionStorage.getItem('token');
-    if (!authToken) return;
-
-    // 1️⃣ OBTENER BALANCE DE COINS (monedas generales)
-    const coinsResponse = await fetch(`${API_BASE_URL}/api/client-balance/my-balance/quick`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (coinsResponse.ok) {
-      const coinsData = await coinsResponse.json();
-      if (coinsData.success) {
-        setUserBalance(coinsData.total_coins);      // Balance de COINS
-        setRemainingMinutes(coinsData.remaining_minutes);
+  const enviarRegalo = (regalo) => {
+    if (chatFunctions?.sendGift) {
+      const success = chatFunctions.sendGift(regalo);
+      if (success) {
+        const regaloMessage = {
+          id: Date.now(),
+          type: 'local',
+          text: `Enviaste ${regalo.nombre}`,
+          timestamp: Date.now(),
+          isOld: false
+        };
+        setMessages(prev => [...prev, regaloMessage]);
+        setMostrarRegalos(false);
       }
     }
-
-    // 2️⃣ OBTENER BALANCE DE GIFTS (regalos específicos)
-    const giftsResponse = await fetch(`${API_BASE_URL}/api/gifts/my-balance`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (giftsResponse.ok) {
-      const giftsData = await giftsResponse.json();
-      if (giftsData.success) {
-        setGiftBalance(giftsData.gift_balance);     // Balance de GIFTS
-      }
-    }
-
-  } catch (error) {
-    console.error('Error actualizando balances:', error);
-  }
-};
+  };
 
   // 🔥 FUNCIONES DE NAVEGACIÓN MEJORADAS
   const siguientePersona = async () => {
+    const tiempoFinalSesion = detenerTiempoReal();
+    
+    if (roomName && tiempoFinalSesion > 0) {
+      try {
+        await enviarTiempoReal(roomName, tiempoFinalSesion);
+        addNotification('success', 'Sesión guardada', 'Tiempo de sesión registrado correctamente');
+      } catch (error) {
+        addNotification('error', 'Error', 'No se pudo guardar el tiempo de sesión');
+      }
+    }
+    
+    tiempoInicioRef.current = null;
+    setTiempoReal(0);
     clearUserCache();
     startSearching();
 
@@ -439,7 +529,7 @@ export default function VideoChatClient() {
     }
     
     const urlParams = new URLSearchParams({
-      role: 'cliente',
+      role: 'modelo',
       action: 'siguiente',
       from: 'videochat_siguiente',
       excludeUser: otherUser?.id || '',
@@ -455,193 +545,69 @@ export default function VideoChatClient() {
     cambiarCamara();
   }, []);
 
-  const finalizarChat = useCallback(async (forceEnd = false) => {
-    console.log('🛑 [CLIENTE] finalizarChat iniciado...', { 
-      forceEnd,
-      roomName,
-      otherUserId: otherUser?.id,
-      timestamp: new Date().toISOString()
-    });
     
-    // Prevenir ejecuciones múltiples
-    if (window.finalizandoChat) {
-      console.log('⚠️ [CLIENTE] finalizarChat ya en proceso - ignorando');
-      return;
-    }
-    
-    window.finalizandoChat = true;
-    
+ const finalizarChat = useCallback(async () => {
+  console.log('🛑 [MODELO] FINALIZANDO CHAT - Deteniendo todo inmediatamente');
+  
+  // 🔥 DETENER TODO INMEDIATAMENTE
+  setModeloStoppedWorking(true);
+  setClientDisconnected(false);  // Evitar pantallas de desconexión
+  setClientWentNext(false);      // Evitar pantallas de desconexión
+  
+  const tiempoFinalSesion = detenerTiempoReal();
+  
+  if (roomName && tiempoFinalSesion > 0) {
     try {
-      const authToken = sessionStorage.getItem('token');
-      
-      if (!authToken) {
-        console.warn('⚠️ [CLIENTE] No hay token de auth');
-        throw new Error('No auth token');
-      }
-
-      // Mostrar mensaje si es automático
-      if (forceEnd) {
-        console.log('🚨 [CLIENTE] FINALIZACIÓN AUTOMÁTICA - SALDO AGOTADO');
-        
-        setMessages(prev => [{
-          id: Date.now(),
-          type: 'system', 
-          text: '⚠️ Sesión finalizando automáticamente - saldo insuficiente',
-          timestamp: Date.now(),
-          isOld: false
-        }, ...prev]);
-      }
-      
-      // Finalizar sesión de monedas
-      if (roomName && authToken) {
-        try {
-          console.log('💰 [CLIENTE] Finalizando sesión de monedas...');
-          
-          const endResponse = await Promise.race([
-            fetch(`${API_BASE_URL}/api/livekit/end-coin-session`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`,
-              },
-              body: JSON.stringify({ 
-                roomName,
-                reason: forceEnd ? 'balance_exhausted' : 'user_ended'
-              })
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-          ]);
-          
-          if (endResponse.ok) {
-            console.log('✅ [CLIENTE] Sesión finalizada');
-          } else {
-            console.warn('⚠️ [CLIENTE] Error:', endResponse.status);
-          }
-          
-        } catch (error) {
-          console.warn('⚠️ [CLIENTE] Error finalizando sesión:', error.message);
-        }
-      }
-      
-      // Notificar al partner
-      if (otherUser?.id && roomName && authToken) {
-        try {
-          console.log('📡 [CLIENTE] Notificando partner...');
-          
-          const notifyResponse = await Promise.race([
-            fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`,
-              },
-              body: JSON.stringify({ 
-                roomName,
-                reason: forceEnd ? 'client_balance_exhausted' : 'client_ended_session'
-              })
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-          ]);
-          
-          if (notifyResponse.ok) {
-            console.log('✅ [CLIENTE] Partner notificado');
-          }
-          
-        } catch (error) {
-          console.warn('⚠️ [CLIENTE] Error notificando:', error.message);
-        }
-      }
-      
-      // Limpiar datos
-      console.log('🧹 [CLIENTE] Limpiando datos...');
-      
-      const itemsToRemove = [
-        'roomName', 'userName', 'currentRoom', 
-        'inCall', 'callToken', 'videochatActive'
-      ];
-      
-      itemsToRemove.forEach(item => sessionStorage.removeItem(item));
-      
-      // Limpiar cache
-      if (typeof clearUserCache === 'function') {
-        clearUserCache();
-      }
-      
-      // Actualizar heartbeat
-      try {
-        await Promise.race([
-          fetch(`${API_BASE_URL}/api/heartbeat`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({
-              activity_type: 'browsing',
-              room: null
-            })
-          }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-        ]);
-        
-        console.log('✅ [CLIENTE] Heartbeat actualizado');
-      } catch (error) {
-        console.warn('⚠️ [CLIENTE] Error heartbeat:', error.message);
-      }
-      
-      // Navegar
-      console.log('🏠 [CLIENTE] Navegando...');
-      
-      const stateData = forceEnd ? {
-        message: 'Tu sesión terminó automáticamente porque se agotaron las monedas o el tiempo disponible.',
-        type: 'warning',
-        autoEnded: true
-      } : undefined;
-      
-      // Navegar inmediatamente
-      navigate('/homecliente', { 
-        replace: true,
-        state: stateData
-      });
-      
-      console.log('✅ [CLIENTE] finalizarChat completado');
-      
+      await enviarTiempoReal(roomName, tiempoFinalSesion);
+      addNotification('success', 'Sesión finalizada', 'Tiempo registrado correctamente');
     } catch (error) {
-      console.error('❌ [CLIENTE] Error crítico:', error);
-      
-      // Fallback
-      try {
-        sessionStorage.clear();
-        navigate('/homecliente', { replace: true });
-      } catch (fallbackError) {
-        console.error('❌ Fallback error:', fallbackError);
-        window.location.href = '/homecliente';
-      }
-    } finally {
-      // Limpiar flag después de un delay
-      setTimeout(() => {
-        window.finalizandoChat = false;
-      }, 3000);
+      addNotification('error', 'Error', 'No se pudo guardar el tiempo');
     }
-  }, [roomName, otherUser, navigate, setMessages]);
+  }
+  
+  tiempoInicioRef.current = null;
+  setTiempoReal(0);
+  clearUserCache();
 
+  // 🔥 NOTIFICAR AL CLIENTE (opcional)
+  if (otherUser?.id && roomName) {
+    fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+      },
+      body: JSON.stringify({ roomName })
+    }).catch(() => {});
+  }
+
+  // 🔥 LIMPIAR STORAGE
+  sessionStorage.removeItem('roomName');
+  sessionStorage.removeItem('userName');
+  sessionStorage.removeItem('currentRoom');
+  sessionStorage.removeItem('inCall');
+  
+  // 🔥 NAVEGAR INMEDIATAMENTE
+  console.log('🏠 [MODELO] Navegando a home inmediatamente');
+  navigate('/homellamadas', { replace: true });
+  }, [roomName, navigate, addNotification, otherUser]);
   // 🔥 FUNCIÓN DE DESCONEXIÓN MEJORADA
-  const handleModeloDisconnected = (reason = 'stop', customMessage = '') => {
+  const handleClientDisconnected = (reason = 'stop', customMessage = '') => {
     setLoading(false);
     setConnected(false);
     
     if (reason === 'next' || reason === 'partner_went_next') {
-      setModeloWentNext(true);
+      setClientWentNext(true);
       setDisconnectionType('next');
-      setDisconnectionReason(customMessage || 'La modelo te saltó y fue a la siguiente persona');
+      setDisconnectionReason(customMessage || 'El chico te saltó y fue a la siguiente persona'); // 🔥 CAMBIO: chico
     } else if (reason === 'stop' || reason === 'partner_left_session') {
-      setModeloDisconnected(true);
+      setClientDisconnected(true);
       setDisconnectionType('stop');
-      setDisconnectionReason(customMessage || 'La modelo se desconectó de la videollamada');
+      setDisconnectionReason(customMessage || 'El chico se desconectó de la videollamada'); // 🔥 CAMBIO: chico
     } else {
-      setModeloDisconnected(true);
+      setClientDisconnected(true);
       setDisconnectionType('left');
-      setDisconnectionReason(customMessage || 'La modelo salió de la sesión');
+      setDisconnectionReason(customMessage || 'El chico salió de la sesión'); // 🔥 CAMBIO: chico
     }
     
     startRedirectCountdown();
@@ -657,7 +623,6 @@ export default function VideoChatClient() {
       
       if (timeLeft <= 0) {
         clearInterval(countdownInterval);
-        siguientePersona();
       }
     }, 1000);
   };
@@ -782,106 +747,82 @@ export default function VideoChatClient() {
     if (otherUser) return otherUser.name;
     if (isDetectingUser) return "Conectando...";
     
-    return "Esperando modelo...";
+    return "Esperando chico..."; // 🔥 CAMBIO: chico en lugar de usuario
   };
 
-  // 🔥 FUNCIÓN PARA ACEPTAR REGALO (CLIENTE)
-  const handleAcceptGift = async (requestId, securityHash) => {
-    if (processingGift === requestId) {
-      console.warn('⚠️ [CLIENTE] Regalo ya siendo procesado');
-      return;
-    }
+  // 🔥 FUNCIÓN PARA SOLICITAR REGALO
+  const handleRequestGift = async (giftId, recipientId, roomName, message) => {
+    console.log('🎁 [MODELO] Solicitando regalo:', {
+      giftId, recipientId, roomName, message
+    });
 
     try {
-      setProcessingGift(requestId);
-      console.log('✅ [CLIENTE] Aceptando regalo:', { requestId, hasHash: !!securityHash });
-      
-      const result = await acceptGift(requestId, securityHash);
+      const result = await requestGift(giftId, message);
       
       if (result.success) {
-        console.log('✅ [CLIENTE] Regalo aceptado exitosamente');
+        console.log('✅ [MODELO] Regalo solicitado exitosamente');
         
-        // Cerrar notificación
-        setShowGiftNotification(false);
+        if (result.chatMessage) {
+          setMessages(prev => [result.chatMessage, ...prev]);
+        }
         
-        // Agregar mensaje al chat
-        const giftMessage = {
-          id: Date.now(),
-          type: 'gift_sent',
-          text: `🎁 Enviaste: ${result.giftInfo?.name}`,
-          timestamp: Date.now(),
-          isOld: false,
-          sender: userData.name,
-          senderRole: userData.role
-        };
-        setMessages(prev => [giftMessage, ...prev]);
-        
-        // Actualizar balance
-        updateBalance();
+        if (Notification.permission === 'granted') {
+          new Notification('🎁 Solicitud Enviada', {
+            body: `Solicitaste ${result.giftInfo?.name} a ${otherUser?.name}`,
+            icon: '/favicon.ico'
+          });
+        }
         
         return { success: true };
       } else {
-        console.error('❌ [CLIENTE] Error aceptando regalo:', result.error);
-        addNotification('error', 'Error', result.error);
+        console.error('❌ [MODELO] Error solicitando regalo:', result.error);
         return { success: false, error: result.error };
       }
     } catch (error) {
-      console.error('❌ [CLIENTE] Error de conexión:', error);
-      addNotification('error', 'Error', 'Error de conexión');
+      console.error('❌ [MODELO] Error de conexión:', error);
       return { success: false, error: 'Error de conexión' };
-    } finally {
-      setProcessingGift(null);
     }
   };
 
-  // 🔥 FUNCIÓN PARA RECHAZAR REGALO (CLIENTE)
-  const handleRejectGift = async (requestId, reason = '') => {
+  // 🔥 FUNCIÓN HEARTBEAT
+  const sendHeartbeat = async (activityType = 'videochat') => {
     try {
-      console.log('❌ [CLIENTE] Rechazando regalo:', requestId);
-      
-      const result = await rejectGift(requestId, reason);
-      
-      if (result.success) {
-        console.log('✅ [CLIENTE] Regalo rechazado exitosamente');
-        
-        // Cerrar notificación
-        setShowGiftNotification(false);
-        
-        // Agregar mensaje al chat
-        const rejectMessage = {
-          id: Date.now(),
-          type: 'gift_rejected',
-          text: '❌ Rechazaste una solicitud de regalo',
-          timestamp: Date.now(),
-          isOld: false,
-          sender: userData.name,
-          senderRole: userData.role
-        };
-        setMessages(prev => [rejectMessage, ...prev]);
-        
-        return { success: true };
-      } else {
-        console.error('❌ [CLIENTE] Error rechazando regalo:', result.error);
-        addNotification('error', 'Error', result.error);
-        return { success: false, error: result.error };
+      if (modeloStoppedWorking && activityType === 'videochat') {
+        console.log('🛑 [MODELO] Heartbeat videochat bloqueado por flag de stop');
+        return;
       }
+
+      const authToken = sessionStorage.getItem('token');
+      if (!authToken) return;
+
+      fetch(`${API_BASE_URL}/api/heartbeat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          activity_type: activityType,
+          room: activityType === 'browsing' ? null : roomName
+        })
+      }).catch(() => {});
+
+      console.log(`💓 [VIDEOCHAT] Heartbeat enviado: ${activityType}`);
     } catch (error) {
-      console.error('❌ [CLIENTE] Error de conexión:', error);
-      addNotification('error', 'Error', 'Error de conexión');
-      return { success: false, error: 'Error de conexión' };
+      console.log('⚠️ [VIDEOCHAT] Error enviando heartbeat (ignorado):', error);
     }
   };
 
   // 🔥 FUNCIÓN DE RATE LIMITING
   const handleRateLimit = useCallback((error, context = 'general') => {
     if (error?.response?.status === 429) {
-      console.warn(`⚠️ Rate limit detectado en VideoChat CLIENTE (${context})`);
+      console.warn(`⚠️ Rate limit detectado en VideoChat MODELO (${context})`);
       
       navigate('/rate-limit-wait', {
         state: {
-          message: `Servidor ocupado en videochat cliente, reintentando...`,
+          message: `Servidor ocupado en videochat modelo, reintentando...`,
           waitTime: 12000,
-          fallbackRoute: "/homecliente",
+          fallbackRoute: "/homellamadas",
           onRetry: (userRole) => {
             console.log('🔄 Reintentando videochat con rol:', userRole);
             if (userRole === 'cliente') return '/homecliente';
@@ -899,11 +840,13 @@ export default function VideoChatClient() {
   // 🔥 EVENTOS DE CONEXIÓN
   const handleRoomConnected = () => {
     setConnected(true);
+    iniciarTiempoReal();
     addNotification('success', 'Conectado', 'Conexión establecida exitosamente');
   };
 
   const handleRoomDisconnected = () => {
     setConnected(false);
+    detenerTiempoReal();
     addNotification('warning', 'Desconectado', 'Se perdió la conexión');
   };
 
@@ -916,18 +859,85 @@ export default function VideoChatClient() {
 
   // 🔥 EFECTOS DE INICIALIZACIÓN
 
+  // Efecto para heartbeat
+  useEffect(() => {
+    if (!roomName || modeloStoppedWorking) {
+      console.log('🛑 [HOOK] useVideoChatHeartbeat detenido por modeloStoppedWorking');
+      return;
+    }
+
+    console.log('🚀 [HOOK] Iniciando useVideoChatHeartbeat personalizado');
+
+    const authToken = sessionStorage.getItem('token');
+    if (authToken) {
+      fetch(`${API_BASE_URL}/api/heartbeat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          activity_type: 'videochat',
+          room: roomName
+        })
+      }).catch(() => {});
+    }
+
+    const interval = setInterval(() => {
+      if (modeloStoppedWorking) {
+        console.log('🛑 [HOOK] Deteniendo interval por modeloStoppedWorking');
+        clearInterval(interval);
+        return;
+      }
+      
+      const token = sessionStorage.getItem('token');
+      if (token) {
+        fetch(`${API_BASE_URL}/api/heartbeat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            activity_type: 'videochat',
+            room: roomName
+          })
+        }).catch(() => {});
+      }
+    }, 15000);
+
+    return () => {
+      console.log('🧹 [HOOK] Cleanup useVideoChatHeartbeat');
+      clearInterval(interval);
+      
+      if (!modeloStoppedWorking) {
+        const token = sessionStorage.getItem('token');
+        if (token) {
+          fetch(`${API_BASE_URL}/api/heartbeat`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              activity_type: 'browsing',
+              room: null
+            })
+          }).catch(() => {});
+        }
+      }
+    };
+  }, [roomName, modeloStoppedWorking]);
+
   // Efecto para cargar usuario
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const user = await getUser(false);
         const name = user.alias || user.name || user.username || "";
-        const role = user.rol || user.role || "cliente";
+        const role = user.rol || user.role || "modelo";
         
         setUserData({ name, role, id: user.id });
-        
-        // Cargar balance inicial
-        updateBalance();
       } catch (err) {
         console.error("Error al obtener usuario:", err);
         
@@ -965,7 +975,7 @@ export default function VideoChatClient() {
           throw new Error(`Parámetros inválidos - roomName: "${memoizedRoomName}", userName: "${memoizedUserName}"`);
         }
 
-        console.log("🎥 CLIENTE - Obteniendo token para:", {
+        console.log("🎥 MODELO - Obteniendo token para:", {
           roomName: memoizedRoomName,
           userName: memoizedUserName
         });
@@ -1015,7 +1025,7 @@ export default function VideoChatClient() {
         }
 
         const data = await response.json();
-        console.log("✅ CLIENTE - Token obtenido exitosamente");
+        console.log("✅ MODELO - Token obtenido exitosamente");
 
         if (isMounted) {
           setToken(data.token);
@@ -1023,7 +1033,7 @@ export default function VideoChatClient() {
           setLoading(false);
         }
       } catch (err) {
-        console.error('❌ CLIENTE - Error al obtener token:', err);
+        console.error('❌ MODELO - Error al obtener token:', err);
         
         const wasRateLimited = handleRateLimit(err, 'token-error');
         if (!wasRateLimited && isMounted) {
@@ -1094,6 +1104,7 @@ export default function VideoChatClient() {
     }
   }, [chatFunctions?.participantsCount, forceApplyMirror]);
 
+
   // Efecto para traducir mensajes
   useEffect(() => {
     const processMessagesForTranslation = async () => {
@@ -1130,7 +1141,7 @@ export default function VideoChatClient() {
       );
 
     if (shouldStopLoading) {
-      console.log('🎉 [VIDEOCHAT CLIENTE] ¡Usuario encontrado! Quitando loading...', {
+      console.log('🎉 [VIDEOCHAT] ¡Usuario encontrado! Quitando loading...', {
         connected,
         hasToken: !!token,
         participantsCount: chatFunctions?.participantsCount,
@@ -1170,37 +1181,27 @@ export default function VideoChatClient() {
     };
   }, [roomName, userName]);
 
-  // Efecto para notificaciones de regalo
-  useEffect(() => {
-    if (pendingRequests.length > 0 && userData.role === 'cliente') {
-      setShowGiftNotification(true);
-      console.log('🎁 [CLIENTE] Mostrando notificación de regalo:', pendingRequests[0]);
-    } else {
-      setShowGiftNotification(false);
-    }
-  }, [pendingRequests, userData.role]);
-
   // Efecto para notificaciones
   useEffect(() => {
-    if (!roomName || !userName || !connected) {
+    if (!roomName || !userName || !connected || modeloStoppedWorking) {
       return;
     }
 
-    console.log('🔔 [CLIENTE] Iniciando polling de notificaciones');
+    console.log('🔔 [MODELO] Iniciando polling de notificaciones');
 
     let isPolling = true;
     let pollInterval = 3000;
     let consecutiveEmpty = 0;
 
     const checkNotifications = async () => {
-      if (!isPolling) return;
-
-      try {
-        const authToken = sessionStorage.getItem('token');
-        if (!authToken) {
-          console.warn('⚠️ [CLIENTE] No hay token - deteniendo polling');
+      
+      if (!isPolling || modeloStoppedWorking) {
+          console.log('🛑 [MODELO] Polling detenido por flag o estado');
           return;
         }
+      try {
+        const authToken = sessionStorage.getItem('token');
+        if (!authToken) return;
 
         const response = await fetch(`${API_BASE_URL}/api/status/updates`, {
           method: 'GET',
@@ -1221,21 +1222,21 @@ export default function VideoChatClient() {
           if (data.success && data.has_notifications) {
             consecutiveEmpty = 0;
             const notification = data.notification;
-            console.log('📨 [CLIENTE] Notificación recibida:', notification.type);
+            console.log('📨 [MODELO] Notificación recibida:', notification.type);
             
             isPolling = false;
             
             if (notification.type === 'partner_went_next') {
-              console.log('🔄 [CLIENTE] Modelo fue a siguiente - mostrando mensaje');
+              console.log('🔄 [MODELO] Cliente fue a siguiente - mostrando mensaje');
               
-              handleModeloDisconnected('next', 'La modelo fue a la siguiente persona');
+              handleClientDisconnected('next', 'El cliente fue a la siguiente modelo');
               
               clearUserCache();
               startSearching();
               
               const redirectParams = notification.data.redirect_params || {};
               const urlParams = new URLSearchParams({
-                role: 'cliente',
+                role: 'modelo',
                 from: 'partner_went_next',
                 action: 'siguiente',
                 excludeUser: redirectParams.excludeUser || '',
@@ -1250,11 +1251,12 @@ export default function VideoChatClient() {
             }
             
             if (notification.type === 'partner_left_session') {
-              console.log('🛑 [CLIENTE] Modelo terminó sesión - mostrando mensaje');
+              console.log('🛑 [MODELO] Cliente terminó sesión - mostrando mensaje');
               
-              handleModeloDisconnected('stop', 'La modelo finalizó la videollamada');
+              handleClientDisconnected('stop', 'El cliente finalizó la videollamada');
               
               setTimeout(() => {
+                setModeloStoppedWorking(true);
                 setReceivedNotification(true);
                 clearUserCache();
                 
@@ -1267,10 +1269,10 @@ export default function VideoChatClient() {
                 startSearching();
                 
                 const urlParams = new URLSearchParams({
-                  role: 'cliente',
-                  from: 'model_stopped_session',
-                  action: 'find_new_model',
-                  reason: 'previous_model_left',
+                  role: 'modelo',
+                  from: 'client_stopped_session',
+                  action: 'find_new_client',
+                  reason: 'previous_client_left',
                   selectedCamera: selectedCamera || '',
                   selectedMic: selectedMic || ''
                 });
@@ -1288,10 +1290,10 @@ export default function VideoChatClient() {
           }
         }
       } catch (error) {
-        console.log('⚠️ [CLIENTE] Error en polling:', error);
+        console.log('⚠️ [MODELO] Error en polling:', error);
       }
       
-      if (isPolling) {
+      if (isPolling && !modeloStoppedWorking) {
         setTimeout(checkNotifications, pollInterval);
       }
     };
@@ -1299,134 +1301,21 @@ export default function VideoChatClient() {
     checkNotifications();
 
     return () => {
-      console.log('🛑 [CLIENTE] Deteniendo polling de notificaciones');
+      console.log('🛑 [MODELO] Deteniendo polling de notificaciones');
       isPolling = false;
     };
-  }, [roomName, userName, connected, navigate, selectedCamera, selectedMic]);
+  }, [roomName, userName, connected, modeloStoppedWorking, navigate, selectedCamera, selectedMic]);
 
-  // Efecto para monitoreo de balance automático
+  // Efecto para resetear flags
   useEffect(() => {
-    if (roomName && connected && !isMonitoringBalance) {
-      console.log('🟢 [CLIENTE] Iniciando monitoreo de saldo...');
-      setIsMonitoringBalance(true);
-    } else if ((!roomName || !connected) && isMonitoringBalance) {
-      console.log('🔴 [CLIENTE] Deteniendo monitoreo de saldo...');
-      setIsMonitoringBalance(false);
-    }
-  }, [roomName, connected, isMonitoringBalance]);
-
-  useEffect(() => {
-    if (!isMonitoringBalance) return;
-
-    console.log('🔄 [CLIENTE] Iniciando loop de monitoreo automático...');
-    
-    let intervalId;
-    let timeoutId;
-    let isActive = true;
-
-    const executeBalanceCheck = async () => {
-      if (!isActive || !isMonitoringBalance) {
-        console.log('🛑 [CLIENTE] Monitoreo inactivo - saliendo');
-        return;
-      }
-
-      try {
-        const authToken = sessionStorage.getItem('token');
-        
-        if (!authToken) {
-          console.warn('⚠️ [CLIENTE] No hay token - deteniendo monitoreo');
-          setIsMonitoringBalance(false);
-          return;
-        }
-
-        console.log('🔍 [CLIENTE] Ejecutando verificación de saldo...');
-        
-        const response = await fetch(`${API_BASE_URL}/api/client-balance/my-balance/quick`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!response.ok) {
-          console.warn('❌ [CLIENTE] Error en verificación:', response.status);
-          return;
-        }
-
-        const data = await response.json();
-        
-        if (!data.success) {
-          console.warn('⚠️ [CLIENTE] Respuesta sin datos válidos');
-          return;
-        }
-
-        const totalCoins = data.total_coins;
-        const remainingMinutes = data.remaining_minutes;
-        
-        console.log('💰 [CLIENTE] Estado actual:', {
-          coins: totalCoins,
-          minutes: remainingMinutes,
-          shouldEnd: totalCoins <= 25 || remainingMinutes <= 2
-        });
-
-        // Actualizar estados
-        setUserBalance(totalCoins);
-        setRemainingMinutes(remainingMinutes);
-        
-        // Verificar condición de finalización
-        if (totalCoins <= 25 || remainingMinutes <= 2) {
-          console.log('🚨 [CLIENTE] ¡SALDO CRÍTICO! Finalizando sesión automáticamente...');
-          
-          // Detener monitoreo inmediatamente
-          isActive = false;
-          setIsMonitoringBalance(false);
-          
-          // Clear intervals
-          if (intervalId) clearInterval(intervalId);
-          if (timeoutId) clearTimeout(timeoutId);
-          
-          // Ejecutar finalización con delay mínimo
-          setTimeout(() => {
-            console.log('🔚 [CLIENTE] Ejecutando finalizarChat(true)...');
-            finalizarChat(true);
-          }, 500);
-          
-          return;
-        }
-        
-        // Advertencia si está cerca
-        if (totalCoins <= 50 || remainingMinutes <= 5) {
-          console.log('⚠️ [CLIENTE] Advertencia - saldo bajo');
-        }
-        
-      } catch (error) {
-        console.error('❌ [CLIENTE] Error en monitoreo:', error);
-      }
-    };
-
-    // Iniciar verificación inmediata
-    timeoutId = setTimeout(() => {
-      if (isActive && isMonitoringBalance) {
-        executeBalanceCheck();
-        
-        // Luego establecer intervalo regular
-        intervalId = setInterval(() => {
-          if (isActive && isMonitoringBalance) {
-            executeBalanceCheck();
-          }
-        }, 8000); // Cada 8 segundos
-      }
-    }, 3000); // Esperar solo 3 segundos inicial
-
-    // Cleanup
-    return () => {
-      console.log('🧹 [CLIENTE] Limpiando monitoreo de saldo');
-      isActive = false;
-      if (intervalId) clearInterval(intervalId);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [isMonitoringBalance, finalizarChat]);
+    setModeloStoppedWorking(false);
+    setReceivedNotification(false);
+    setClientDisconnected(false);
+    setClientWentNext(false);
+    setDisconnectionReason('');
+    setDisconnectionType('');
+    setRedirectCountdown(0);
+  }, [roomName]);
 
   // Efecto para timer legacy
   useEffect(() => {
@@ -1434,6 +1323,9 @@ export default function VideoChatClient() {
     
     return () => {
       clearInterval(intervalo);
+      if (tiempoIntervalRef.current) {
+        clearInterval(tiempoIntervalRef.current);
+      }
     };
   }, []);
 
@@ -1480,8 +1372,19 @@ export default function VideoChatClient() {
     }
   }, [roomName, userName]);
 
+  // Efecto de cleanup
+  useEffect(() => {
+    return () => {
+      if (tiempoIntervalRef.current) {
+        clearInterval(tiempoIntervalRef.current);
+        tiempoIntervalRef.current = null;
+      }
+      tiempoInicioRef.current = null;
+    };
+  }, []);
+
   // 🔥 RENDER CONDICIONAL PARA ESTADOS DE DESCONEXIÓN
-  if (modeloDisconnected || modeloWentNext) {
+  if (clientDisconnected || clientWentNext) {
     return (
       <DisconnectionScreenImproved
         disconnectionType={disconnectionType}
@@ -1492,17 +1395,13 @@ export default function VideoChatClient() {
     );
   }
 
+
   // 🔥 RENDER PRINCIPAL
   return (
-    <ProtectedPage requiredConditions={{
-      emailVerified: true,
-      profileComplete: true,
-      role: "cliente",
-      requiresCallToken: true
-    }}>
+    //<GlobalTranslationProvider>
       <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white">
         {/* Sistema de notificaciones */}
-        <NotificationSystemImprovedClient
+        <NotificationSystemImproved
           notifications={notifications}
           onRemove={removeNotification}
         />
@@ -1514,19 +1413,10 @@ export default function VideoChatClient() {
           recipientName={getDisplayName()}
           recipientId={otherUser?.id}
           roomName={roomName}
-          userRole="cliente"
+          userRole="modelo"
           gifts={gifts}
-          userBalance={userBalance}
+          onRequestGift={handleRequestGift}
           loading={giftLoading}
-        />
-
-        {/* Overlay de notificación de regalo */}
-        <GiftNotificationOverlay
-          pendingRequests={pendingRequests}
-          onAccept={handleAcceptGift}
-          onReject={handleRejectGift}
-          onClose={() => setShowGiftNotification(false)}
-          isVisible={showGiftNotification && userData.role === 'cliente'}
         />
         
         {/* Configuración de traducción */}
@@ -1566,7 +1456,7 @@ export default function VideoChatClient() {
               <p className="text-red-500 text-lg mb-4">Error: {error}</p>
               <div className="flex gap-4 justify-center">
                 <button
-                  onClick={() => navigate('/precallclient')}
+                  onClick={() => navigate('/precallmodel')}
                   className="bg-[#ff007a] px-6 py-3 rounded-full text-white font-medium"
                 >
                   Volver a Inicio
@@ -1616,7 +1506,7 @@ export default function VideoChatClient() {
             )}
             
             {/* Controles de media ocultos */}
-            <MediaControlsImprovedClient 
+            <MediaControlsImproved
               micEnabled={micEnabled}
               cameraEnabled={cameraEnabled}
               setMicEnabled={setMicEnabled}
@@ -1626,21 +1516,20 @@ export default function VideoChatClient() {
             <div className="p-2 sm:p-4">
               <Header />
               
-              {/* Tiempo/Balance mejorado - visible entre header y cámara */}
-              <TimeDisplayImprovedClient
+              {/* Tiempo mejorado - visible entre header y cámara */}
+              <TimeDisplayImproved
+                tiempoReal={tiempoReal}
+                formatoTiempo={formatoTiempo}
                 connected={connected}
                 otherUser={otherUser}
                 roomName={roomName}
-                userBalance={userBalance}
-                giftBalance={giftBalance}           // Balance de GIFTS  
-                remainingMinutes={remainingMinutes}
                 t={t}
               />
               
                 {/* MÓVIL - Video adaptativo entre tiempo y chat */}
                 <div className="lg:hidden bg-[#1f2125] rounded-2xl overflow-hidden relative mt-4" 
                     style={{height: 'calc(100vh - 360px)'}}>                
-                <VideoDisplayImprovedClient
+                <VideoDisplayImproved
                   onCameraSwitch={cambiarCamara}
                   mainCamera={camaraPrincipal}
                   connected={connected}
@@ -1651,13 +1540,14 @@ export default function VideoChatClient() {
                 />
                 
                 {/* Mensajes flotantes mejorados */}
-                <FloatingMessagesImprovedClient
+                <FloatingMessagesImproved
                   messages={messages}
                   t={t}
                 />
                 
-                {/* Controles móviles mejorados para cliente */}
-                <MobileControlsImprovedClient
+                {/* Controles móviles mejorados */}
+                <MobileControlsImproved
+                  // Props existentes...
                   mensaje={mensaje}
                   setMensaje={setMensaje}
                   enviarMensaje={enviarMensaje}
@@ -1676,8 +1566,6 @@ export default function VideoChatClient() {
                   onCameraSwitch={onCameraSwitch}
                   onEndCall={finalizarChat}
                   siguientePersona={siguientePersona}
-                  userBalance={userBalance}
-                  giftBalance={giftBalance}           // Balance de GIFTS  
                 />
               </div>
               
@@ -1686,7 +1574,7 @@ export default function VideoChatClient() {
               <div className="hidden lg:flex flex-col lg:flex-row lg:gap-6 mx-4">
                 {/* ZONA VIDEO */}
                 <div className="flex-1 bg-[#1f2125] rounded-xl lg:rounded-2xl overflow-hidden relative flex items-center justify-center h-[500px]">
-                  <VideoDisplayImprovedClient 
+                  <VideoDisplayImproved
                     onCameraSwitch={cambiarCamara}
                     mainCamera={camaraPrincipal}
                     connected={connected}
@@ -1697,8 +1585,8 @@ export default function VideoChatClient() {
                   />
                 </div>
                 
-                {/* PANEL DERECHO - Desktop para Cliente */}
-                <DesktopChatPanelClient
+                {/* PANEL DERECHO - Desktop */}
+                <DesktopChatPanel
                   getDisplayName={getDisplayName}
                   isDetectingUser={isDetectingUser}
                   toggleFavorite={toggleFavorite}
@@ -1714,27 +1602,24 @@ export default function VideoChatClient() {
                   enviarMensaje={enviarMensaje}
                   handleKeyPress={handleKeyPress}
                   userData={userData}
-                  userBalance={userBalance}
-                  giftBalance={giftBalance}           // Balance de GIFTS  
-                  handleAcceptGift={handleAcceptGift}
-                  handleRejectGift={handleRejectGift}
                   t={t}
                 />
               </div>
               
-              {/* CONTROLES PRINCIPALES MEJORADOS PARA CLIENTE */}
-              <DesktopControlsImprovedClient
+              {/* CONTROLES PRINCIPALES MEJORADOS */}
+              <DesktopControlsImproved
                 micEnabled={micEnabled}
                 setMicEnabled={setMicEnabled}
                 cameraEnabled={cameraEnabled}
                 setCameraEnabled={setCameraEnabled}
-                volumeEnabled={volumeEnabled}
-                setVolumeEnabled={setVolumeEnabled}
                 siguientePersona={siguientePersona}
                 finalizarChat={finalizarChat}
                 showMainSettings={showMainSettings}
                 setShowMainSettings={setShowMainSettings}
+                setShowTranslationSettings={setShowTranslationSettings}
                 setShowCameraAudioModal={setShowCameraAudioModal}
+                translationSettings={translationSettings}
+                languages={languages}
                 loading={loading}
                 t={t}
               />
@@ -1742,6 +1627,6 @@ export default function VideoChatClient() {
           </LiveKitRoom>
         )}
       </div>
-    </ProtectedPage>
+    //</GlobalTranslationProvider>
   );
 }
