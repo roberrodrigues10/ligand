@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { initializeAuth } from "./utils/auth";
 
+import { AdminCodeVerification } from "./components/admin/AdminCodeVerification";
 import LigandHome from "./components/ligandHome";
 import LoginLigand from "./components/verificacion/login/loginligand";
 import Logout from "./components/verificacion/login/logout";
@@ -39,6 +40,8 @@ import RateLimitWait from "./components/RateLimitWait";
 
 import { SearchingProvider } from './contexts/SearchingContext.jsx';
 import { GlobalTranslationProvider } from './contexts/GlobalTranslationContext.jsx'; // ✅ YA LO TIENES
+import AdminDashboardLayout from "./components/admin/dashboard.jsx";
+
 
 function App() {
   useEffect(() => {
@@ -60,6 +63,9 @@ function App() {
               <Route path="/home" element={<LigandHome />} />
               <Route path="/login" element={<LoginLigand />} />
               <Route path="/logout" element={<Logout />} />
+              <Route path="/AdminCodeVerification" element={<AdminCodeVerification />} />
+              <Route path="/admin/dashboard" element={<AdminDashboardLayout />} />
+              <Route path="/admin/dashboard/:section" element={<AdminDashboardLayout />} />
 
               {/* 🔥 NUEVA RUTA: Página de espera para Rate Limiting */}
               <Route 

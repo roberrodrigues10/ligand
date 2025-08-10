@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import LanguageSelector from "../components/languageSelector";
 import { useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { HiddenLoginModal } from "../components/admin/HiddenLoginModal.jsx";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -858,6 +859,16 @@ export default function ParlandomChatApp() {
       {/* Modales */}
       {showLogin && <LoginLigand onClose={() => navigate("/home")} />}
       {showRegister && <Register onClose={() => navigate("/home")} />}
+      <HiddenLoginModal />
     </div>
   );
 }
+export const Dashboard = () => {
+  return (
+    <>
+      <Header />
+      <HiddenLoginModal />
+      <main className="flex-1 flex flex-col">{/* etc... */}</main>
+    </>
+  );
+};
