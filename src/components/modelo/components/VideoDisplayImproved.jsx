@@ -133,7 +133,7 @@ const VideoDisplayImproved = ({
             shadow-2xl relative overflow-hidden
           `}>
             {/* Icono principal */}
-            <div className="relative">
+            <div className="relative flex justify-center items-center h-full">
               {status.icon}
             </div>
           </div>
@@ -239,15 +239,6 @@ const VideoDisplayImproved = ({
                 trackRef={localVideoTrack}
                 className="w-full h-full object-cover rounded-xl"
               />
-              {/* Indicador de "Yo" en mini video */}
-              <div className="absolute bottom-1 left-1 right-1">
-                <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm px-2 py-1 rounded-md">
-                  <div className="flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 bg-[#ff007a] rounded-full"></div>
-                    <span className="text-white text-xs font-medium">Yo</span>
-                  </div>
-                </div>
-              </div>
             </div>
           );
         }
@@ -290,12 +281,6 @@ const VideoDisplayImproved = ({
           </div>
         </div>
         
-        {/* Etiqueta "Yo" en la miniatura */}
-        <div className="absolute top-1 right-1">
-          <div className="bg-[#ff007a] text-white text-xs px-2 py-1 rounded-md font-medium">
-            Yo
-          </div>
-        </div>
       </div>
     </>
   );

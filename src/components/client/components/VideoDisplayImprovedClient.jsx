@@ -133,7 +133,7 @@ const VideoDisplayImprovedClient = ({
             shadow-2xl relative overflow-hidden
           `}>
             {/* Icono principal */}
-            <div className="relative">
+            <div className="relative flex justify-center items-center h-full">
               {status.icon}
             </div>
           </div>
@@ -171,27 +171,28 @@ const VideoDisplayImprovedClient = ({
           </div>
           
           {/* Información adicional */}
-          <div className="mt-8 space-y-3">
-            {connected && (
-              <div className="bg-[#00ff66]/10 backdrop-blur-sm rounded-xl p-3 border border-[#00ff66]/20">
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-2 h-2 bg-[#00ff66] rounded-full animate-pulse"></div>
-                  <span className="text-[#00ff66] text-sm font-medium">
-                    Conexión establecida
-                  </span>
-                </div>
-              </div>
-            )}
-            
-            <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm rounded-xl p-3 border border-gray-600/20">
+        <div className="mt-8 space-y-3">
+          {connected && (
+            <div className="bg-[#00ff66]/10 backdrop-blur-sm rounded-xl p-3 border border-[#00ff66]/20 hidden md:block">
               <div className="flex items-center justify-center gap-2">
-                <Eye size={14} className="text-gray-400" />
-                <span className="text-gray-300 text-xs">
-                  Tu privacidad está protegida
+                <div className="w-2 h-2 bg-[#00ff66] rounded-full animate-pulse"></div>
+                <span className="text-[#00ff66] text-sm font-medium">
+                  Conexión establecida
                 </span>
               </div>
             </div>
+          )}
+
+          <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm rounded-xl p-3 border border-gray-600/20 hidden md:block">
+            <div className="flex items-center justify-center gap-2">
+              <Eye size={14} className="text-gray-400" />
+              <span className="text-gray-300 text-xs">
+                Tu privacidad está protegida
+              </span>
+            </div>
           </div>
+        </div>
+
         </div>
       </div>
     );
@@ -239,15 +240,6 @@ const VideoDisplayImprovedClient = ({
                 trackRef={localVideoTrack}
                 className="w-full h-full object-cover rounded-xl"
               />
-              {/* Indicador de "Yo" en mini video */}
-              <div className="absolute bottom-1 left-1 right-1">
-                <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm px-2 py-1 rounded-md">
-                  <div className="flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 bg-[#ff007a] rounded-full"></div>
-                    <span className="text-white text-xs font-medium">Yo</span>
-                  </div>
-                </div>
-              </div>
             </div>
           );
         }
@@ -289,13 +281,7 @@ const VideoDisplayImprovedClient = ({
             <Camera size={14} className="text-white" />
           </div>
         </div>
-        
-        {/* Etiqueta "Yo" en la miniatura */}
-        <div className="absolute top-1 right-1">
-          <div className="bg-[#ff007a] text-white text-xs px-2 py-1 rounded-md font-medium">
-            Yo
-          </div>
-        </div>
+      
       </div>
     </>
   );

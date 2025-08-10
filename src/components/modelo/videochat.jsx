@@ -456,14 +456,144 @@ export default function VideoChat() {
   };
 
   const handleMessageReceived = (newMessage) => {
-    const formattedMessage = {
-      ...newMessage,
-      id: newMessage.id || Date.now() + Math.random(),
-      type: 'remote',
-      senderRole: newMessage.senderRole || 'chico' // 🔥 CAMBIO: chico en lugar de cliente
-    };
+  console.log('📥 [VIDEOCHAT] Mensaje RAW recibido:', newMessage);
+  
+  // 🔥 DETECTAR TIPO CORRECTO BASADO EN EL CONTENIDO
+  let messageType = newMessage.type || 'remote';
+  let senderRole = newMessage.senderRole;
+  
+  // 🎁 DETECCIÓN ESPECÍFICA PARA REGALOS
+  if (newMessage.message || newMessage.text) {
+    const messageText = newMessage.message || newMessage.text;
     
-    setMessages(prev => [formattedMessage, ...prev]);
+    // Detectar mensajes de regalo por contenido
+    if (messageText.includes('🎁 Enviaste:') || messageText.includes('Enviaste:')) {
+      messageType = 'gift_sent';
+      console.log('🎁 [VIDEOCHAT] Detectado mensaje GIFT_SENT');
+    } else if (messageText.includes('🎁 Recibiste:') || messageText.includes('Recibiste:')) {
+      messageType = 'gift_received';
+      console.log('🎁 [VIDEOCHAT] Detectado mensaje GIFT_RECEIVED');
+    } else if (messageText.includes('Solicité') || messageText.includes('solicitud de regalo')) {
+      messageType = 'gift_request';
+      console.log('🎁 [VIDEOCHAT] Detectado mensaje GIFT_REQUEST');
+    }
+  }
+  
+  // 🔥 EXTRAER DATOS DEL REGALO SI EXISTEN
+  let giftData = null;
+  let extraData = null;
+  
+  try {
+    if (newMessage.extra_data) {
+      if (typeof newMessage.extra_data === 'string') {
+        extraData = JSON.parse(newMessage.extra_data);
+      } else {
+        extraData = newMessage.extra_data;
+      }
+      giftData = extraData;
+      console.log('🎁 [VIDEOCHAT] Datos del regalo extraídos:', giftData);
+    }
+  } catch (e) {
+    console.warn('⚠️ [VIDEOCHAT] Error parseando extra_data:', e);
+  }
+  
+  // 🔥 CONSTRUIR MENSAJE FORMATEADO
+  const formattedMessage = {
+    id: newMessage.id || Date.now() + Math.random(),
+    type: messageType, // 🔥 USAR TIPO DETECTADO
+    text: newMessage.message || newMessage.text || '',
+    timestamp: newMessage.timestamp || newMessage.created_at || Date.now(),
+    isOld: false,
+    sender: newMessage.user_name || newMessage.sender || 'Usuario',
+    senderRole: senderRole || 'cliente',
+    user_id: newMessage.user_id,
+    
+    // 🎁 DATOS DEL REGALO SI EXISTEN
+    ...(giftData && {
+      gift_data: giftData,
+      extra_data: giftData
+    })
+  };
+  
+  console.log('✅ [VIDEOCHAT] Mensaje formateado:', {
+    id: formattedMessage.id,
+    type: formattedMessage.type,
+    text: formattedMessage.text,
+    hasGiftData: !!formattedMessage.gift_data
+  });
+  
+  setMessages(prev => [formattedMessage, ...prev]);
+};
+
+
+  const handleAcceptGift = async (requestId, securityHash) => {
+    if (processingGift === requestId) {
+      console.warn('⚠️ [CLIENTE] Regalo ya siendo procesado');
+      return;
+    }
+
+    try {
+      setProcessingGift(requestId);
+      console.log('✅ [CLIENTE] Aceptando regalo:', { requestId, hasHash: !!securityHash });
+      
+      const result = await acceptGift(requestId, securityHash);
+      
+      if (result.success) {
+        console.log('✅ [CLIENTE] Regalo aceptado exitosamente');
+        
+        // Cerrar notificación
+        setShowGiftNotification(false);
+        
+        // 🔥 MENSAJE LOCAL INMEDIATO CON TIPO CORRECTO
+        const giftMessage = {
+          id: Date.now(),
+          type: 'gift_sent', // 🔥 TIPO CORRECTO
+          text: `🎁 Enviaste: ${result.giftInfo?.name}`,
+          timestamp: Date.now(),
+          isOld: false,
+          sender: userData.name,
+          senderRole: userData.role,
+          user_id: userData.id,
+          // 🔥 DATOS COMPLETOS DEL REGALO
+          gift_data: {
+            gift_name: result.giftInfo?.name,
+            gift_image: result.giftInfo?.image,
+            gift_price: result.giftInfo?.price || result.giftInfo?.amount,
+            action_text: "Enviaste",
+            recipient_name: otherUser?.name || "Modelo",
+            client_name: userData.name,
+            modelo_name: otherUser?.name
+          },
+          extra_data: {
+            gift_name: result.giftInfo?.name,
+            gift_image: result.giftInfo?.image,
+            gift_price: result.giftInfo?.price || result.giftInfo?.amount,
+            action_text: "Enviaste",
+            recipient_name: otherUser?.name || "Modelo",
+            client_name: userData.name,
+            modelo_name: otherUser?.name
+          }
+        };
+        
+        console.log('🎁 [CLIENTE] Agregando mensaje gift_sent local:', giftMessage);
+        setMessages(prev => [giftMessage, ...prev]);
+        
+        // Actualizar balance
+        updateBalance();
+        
+        return { success: true };
+      } else {
+        console.error('❌ [CLIENTE] Error aceptando regalo:', result.error);
+        addNotification('error', 'Error', result.error);
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      console.error('❌ [CLIENTE] Error de conexión:', error);
+      addNotification('error', 'Error', 'Error de conexión');
+      return { success: false, error: 'Error de conexión' };
+    } finally {
+      setProcessingGift(null);
+    }
   };
 
   const handleGiftReceived = (gift) => {
@@ -752,36 +882,49 @@ export default function VideoChat() {
 
   // 🔥 FUNCIÓN PARA SOLICITAR REGALO
   const handleRequestGift = async (giftId, recipientId, roomName, message) => {
-    console.log('🎁 [MODELO] Solicitando regalo:', {
-      giftId, recipientId, roomName, message
-    });
-
-    try {
-      const result = await requestGift(giftId, message);
+  try {
+    const result = await requestGift(giftId, message);
+    
+    if (result.success) {
+      // 🔥 AGREGAR MENSAJE LOCAL INMEDIATAMENTE CON TIPO CORRECTO
+      const giftRequestMessage = {
+        id: Date.now(),
+        type: 'gift_request', // ✅ TIPO CORRECTO
+        text: message || `Solicité ${result.giftInfo?.name}`,
+        timestamp: Date.now(),
+        isOld: false,
+        sender: userData.name,
+        senderRole: userData.role,
+        user_id: userData.id,
+        // 🔥 DATOS DEL REGALO
+        gift_data: {
+          gift_name: result.giftInfo?.name,
+          gift_image: result.giftInfo?.image,
+          gift_price: result.giftInfo?.price,
+          original_message: message,
+          modelo_name: userData.name,
+          client_name: otherUser?.name
+        },
+        extra_data: {
+          gift_name: result.giftInfo?.name,
+          gift_image: result.giftInfo?.image,
+          gift_price: result.giftInfo?.price,
+          original_message: message,
+          modelo_name: userData.name,
+          client_name: otherUser?.name
+        }
+      };
       
-      if (result.success) {
-        console.log('✅ [MODELO] Regalo solicitado exitosamente');
-        
-        if (result.chatMessage) {
-          setMessages(prev => [result.chatMessage, ...prev]);
-        }
-        
-        if (Notification.permission === 'granted') {
-          new Notification('🎁 Solicitud Enviada', {
-            body: `Solicitaste ${result.giftInfo?.name} a ${otherUser?.name}`,
-            icon: '/favicon.ico'
-          });
-        }
-        
-        return { success: true };
-      } else {
-        console.error('❌ [MODELO] Error solicitando regalo:', result.error);
-        return { success: false, error: result.error };
-      }
-    } catch (error) {
-      console.error('❌ [MODELO] Error de conexión:', error);
-      return { success: false, error: 'Error de conexión' };
+      console.log('🎁 [MODELO] Agregando mensaje gift_request local:', giftRequestMessage);
+      setMessages(prev => [giftRequestMessage, ...prev]);
+      
+      setShowGiftsModal(false);
+      return { success: true };
     }
+  } catch (error) {
+    console.error('❌ Error:', error);
+    return { success: false, error: error.message };
+  }
   };
 
   // 🔥 FUNCIÓN HEARTBEAT

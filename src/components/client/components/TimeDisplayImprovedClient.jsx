@@ -138,40 +138,6 @@ const TimeDisplayImprovedClient = ({
             )}
           </div>
         </div>
-        
-        {/* Tiempo restante en móvil */}
-        <div className="mt-3 pt-3 border-t border-gray-700/50">
-          <div className="flex items-center gap-2">
-            <div className="p-1 bg-blue-500/20 rounded-md border border-blue-500/30">
-              <Timer size={12} className="text-blue-400" />
-            </div>
-            <span className="text-blue-400 text-sm font-medium">
-              {currentMinutes} min disponibles
-            </span>
-          </div>
-        </div>
-
-        {/* Info de la modelo en móvil */}
-        {otherUser && (
-          <div className="mt-3 pt-3 border-t border-gray-700/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-gradient-to-br from-[#ff007a] to-[#ff007a]/70 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">
-                    {otherUser.name?.charAt(0)?.toUpperCase() || '?'}
-                  </span>
-                </div>
-                <span className="text-white text-sm font-medium">{otherUser.name}</span>
-              </div>
-              
-              {connected && (
-                <div className="bg-[#00ff66]/20 px-2 py-1 rounded-lg border border-[#00ff66]/30">
-                  <span className="text-[#00ff66] text-xs">Modelo</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Versión desktop - cabecera superior MÁS COMPACTA */}
@@ -203,31 +169,9 @@ const TimeDisplayImprovedClient = ({
               </div>
             </div>
           </div>
-          
-          {/* Minutos disponibles con azul */}
-          <div className="flex items-center gap-2">
-            <div className="p-1 bg-blue-500/20 rounded-md border border-blue-500/30">
-              <Timer size={14} className="text-blue-400" />
-            </div>
-            <div>
-              <div className="text-blue-400 font-bold text-sm">
-                {currentMinutes} min
-              </div>
-            </div>
-          </div>
         </div>
         
         {/* Resto del componente igual... */}
-      </div>
-
-      {/* Indicador de última actualización */}
-      <div className="hidden lg:block text-center">
-        <div className="text-xs text-gray-400 mx-4">
-          Actualizado: {new Date(lastUpdate).toLocaleTimeString('es-ES', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })}
-        </div>
       </div>
     </div>
   );

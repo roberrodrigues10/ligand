@@ -218,117 +218,247 @@ const SimpleChat = ({
 
   // 🔥 FUNCIÓN SIN RATE LIMITING: fetchMessages - URL CORREGIDA
   const fetchMessages = async () => {
-    if (!roomName) {
-      console.log('⚠️ No hay roomName para fetch');
-      return;
-    }
+  if (!roomName) {
+    console.log('⚠️ No hay roomName para fetch');
+    return;
+  }
 
-    const endpoint = `messages_${roomName}`;
+  const endpoint = `messages_${roomName}`;
 
-    try {
-      const result = await chatCache.fetchWithCache(
-        endpoint,
-        chatCache.messagesCache,
-        chatCache.MESSAGES_CACHE_DURATION,
-        async () => {
-          const token = sessionStorage.getItem('token');
-          if (!token) {
-            console.error('🔐 No hay token de autenticación en sessionStorage');
-            throw new Error('No hay token de autenticación');
-          }
-
-          console.log('📡 Haciendo request a mensajes:', {
-            url: `${API_BASE_URL}/api/chat/messages/${roomName}`,
-            token: token.substring(0, 20) + '...',
-            roomName
-          });
-
-          const response = await fetch(`${API_BASE_URL}/api/chat/messages/${roomName}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => 'Sin contenido de error');
-            console.error('❌ Error en fetchMessages:', {
-              status: response.status,
-              statusText: response.statusText,
-              url: response.url,
-              headers: Object.fromEntries(response.headers.entries()),
-              errorBody: errorText,
-              roomName,
-              token: token ? 'Presente' : 'Ausente'
-            });
-
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-
-          const data = await response.json();
-          console.log('📥 Mensajes obtenidos exitosamente:', data.messages?.length || 0);
-          
-          return data;
-        }
-      );
-
-      // Procesar mensajes
-      if (result.success && result.messages) {
-        // Detectar usuario desde mensajes si no tenemos detección por participantes
-        if (!partnerLoaded.current || detectionMethod.current === null) {
-          const otherUserMessage = result.messages.find(msg => 
-            msg.user_name !== userName && 
-            msg.user_name !== localUserName
-          );
-          if (otherUserMessage) {
-            detectUserFromMessage(otherUserMessage);
-          }
+  try {
+    const result = await chatCache.fetchWithCache(
+      endpoint,
+      chatCache.messagesCache,
+      chatCache.MESSAGES_CACHE_DURATION,
+      async () => {
+        const token = sessionStorage.getItem('token');
+        if (!token) {
+          console.error('🔐 No hay token de autenticación en sessionStorage');
+          throw new Error('No hay token de autenticación');
         }
 
-        // Procesar mensajes nuevos
-        const newMessages = result.messages.filter(msg => {
-          const isNotMine = msg.user_name !== userName;
-          const isNotProcessed = !processedMessages.current.has(msg.id);
-          const isNewer = !lastMessageId.current || msg.id > lastMessageId.current;
-          
-          return isNotMine && isNotProcessed && isNewer;
+        console.log('📡 Haciendo request a mensajes:', {
+          url: `${API_BASE_URL}/api/chat/messages/${roomName}`,
+          token: token.substring(0, 20) + '...',
+          roomName
         });
 
-        newMessages.forEach(msg => {
-          processedMessages.current.add(msg.id);
-          lastMessageId.current = Math.max(lastMessageId.current || 0, msg.id);
-
-          detectUserFromMessage(msg);
-
-          if (onMessageReceived) {
-            const messageForParent = {
-              id: msg.id,
-              text: msg.message,
-              sender: msg.user_name,
-              senderRole: msg.user_role,
-              type: 'remote',
-              timestamp: msg.created_at,
-              messageType: msg.type
-            };
-
-            onMessageReceived(messageForParent);
-
-            if (msg.type === 'gift' && msg.extra_data && onGiftReceived) {
-              onGiftReceived(msg.extra_data);
-            }
+        const response = await fetch(`${API_BASE_URL}/api/chat/messages/${roomName}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
 
-        setIsConnected(true);
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Sin contenido de error');
+          console.error('❌ Error en fetchMessages:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+            headers: Object.fromEntries(response.headers.entries()),
+            errorBody: errorText,
+            roomName,
+            token: token ? 'Presente' : 'Ausente'
+          });
+
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('📥 Mensajes obtenidos exitosamente:', data.messages?.length || 0);
+        
+        return data;
+      }
+    );
+
+    // Procesar mensajes
+    if (result.success && result.messages) {
+      // 🔥 DEBUG: ANALIZAR TODOS LOS MENSAJES RECIBIDOS
+      console.log('📥 [SimpleChat] Todos los mensajes recibidos:', result.messages.length);
+      
+      result.messages.forEach((msg, index) => {
+        console.log(`📨 [SimpleChat] Mensaje ${index}:`, {
+          id: msg.id,
+          type: msg.type,
+          message: msg.message?.substring(0, 50),
+          hasExtraData: !!msg.extra_data,
+          extraDataType: typeof msg.extra_data,
+          isGiftRequest: msg.type === 'gift_request'
+        });
+        
+        // 🔥 SI ES GIFT_REQUEST, MOSTRAR DATOS COMPLETOS
+        if (msg.type === 'gift_request') {
+          console.log('🎁 [SimpleChat] ¡GIFT_REQUEST ENCONTRADO!', {
+            fullMessage: msg,
+            extraData: msg.extra_data,
+            giftData: msg.gift_data,
+            rawExtraData: JSON.stringify(msg.extra_data)
+          });
+        }
+      });
+
+      // Detectar usuario desde mensajes si no tenemos detección por participantes
+      if (!partnerLoaded.current || detectionMethod.current === null) {
+        const otherUserMessage = result.messages.find(msg => 
+          msg.user_name !== userName && 
+          msg.user_name !== localUserName
+        );
+        if (otherUserMessage) {
+          detectUserFromMessage(otherUserMessage);
+        }
       }
 
-    } catch (error) {
-      console.error('❌ Error obteniendo mensajes:', error.message);
-      setIsConnected(false);
-    }
-  };
+      // Procesar mensajes nuevos
+      const newMessages = result.messages.filter(msg => {
+        const isNotMine = msg.user_name !== userName;
+        const isNotProcessed = !processedMessages.current.has(msg.id);
+        const isNewer = !lastMessageId.current || msg.id > lastMessageId.current;
+        
+        return isNotMine && isNotProcessed && isNewer;
+      });
 
+      // 🔥 DEBUG: MOSTRAR MENSAJES NUEVOS QUE SE VAN A PROCESAR
+      console.log('🆕 [SimpleChat] Mensajes nuevos a procesar:', newMessages.length);
+      newMessages.forEach((msg, index) => {
+        console.log(`🆕 [SimpleChat] Nuevo mensaje ${index}:`, {
+          id: msg.id,
+          type: msg.type,
+          message: msg.message?.substring(0, 30),
+          will_send_to_parent: !!onMessageReceived
+        });
+      });
+
+      // 🔥 REEMPLAZAR EN SimpleChat.jsx - fetchMessages()
+// Líneas 100-170 aproximadamente
+
+newMessages.forEach(msg => {
+  processedMessages.current.add(msg.id);
+  lastMessageId.current = Math.max(lastMessageId.current || 0, msg.id);
+
+  detectUserFromMessage(msg);
+
+  if (onMessageReceived) {
+    console.log('🔍 [MESSAGES] Analizando mensaje:', {
+      id: msg.id,
+      originalType: msg.type,
+      message: msg.message?.substring(0, 50),
+      hasExtraData: !!msg.extra_data,
+      isGiftText: msg.message && msg.message.includes('Solicitud de regalo')
+    });
+
+    // 🔥 DETECTAR SI ES GIFT_REQUEST POR CONTENIDO Y TIPO
+    const isGiftRequest = msg.type === 'gift_request' || 
+                         (msg.message && msg.message.includes('Solicitud de regalo'));
+    
+    const isGiftMessage = isGiftRequest ||
+                         msg.type === 'gift_sent' ||
+                         msg.type === 'gift_received' ||
+                         msg.type === 'gift' ||
+                         msg.type === 'gift_rejected' ||
+                         (msg.message && (
+                           msg.message.includes('Solicitud de regalo') ||
+                           msg.message.includes('Rechazaste una solicitud') ||
+                           msg.message.includes('Enviaste un regalo') ||
+                           msg.message.includes('Recibiste un regalo') ||
+                           msg.message.includes('Enviaste:') ||
+                           msg.message.includes('Recibiste:')
+                         ));
+
+    console.log('🎁 [GIFT DETECTION]', {
+      id: msg.id,
+      originalType: msg.type,
+      message: msg.message?.substring(0, 40),
+      isGiftRequest,
+      isGiftMessage,
+      hasExtraData: !!msg.extra_data
+    });
+
+    // 🔥 FUNCIÓN HELPER PARA PARSING SEGURO
+    const parseJsonSafely = (data, fieldName = 'data') => {
+      if (!data) return {};
+      
+      if (typeof data === 'object' && data !== null) {
+        return data;
+      }
+      
+      if (typeof data === 'string') {
+        try {
+          const parsed = JSON.parse(data);
+          return parsed;
+        } catch (e) {
+          console.error(`❌ Error parseando ${fieldName}:`, e);
+          return {};
+        }
+      }
+      
+      return {};
+    };
+
+    const messageForParent = {
+      id: msg.id,
+      text: msg.message,
+      sender: msg.user_name,
+      senderRole: msg.user_role,
+      
+      // 🔥 TIPO CORRECTO BASADO EN CONTENIDO
+      type: (() => {
+        if (isGiftRequest) return 'gift_request';
+        if (msg.type === 'gift_sent') return 'gift_sent';
+        if (msg.type === 'gift_received') return 'gift_received';
+        if (msg.type === 'gift_rejected') return 'gift_rejected';
+        if (msg.type === 'gift') return 'gift';
+        return msg.type || 'remote';
+      })(),
+      
+      timestamp: msg.created_at,
+      
+      // 🔥 PARSING SIMPLIFICADO
+      extra_data: parseJsonSafely(msg.extra_data, 'extra_data'),
+      gift_data: parseJsonSafely(msg.gift_data, 'gift_data'),
+      
+      // Legacy compatibility
+      messageType: msg.type
+    };
+
+    // 🔥 DEBUG ESPECÍFICO PARA GIFT REQUESTS
+    if (isGiftRequest) {
+      console.log('🎁 [SimpleChat] GIFT_REQUEST detectado y enviando:', {
+        originalMessage: msg.message,
+        detectedAsGift: true,
+        finalType: messageForParent.type,
+        extraData: messageForParent.extra_data,
+        giftData: messageForParent.gift_data
+      });
+    }
+
+    console.log('📨 [SimpleChat] Enviando mensaje al padre:', {
+      id: messageForParent.id,
+      type: messageForParent.type,
+      text: messageForParent.text?.substring(0, 30),
+      isGiftMessage,
+      hasExtraData: Object.keys(messageForParent.extra_data).length > 0,
+      hasGiftData: Object.keys(messageForParent.gift_data).length > 0
+    });
+
+    onMessageReceived(messageForParent);
+
+    // 🔥 MANTENER LÓGICA DE REGALOS EXISTENTE
+    if (msg.type === 'gift' && messageForParent.extra_data && onGiftReceived) {
+      onGiftReceived(messageForParent.extra_data);
+    }
+  }
+});
+
+      setIsConnected(true);
+    }
+
+  } catch (error) {
+    console.error('❌ Error obteniendo mensajes:', error.message);
+    setIsConnected(false);
+  }
+};
   // Funciones de detección (sin cambios)
   const detectOtherUser = (user, method) => {
     console.log('🕵️ Intentando detectar usuario:', { user, method });

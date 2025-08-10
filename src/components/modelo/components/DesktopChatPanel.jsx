@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { Star, UserX, Gift, Send, Smile, Shield, Crown, MessageCircle } from 'lucide-react';
-// import { GlobalTranslatedText } from '../contexts/GlobalTranslationContext';
 import { GiftMessageComponent } from '../../GiftSystem/GiftMessageComponent';
 
 const DesktopChatPanel = ({
@@ -21,6 +20,202 @@ const DesktopChatPanel = ({
   userData,
   t
 }) => {
+
+  // Ref para el contenedor de mensajes
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+
+  // 🎵 SISTEMA DE SONIDOS DE REGALO - COPIADO DE CHATPRIVADO
+  const playGiftReceivedSound = useCallback(async () => {
+    try {
+      console.log('🎁🔊 Reproduciendo sonido de regalo recibido...');
+      
+      // Crear audio para regalo recibido
+      const audio = new Audio('/sounds/gift-received.mp3');
+      audio.volume = 0.8;
+      audio.preload = 'auto';
+      
+      try {
+        await audio.play();
+        console.log('🎵 Sonido de regalo reproducido correctamente');
+      } catch (playError) {
+        console.error('❌ Error reproduciendo sonido de regalo:', playError);
+        if (playError.name === 'NotAllowedError') {
+          console.log('🚫 AUTOPLAY BLOQUEADO - Usando sonido alternativo');
+          // Sonido alternativo más corto
+          playAlternativeGiftSound();
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error general creando audio de regalo:', error);
+      playAlternativeGiftSound();
+    }
+  }, []);
+
+  const playAlternativeGiftSound = useCallback(() => {
+    try {
+      // Sonido sintetizado como alternativa
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Crear una melodía alegre para regalos
+      const playNote = (frequency, startTime, duration) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+        oscillator.type = 'triangle';
+        
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.01);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+      
+      // Melodía alegre: Do-Mi-Sol-Do
+      const now = audioContext.currentTime;
+      playNote(523.25, now, 0.2);      // Do
+      playNote(659.25, now + 0.15, 0.2); // Mi
+      playNote(783.99, now + 0.3, 0.2);  // Sol
+      playNote(1046.5, now + 0.45, 0.3); // Do (octava alta)
+      
+      console.log('🎵 Sonido alternativo de regalo reproducido');
+    } catch (error) {
+      console.error('❌ Error con sonido alternativo:', error);
+    }
+  }, []);
+
+  // 🎁 FUNCIÓN PARA REPRODUCIR NOTIFICACIÓN DE REGALO
+  const playGiftNotification = useCallback(async (giftName) => {
+    try {
+      // Reproducir sonido
+      await playGiftReceivedSound();
+      
+      // Mostrar notificación visual si está permitido
+      if (Notification.permission === 'granted') {
+        new Notification('🎁 ¡Regalo Recibido!', {
+          body: `Has recibido: ${giftName}`,
+          icon: '/favicon.ico',
+          tag: 'gift-received',
+          requireInteraction: true // La notificación permanece hasta que el usuario la cierre
+        });
+      }
+      
+      // Vibrar en dispositivos móviles
+      if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 400]);
+      }
+      
+      console.log('🎉 Notificación completa de regalo ejecutada');
+    } catch (error) {
+      console.error('❌ Error en notificación de regalo:', error);
+    }
+  }, [playGiftReceivedSound]);
+
+  // Auto-scroll al final cuando hay nuevos mensajes
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+
+  // Efecto para hacer scroll automático cuando cambian los mensajes
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // También scroll cuando se envía un mensaje
+  useEffect(() => {
+    if (mensaje === '') {
+      // Mensaje acabado de enviar, hacer scroll
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [mensaje]);
+
+  // 🎁 DETECTAR REGALOS RECIBIDOS EN MENSAJES NUEVOS
+  const previousMessagesRef = useRef([]);
+  
+  useEffect(() => {
+    // Solo procesar si hay mensajes previos para comparar
+    if (previousMessagesRef.current.length === 0) {
+      previousMessagesRef.current = messages;
+      return;
+    }
+
+    // Detectar mensajes nuevos
+    const currentMessageIds = new Set(previousMessagesRef.current.map(m => m.id));
+    const newMessages = messages.filter(m => !currentMessageIds.has(m.id));
+
+    if (newMessages.length > 0) {
+      console.log(`✅ ${newMessages.length} mensajes nuevos detectados en DesktopChat`);
+      
+      // 🎁 DETECTAR REGALOS RECIBIDOS
+      const newGiftMessages = newMessages.filter(msg => 
+        msg.type === 'gift_received' && 
+        msg.user_id !== userData?.id // Solo si no soy yo quien envió
+      );
+      
+      if (newGiftMessages.length > 0) {
+        console.log('🎁 ¡Regalo(s) recibido(s) detectado(s) en DesktopChat!', newGiftMessages);
+        
+        // Reproducir sonido para cada regalo
+        newGiftMessages.forEach(async (giftMsg, index) => {
+          try {
+            // Extraer nombre del regalo
+            let giftData = giftMsg.gift_data || giftMsg.extra_data || {};
+            
+            // Parsear si es string
+            if (typeof giftData === 'string') {
+              try {
+                giftData = JSON.parse(giftData);
+              } catch (e) {
+                giftData = { gift_name: 'Regalo Especial' };
+              }
+            }
+            
+            const giftName = giftData.gift_name || 'Regalo Especial';
+            console.log(`🎵 Reproduciendo sonido para regalo: ${giftName}`);
+            
+            // Reproducir notificación con sonido
+            await playGiftNotification(giftName);
+            
+            // Esperar un poco entre regalos para no saturar
+            if (newGiftMessages.length > 1 && index < newGiftMessages.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          } catch (error) {
+            console.error('❌ Error procesando sonido de regalo:', error);
+          }
+        });
+      }
+
+      // 🔥 DETECTAR REGALOS ENVIADOS (para clientes)
+      const newSentGiftMessages = newMessages.filter(msg => 
+        msg.type === 'gift_sent' && 
+        msg.user_id === userData?.id && // Solo si soy yo quien envió
+        userData?.rol === 'cliente' // Solo los clientes envían regalos
+      );
+      
+      if (newSentGiftMessages.length > 0) {
+        console.log('💸 Regalo(s) enviado(s) detectado(s)!', newSentGiftMessages);
+        
+        // Notificación silenciosa para regalo enviado
+        if (Notification.permission === 'granted') {
+          new Notification('🎁 Regalo Enviado', {
+            body: 'Tu regalo ha sido enviado exitosamente',
+            icon: '/favicon.ico'
+          });
+        }
+      }
+    }
+
+    // Actualizar referencia de mensajes previos
+    previousMessagesRef.current = messages;
+  }, [messages, userData?.id, userData?.rol, playGiftNotification]);
 
   // Función de fallback para getDisplayName
   const safeGetDisplayName = () => {
@@ -45,7 +240,7 @@ const DesktopChatPanel = ({
       {/* Línea superior fucsia */}
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-[#ff007a]"></div>
       
-      {/* 🔥 HEADER DEL CHAT REDISEÑADO */}
+      {/* 🔥 HEADER DEL CHAT REDISEÑADO PARA MODELO */}
       <div className="relative p-3 border-b border-gray-700/50">
         <div className="relative flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -55,14 +250,6 @@ const DesktopChatPanel = ({
                 {otherUser?.name?.charAt(0)?.toUpperCase() || '?'}
               </div>
               
-              {/* Indicador de estado */}
-              {otherUser ? (
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#00ff66] rounded-full border-3 border-[#0a0d10] flex items-center justify-center">
-                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                </div>
-              ) : (
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gray-500 rounded-full border-3 border-[#0a0d10]"></div>
-              )}
             </div>
             
             {/* Información del usuario - SIMPLIFICADA */}
@@ -76,19 +263,18 @@ const DesktopChatPanel = ({
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ff007a]"></div>
                 )}
                 
-                <Shield size={16} className="text-[#00ff66]" />
               </div>
             </div>
           </div>
           
-          {/* 🔥 BOTONES DE ACCIÓN SUPERIORES REDISEÑADOS */}
+          {/* 🔥 BOTONES DE ACCIÓN SUPERIORES REDISEÑADOS PARA MODELO */}
           <div className="flex items-center gap-2">
             {/* Escudo verde (usuario verificado) */}
             <div className="p-2 bg-[#00ff66]/20 rounded-lg border border-[#00ff66]/30">
               <Shield size={18} className="text-[#00ff66]" />
             </div>
             
-            {/* Regalo fucsia */}
+            {/* Regalo fucsia - MODELO PUEDE PEDIR REGALOS */}
             <button
               onClick={() => setShowGiftsModal(true)}
               disabled={!otherUser}
@@ -99,6 +285,7 @@ const DesktopChatPanel = ({
                   : 'bg-[#ff007a]/20 text-[#ff007a] hover:bg-[#ff007a]/30 border border-[#ff007a]/30 shadow-lg'
                 }
               `}
+              title="Pedir regalo"
             >
               <Gift size={18} />
             </button>
@@ -116,6 +303,7 @@ const DesktopChatPanel = ({
                 ${isAddingFavorite ? 'animate-pulse' : ''}
                 ${!otherUser ? 'opacity-50 cursor-not-allowed' : ''}
               `}
+              title={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
             >
               <Star size={18} fill={isFavorite ? 'currentColor' : 'none'} />
             </button>
@@ -130,6 +318,7 @@ const DesktopChatPanel = ({
                 ${isBlocking ? 'animate-pulse' : ''}
                 ${!otherUser ? 'opacity-50 cursor-not-allowed' : ''}
               `}
+              title="Bloquear usuario"
             >
               <UserX size={18} />
             </button>
@@ -137,9 +326,12 @@ const DesktopChatPanel = ({
         </div>
       </div>
       
-      {/* 🔥 ÁREA DE MENSAJES REDISEÑADA */}
+      {/* 🔥 ÁREA DE MENSAJES REDISEÑADA CON AUTO-SCROLL */}
       <div className="flex-1 relative">
-        <div className="flex-1 max-h-[350px] p-3 space-y-3 overflow-y-auto custom-scroll">
+        <div 
+          ref={messagesContainerRef}
+          className="flex-1 max-h-[350px] p-3 space-y-3 overflow-y-auto custom-scroll"
+        >
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center py-8">
@@ -161,28 +353,189 @@ const DesktopChatPanel = ({
             <>
               {messages.filter(msg => msg.id > 2).reverse().map((msg, index) => (
                 <div key={msg.id} className="space-y-3">
-                  {/* 🎁 MENSAJES DE REGALO */}
-                  {msg.type === 'gift_request' && (
+                  {/* 🎁 RENDERIZAR MENSAJES DE REGALO SEGÚN TU CÓDIGO */}
+                  {(msg.type === 'gift_request' || msg.type === 'gift_sent' || msg.type === 'gift_received' || msg.type === 'gift') && (
                     <div className="relative">
-                      <GiftMessageComponent
-                        giftRequest={{
-                          id: msg.id,
-                          gift: {
-                            name: msg.extra_data?.gift_name || 'Regalo',
-                            image: msg.extra_data?.gift_image || '',
-                            price: msg.extra_data?.gift_price || 0
-                          },
-                          message: msg.extra_data?.original_message || '',
-                          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
-                        }}
-                        isClient={false}
-                        className="mb-3 transform hover:scale-[1.02] transition-transform duration-200"
-                      />
+                      {/* Renderizar según el tipo específico */}
+                      {msg.type === 'gift' && (
+                        <div className="flex items-center gap-2 text-yellow-400">
+                          <Gift size={16} />
+                          <span>Envió: {msg.text || msg.message}</span>
+                        </div>
+                      )}
+
+                      {msg.type === 'gift_request' && (() => {
+                        const giftData = msg.gift_data || msg.extra_data || {};
+                        let finalGiftData = giftData;
+                        
+                        if (typeof msg.extra_data === 'string') {
+                          try {
+                            finalGiftData = JSON.parse(msg.extra_data);
+                          } catch (e) {
+                            finalGiftData = giftData;
+                          }
+                        }
+                        
+                        // Construir URL de imagen
+                        let imageUrl = null;
+                        if (finalGiftData.gift_image) {
+                          const imagePath = finalGiftData.gift_image;
+                          const baseUrl = import.meta.env.VITE_API_BASE_URL;
+                          const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+                          
+                          if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+                            imageUrl = imagePath;
+                          } else {
+                            const cleanPath = imagePath.replace(/\\/g, '');
+                            if (cleanPath.startsWith('storage/')) {
+                              imageUrl = `${cleanBaseUrl}/${cleanPath}`;
+                            } else if (cleanPath.startsWith('/')) {
+                              imageUrl = `${cleanBaseUrl}${cleanPath}`;
+                            } else {
+                              imageUrl = `${cleanBaseUrl}/storage/gifts/${cleanPath}`;
+                            }
+                          }
+                        }
+                        
+                        return (
+                          <div className="bg-gradient-to-br from-[#ff007a]/20 via-[#cc0062]/20 to-[#990047]/20 rounded-xl p-4 max-w-xs border border-[#ff007a]/30 shadow-lg backdrop-blur-sm">
+                            <div className="flex items-center justify-center gap-2 mb-3">
+                              <div className="bg-gradient-to-r from-[#ff007a] to-[#cc0062] rounded-full p-2">
+                                <Gift size={16} className="text-white" />
+                              </div>
+                              <span className="text-pink-100 text-sm font-semibold">Solicitud de Regalo</span>
+                            </div>
+                            
+                            {imageUrl && (
+                              <div className="mb-3 flex justify-center">
+                                <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-xl flex items-center justify-center overflow-hidden border-2 border-purple-300/30">
+                                  <img
+                                    src={imageUrl}
+                                    alt={finalGiftData.gift_name || 'Regalo'}
+                                    className="w-12 h-12 object-contain"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      const fallback = e.target.parentNode.querySelector('.gift-fallback');
+                                      if (fallback) fallback.style.display = 'flex';
+                                    }}
+                                  />
+                                  <div className="gift-fallback hidden w-12 h-12 items-center justify-center">
+                                    <Gift size={20} className="text-purple-300" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="text-center space-y-2">
+                              
+                              {finalGiftData.gift_price && (
+                                <div className="bg-gradient-to-r from-amber-500/20 to-yellow-500/20 rounded-lg px-3 py-1 border border-amber-300/30">
+                                  <span className="text-amber-200 font-bold text-sm">
+                                    ✨ {finalGiftData.gift_price} monedas
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {finalGiftData.original_message && (
+                                <div className="bg-black/20 rounded-lg p-2 mt-3 border-l-4 border-[#ff007a]">
+                                  <p className="text-purple-100 text-xs italic">
+                                    💭 "{finalGiftData.original_message}"
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {msg.type === 'gift_received' && (() => {
+                        
+                        const receivedGiftData = msg.gift_data || msg.extra_data || {};
+                        let finalReceivedGiftData = receivedGiftData;
+                        
+                        if (typeof msg.extra_data === 'string') {
+                          try {
+                            finalReceivedGiftData = JSON.parse(msg.extra_data);
+                          } catch (e) {
+                            finalReceivedGiftData = receivedGiftData;
+                          }
+                        }
+                        
+                        // Construir URL de imagen
+                        let receivedImageUrl = null;
+                        if (finalReceivedGiftData.gift_image) {
+                          const imagePath = finalReceivedGiftData.gift_image;
+                          const baseUrl = import.meta.env.VITE_API_BASE_URL;
+                          const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+                          
+                          if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+                            receivedImageUrl = imagePath;
+                          } else {
+                            const cleanPath = imagePath.replace(/\\/g, '');
+                            if (cleanPath.startsWith('storage/')) {
+                              receivedImageUrl = `${cleanBaseUrl}/${cleanPath}`;
+                            } else if (cleanPath.startsWith('/')) {
+                              receivedImageUrl = `${cleanBaseUrl}${cleanPath}`;
+                            } else {
+                              receivedImageUrl = `${cleanBaseUrl}/storage/gifts/${cleanPath}`;
+                            }
+                          }
+                        }
+                        
+                        return (
+                          <div className="bg-gradient-to-br from-green-900/40 via-emerald-900/40 to-teal-900/40 rounded-xl p-4 max-w-xs border border-green-300/30 shadow-lg backdrop-blur-sm">
+                            <div className="flex items-center justify-center gap-2 mb-3">
+                              <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-full p-2">
+                                <Gift size={16} className="text-white" />
+                              </div>
+                              <span className="text-green-100 text-sm font-semibold">¡Regalo Recibido!</span>
+                            </div>
+                            
+                            {receivedImageUrl && (
+                              <div className="mb-3 flex justify-center">
+                                <div className="w-16 h-16 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl flex items-center justify-center overflow-hidden border-2 border-green-300/30">
+                                  <img
+                                    src={receivedImageUrl}
+                                    alt={finalReceivedGiftData.gift_name || 'Regalo'}
+                                    className="w-12 h-12 object-contain"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      const fallback = e.target.parentNode.querySelector('.gift-fallback');
+                                      if (fallback) fallback.style.display = 'flex';
+                                    }}
+                                  />
+                                  <div className="gift-fallback hidden w-12 h-12 items-center justify-center">
+                                    <Gift size={20} className="text-green-300" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="text-center space-y-2">
+                              {/* 🔥 NOMBRE DEL REGALO - AÑADIDO */}
+                              <p className="text-white font-bold text-base">
+                                {finalReceivedGiftData.gift_name || 'Regalo Especial'}
+                              </p>
+                              
+                              {/* 🔥 PRECIO DEL REGALO - AÑADIDO */}
+                              {finalReceivedGiftData.gift_price && (
+                                <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg px-3 py-1 border border-green-300/30">
+                                  <span className="text-green-200 font-bold text-sm">
+                                    💰 {finalReceivedGiftData.gift_price} monedas
+                                  </span>
+                                </div>
+                              )}
+                            
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                     </div>
                   )}
                   
                   {/* 🔥 MENSAJES NORMALES REDISEÑADOS */}
-                  {msg.type !== 'gift_request' && (
+                  {!['gift_request', 'gift_sent', 'gift_received', 'gift'].includes(msg.type) && (
                     <div className={`flex ${msg.type === 'local' ? 'justify-end' : 'justify-start'} group`}>
                       {msg.type === 'local' ? (
                         <div className="w-full space-y-2">
@@ -192,13 +545,17 @@ const DesktopChatPanel = ({
                           <div className="flex justify-end">
                             <div className="relative bg-gradient-to-br from-[#ff007a] to-[#ff007a]/80 px-4 py-3 rounded-2xl rounded-br-md text-white shadow-lg border border-[#ff007a]/20 hover:shadow-xl hover:scale-[1.02] transition-all duration-200 max-w-[70%]">
                               <span className="text-white text-sm leading-relaxed font-medium break-words">
-                                {msg.text}
+                                {msg.type === 'emoji' ? (
+                                  <div className="text-2xl">{msg.text || msg.message}</div>
+                                ) : (
+                                  <span className="text-white">{msg.text || msg.message}</span>
+                                )}
                               </span>
                             </div>
                           </div>
                           <div className="text-right">
                             <span className="text-xs text-gray-500 font-medium">
-                              {new Date(msg.timestamp).toLocaleTimeString('es-ES', {
+                              {new Date(msg.timestamp || msg.created_at).toLocaleTimeString('es-ES', {
                                 hour: '2-digit',
                                 minute: '2-digit'
                               })}
@@ -214,7 +571,7 @@ const DesktopChatPanel = ({
                             </div>
                             <p className="text-[#00ff66] text-sm leading-relaxed">
                               <span className="text-[#00ff66]">
-                                {msg.text}
+                                {msg.text || msg.message}
                               </span>
                             </p>
                           </div>
@@ -235,12 +592,16 @@ const DesktopChatPanel = ({
                           </div>
                           <div className="bg-gradient-to-br from-gray-800/90 to-slate-800/90 px-4 py-3 rounded-2xl rounded-bl-md text-white shadow-lg border border-gray-600/30 backdrop-blur-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-200">
                             <span className="text-gray-100 text-sm leading-relaxed break-words max-w-[70%] inline-block">
-                              {msg.text}
+                              {msg.type === 'emoji' ? (
+                                <div className="text-2xl">{msg.text || msg.message}</div>
+                              ) : (
+                                <span className="text-white">{msg.text || msg.message}</span>
+                              )}
                             </span>
                           </div>
                           <div className="text-left">
                             <span className="text-xs text-gray-500 font-medium">
-                              {new Date(msg.timestamp).toLocaleTimeString('es-ES', {
+                              {new Date(msg.timestamp || msg.created_at).toLocaleTimeString('es-ES', {
                                 hour: '2-digit',
                                 minute: '2-digit'
                               })}
@@ -252,12 +613,14 @@ const DesktopChatPanel = ({
                   )}
                 </div>
               ))}
+              {/* Elemento invisible para hacer scroll automático */}
+              <div ref={messagesEndRef} />
             </>
           )}
         </div>
       </div>
       
-      {/* 🔥 INPUT DE CHAT REDISEÑADO */}
+      {/* 🔥 INPUT DE CHAT REDISEÑADO PARA MODELO */}
       <div className="relative border-t border-gray-700/50 p-3">
         <div className="relative space-y-4">
           {/* Input principal - COMPLETAMENTE EXPANDIDO */}
@@ -295,20 +658,6 @@ const DesktopChatPanel = ({
               )}
             </div>
             
-            {/* Botones de acción muy compactos - SOLO los esenciales */}
-            <button
-              onClick={() => setShowGiftsModal(true)}
-              disabled={!otherUser}
-              className={`
-                flex-shrink-0 p-2 rounded-lg transition-all duration-300 hover:scale-110
-                ${otherUser 
-                  ? 'bg-[#ff007a]/20 text-[#ff007a] hover:bg-[#ff007a]/30 border border-[#ff007a]/30' 
-                  : 'bg-gray-800/50 text-gray-500 opacity-50 cursor-not-allowed'
-                }
-              `}
-            >
-              <Gift size={14} />
-            </button>
             
             <button 
               onClick={() => {
@@ -335,12 +684,39 @@ const DesktopChatPanel = ({
             >
               <Send size={14} className={mensaje.trim() ? 'group-hover:translate-x-0.5 transition-transform duration-200' : ''} />
             </button>
+
+            {/* Indicador de conexión movido aquí */}
+            {otherUser && (
+              <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-lg rounded-full px-2 py-1 border border-[#00ff66]/30 shrink-0">
+                <div className="flex items-center gap-1">
+                  <div className="relative">
+                    <div className="w-1.5 h-1.5 bg-[#00ff66] rounded-full"></div>
+                    <div className="absolute inset-0 w-1.5 h-1.5 bg-[#00ff66] rounded-full animate-ping opacity-40"></div>
+                  </div>
+                  <span className="text-[#00ff66] text-xs font-medium truncate max-w-[60px]">
+                    {otherUser.name}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
       
+      {/* 🎁 AUDIO INVISIBLE PARA REGALOS - NUEVO */}
+      <div className="hidden">
+        <audio id="gift-sound" preload="auto">
+          <source src="/sounds/gift-received.mp3" type="audio/mpeg" />
+          <source src="/sounds/gift-received.wav" type="audio/wav" />
+        </audio>
+      </div>
+      
       {/* 🔥 ESTILOS PARA SCROLL PERSONALIZADO */}
       <style jsx>{`
+        .custom-scroll {
+          scroll-behavior: smooth;
+        }
+        
         .custom-scroll::-webkit-scrollbar {
           width: 8px;
         }

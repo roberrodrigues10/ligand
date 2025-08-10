@@ -205,6 +205,8 @@ export default function VideoChatClient() {
   const [isBlocking, setIsBlocking] = useState(false);
   const [isAddingFavorite, setIsAddingFavorite] = useState(false);
   const [isMonitoringBalance, setIsMonitoringBalance] = useState(false);
+  const [availableGifts, setAvailableGifts] = useState([]);
+
 
   // Estados de notificaciones
   const [notifications, setNotifications] = useState([]);
@@ -786,53 +788,68 @@ export default function VideoChatClient() {
   };
 
   // 🔥 FUNCIÓN PARA ACEPTAR REGALO (CLIENTE)
-  const handleAcceptGift = async (requestId, securityHash) => {
+ const handleAcceptGift = async (requestId, securityHash) => {
     if (processingGift === requestId) {
-      console.warn('⚠️ [CLIENTE] Regalo ya siendo procesado');
-      return;
+        console.warn('⚠️ [CLIENTE] Regalo ya siendo procesado');
+        return;
     }
 
     try {
-      setProcessingGift(requestId);
-      console.log('✅ [CLIENTE] Aceptando regalo:', { requestId, hasHash: !!securityHash });
-      
-      const result = await acceptGift(requestId, securityHash);
-      
-      if (result.success) {
-        console.log('✅ [CLIENTE] Regalo aceptado exitosamente');
+        setProcessingGift(requestId);
+        console.log('✅ [CLIENTE] Aceptando regalo:', { requestId, hasHash: !!securityHash });
         
-        // Cerrar notificación
-        setShowGiftNotification(false);
+        const result = await acceptGift(requestId, securityHash);
         
-        // Agregar mensaje al chat
-        const giftMessage = {
-          id: Date.now(),
-          type: 'gift_sent',
-          text: `🎁 Enviaste: ${result.giftInfo?.name}`,
-          timestamp: Date.now(),
-          isOld: false,
-          sender: userData.name,
-          senderRole: userData.role
-        };
-        setMessages(prev => [giftMessage, ...prev]);
-        
-        // Actualizar balance
-        updateBalance();
-        
-        return { success: true };
-      } else {
-        console.error('❌ [CLIENTE] Error aceptando regalo:', result.error);
-        addNotification('error', 'Error', result.error);
-        return { success: false, error: result.error };
-      }
+        if (result.success) {
+            console.log('✅ [CLIENTE] Regalo aceptado exitosamente');
+            
+            // Cerrar notificación
+            setShowGiftNotification(false);
+            
+            // ✅ MENSAJE MEJORADO CON DATOS COMPLETOS
+            const giftMessage = {
+                id: Date.now(),
+                type: 'gift_sent',
+                text: `🎁 Enviaste: ${result.giftInfo?.name}`,
+                timestamp: Date.now(),
+                isOld: false,
+                sender: userData.name,
+                senderRole: userData.role,
+                // 🔥 DATOS COMPLETOS DEL REGALO
+                gift_data: {
+                    gift_name: result.giftInfo?.name,
+                    gift_image: result.giftInfo?.image,
+                    gift_price: result.giftInfo?.price || result.giftInfo?.amount,
+                    action_text: "Enviaste",
+                    recipient_name: otherUser?.name || "Modelo"  // ← NOMBRE DEL RECEPTOR
+                },
+                extra_data: {
+                    gift_name: result.giftInfo?.name,
+                    gift_image: result.giftInfo?.image,
+                    gift_price: result.giftInfo?.price || result.giftInfo?.amount,
+                    action_text: "Enviaste",
+                    recipient_name: otherUser?.name || "Modelo"  // ← NOMBRE DEL RECEPTOR
+                }
+            };
+            setMessages(prev => [giftMessage, ...prev]);
+            
+            // Actualizar balance
+            updateBalance();
+            
+            return { success: true };
+        } else {
+            console.error('❌ [CLIENTE] Error aceptando regalo:', result.error);
+            addNotification('error', 'Error', result.error);
+            return { success: false, error: result.error };
+        }
     } catch (error) {
-      console.error('❌ [CLIENTE] Error de conexión:', error);
-      addNotification('error', 'Error', 'Error de conexión');
-      return { success: false, error: 'Error de conexión' };
+        console.error('❌ [CLIENTE] Error de conexión:', error);
+        addNotification('error', 'Error', 'Error de conexión');
+        return { success: false, error: 'Error de conexión' };
     } finally {
-      setProcessingGift(null);
+        setProcessingGift(null);
     }
-  };
+  }
 
   // 🔥 FUNCIÓN PARA RECHAZAR REGALO (CLIENTE)
   const handleRejectGift = async (requestId, reason = '') => {
@@ -871,6 +888,122 @@ export default function VideoChatClient() {
       return { success: false, error: 'Error de conexión' };
     }
   };
+  // 🔥 FUNCIÓN PARA ENVIAR REGALO DIRECTAMENTE (CLIENTE)
+const handleSendGift = async (giftId, recipientId, roomName, message) => {
+  try {
+    console.log('🎁 [CLIENTE] Enviando regalo directamente:', {
+      giftId,
+      recipientId,
+      roomName,
+      message,
+      userBalance
+    });
+
+    const authToken = sessionStorage.getItem('token');
+    if (!authToken) {
+      throw new Error('No hay token de autenticación');
+    }
+
+    // 🔥 ENVIAR REGALO DIRECTAMENTE AL ENDPOINT
+    const response = await fetch(`${API_BASE_URL}/api/gifts/send-direct`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        gift_id: giftId,
+        recipient_id: recipientId,
+        room_name: roomName,
+        message: message || '',
+        sender_type: 'cliente'  // Especificar que es un cliente
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('✅ [CLIENTE] Regalo enviado exitosamente:', result);
+      
+      // 🔥 ACTUALIZAR SALDO LOCAL INMEDIATAMENTE
+      const giftPrice = result.gift_price || result.amount || 0;
+      setUserBalance(prev => Math.max(0, prev - giftPrice));
+      
+      // 🔥 AGREGAR MENSAJE AL CHAT CON DATOS COMPLETOS
+      const giftMessage = {
+        id: Date.now(),
+        type: 'gift_sent',
+        text: `🎁 Enviaste: ${result.gift_name}`,
+        timestamp: Date.now(),
+        isOld: false,
+        sender: userData.name,
+        senderRole: userData.role,
+        // 🔥 DATOS COMPLETOS DEL REGALO
+        gift_data: {
+          gift_name: result.gift_name,
+          gift_image: result.gift_image,
+          gift_price: giftPrice,
+          action_text: "Enviaste",
+          recipient_name: otherUser?.name || "Modelo"
+        },
+        extra_data: {
+          gift_name: result.gift_name,
+          gift_image: result.gift_image,
+          gift_price: giftPrice,
+          action_text: "Enviaste",
+          recipient_name: otherUser?.name || "Modelo"
+        }
+      };
+      
+      setMessages(prev => [giftMessage, ...prev]);
+      
+      // 🔥 ACTUALIZAR BALANCE DESDE SERVIDOR (VERIFICACIÓN)
+      setTimeout(() => {
+        updateBalance();
+      }, 1000);
+      
+      // 🔥 NOTIFICACIÓN DE ÉXITO
+      addNotification(
+        'success', 
+        '🎁 Regalo Enviado', 
+        `${result.gift_name} enviado a ${otherUser?.name || 'Modelo'}`
+      );
+      
+      return { 
+        success: true, 
+        gift_name: result.gift_name,
+        gift_price: giftPrice
+      };
+      
+    } else {
+      console.error('❌ [CLIENTE] Error del servidor:', result.error);
+      
+      // 🔥 MANEJO DE ERRORES ESPECÍFICOS
+      if (result.error?.includes('saldo insuficiente') || result.error?.includes('insufficient balance')) {
+        addNotification('error', 'Saldo Insuficiente', 'No tienes suficientes monedas para este regalo');
+      } else if (result.error?.includes('no encontrado') || result.error?.includes('not found')) {
+        addNotification('error', 'Regalo No Disponible', 'Este regalo ya no está disponible');
+      } else {
+        addNotification('error', 'Error', result.error || 'Error enviando regalo');
+      }
+      
+      return { 
+        success: false, 
+        error: result.error || 'Error desconocido' 
+      };
+    }
+    
+  } catch (error) {
+    console.error('❌ [CLIENTE] Error de conexión enviando regalo:', error);
+    
+    addNotification('error', 'Error de Conexión', 'No se pudo enviar el regalo. Verifica tu conexión.');
+    
+    return { 
+      success: false, 
+      error: 'Error de conexión' 
+    };
+  }
+};
 
   // 🔥 FUNCIÓN DE RATE LIMITING
   const handleRateLimit = useCallback((error, context = 'general') => {
@@ -942,6 +1075,31 @@ export default function VideoChatClient() {
     
     fetchUser();
   }, [addNotification, handleRateLimit]);
+  useEffect(() => {
+  const loadAvailableGifts = async () => {
+    try {
+      const authToken = sessionStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/gifts/available`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setAvailableGifts(data.gifts);
+        console.log('🎁 Regalos disponibles cargados:', data.gifts.length);
+      }
+    } catch (error) {
+      console.error('Error cargando regalos:', error);
+    }
+  };
+  
+  if (userData.id) {
+    loadAvailableGifts();
+  }
+  }, [userData.id]);
 
   // Efecto para obtener token
   const memoizedRoomName = useMemo(() => {
@@ -1511,13 +1669,13 @@ export default function VideoChatClient() {
         <GiftsModal
           isOpen={showGiftsModal}
           onClose={() => setShowGiftsModal(false)}
-          recipientName={getDisplayName()}
+          recipientName={otherUser?.name}
           recipientId={otherUser?.id}
           roomName={roomName}
-          userRole="cliente"
-          gifts={gifts}
-          userBalance={userBalance}
-          loading={giftLoading}
+          userRole="cliente"           // ← Cambiar a 'cliente'
+          gifts={availableGifts}
+          onSendGift={handleSendGift}  // ← Nueva función para enviar
+          userBalance={userBalance}    // ← Saldo actual
         />
 
         {/* Overlay de notificación de regalo */}
@@ -1653,6 +1811,10 @@ export default function VideoChatClient() {
                 {/* Mensajes flotantes mejorados */}
                 <FloatingMessagesImprovedClient
                   messages={messages}
+                  userData={userData}
+                  userBalance={userBalance}
+                  handleAcceptGift={handleAcceptGift}
+                  handleRejectGift={handleRejectGift}
                   t={t}
                 />
                 
