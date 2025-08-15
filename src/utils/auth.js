@@ -97,9 +97,10 @@ export const register = async (email, password) => {
   }
 };
 
-// ✅ Login
+
 export const loginWithoutRedirect = async (email, password) => {
   try {
+    // ✅ URL correcta (tu ruta es /api/login)
     const response = await axios.post(`${API_BASE_URL}/api/login`, { email, password });
 
     const token = response.data.access_token;
@@ -123,20 +124,24 @@ export const loginWithoutRedirect = async (email, password) => {
 
     return response.data;
   } catch (error) {
+    // 🔧 CORRECCIÓN: Agregar manejo de error 404 (email no existe)
+    if (error.response?.status === 404) {
+      throw new Error(error.response.data.message || "No existe una cuenta con este correo");
+    }
+
+    if (error.response?.status === 401) {
+      throw new Error(error.response.data.message || "La contraseña ingresada es incorrecta");
+    }
+
     if (error.response?.status === 403) {
       throw new Error(error.response.data.message || "Correo no verificado");
     }
 
-    if (error.response?.status === 401) {
-      throw new Error("Credenciales incorrectas");
-    }
-
     console.error("❌ Error en login:", error.response?.data || error);
-    throw new Error("Error desconocido en el login");
+    throw new Error(error.response?.data?.message || "Error desconocido en el login");
   }
 };
 
-// ✅ Logout
 export const logout = async () => {
   try {
     await markUserOffline();
@@ -286,6 +291,102 @@ export const updateHeartbeatRoom = async (roomName) => {
       console.warn('⚠️ Rate limited actualizando heartbeat');
       return;
     }
+  }
+};
+
+
+export const loginWithGoogle = async () => {
+  try {
+    console.log('🔵 Iniciando Google OAuth...');
+    
+    // ✅ CORRECCIÓN: Usar la URL correcta del backend
+    const response = await axios.get(`${API_BASE_URL}/api/auth/google/redirect`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('🔵 Respuesta del servidor:', response.data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Error al obtener URL de Google');
+    }
+
+    // ✅ Redirigir a Google OAuth
+    console.log('🔵 Redirigiendo a:', response.data.auth_url);
+    window.location.href = response.data.auth_url;
+    
+  } catch (error) {
+    console.error('❌ Error en loginWithGoogle:', error);
+    console.error('❌ Response data:', error.response?.data);
+    throw new Error(error.response?.data?.message || 'Error al iniciar sesión con Google');
+  }
+};
+
+/**
+ * Maneja el callback de Google
+ */
+export const handleGoogleCallback = async (code, state) => {
+  try {
+    console.log('🔄 Procesando callback de Google...');
+    console.log('📋 Parámetros recibidos:', { code: code?.substring(0, 10) + '...', state });
+    
+    if (!code) {
+      throw new Error('Código de autorización no recibido');
+    }
+
+    const response = await axios.get(`${API_BASE_URL}/api/auth/google/callback`, {
+      params: { code, state }
+    });
+
+    console.log('🔄 Respuesta del callback:', response.data);
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Error en autenticación con Google');
+    }
+
+    const { access_token, user, signup_step } = response.data;
+
+    sessionStorage.setItem('token', access_token);
+    userCache.clearCache();
+    
+    try {
+      await axios.post(`${API_BASE_URL}/api/user/mark-online`, {}, {
+        headers: { 'Authorization': `Bearer ${access_token}` }
+      });
+      console.log("🟢 Usuario marcado como online");
+      startHeartbeat();
+    } catch (error) {
+      console.error("❌ Error marcando como online:", error);
+    }
+
+    console.log('✅ Google OAuth exitoso para:', user.email);
+    return { user, signup_step, token: access_token };
+
+  } catch (error) {
+    console.error('❌ Error en handleGoogleCallback:', error);
+    throw new Error(error.response?.data?.message || 'Error al procesar autenticación con Google');
+  }
+}; // ← Asegúrate de que esta llave esté cerrada
+
+/**
+ * Desvincula cuenta de Google
+ */
+export const unlinkGoogle = async () => {
+  try {
+    const token = localStorage.getItem('access_token');
+    
+    const response = await axios.post(`${API_BASE_URL}/auth/google/unlink`, {}, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error desvincular Google:', error);
+    throw new Error(error.response?.data?.message || 'Error al desvincular cuenta de Google');
   }
 };
 

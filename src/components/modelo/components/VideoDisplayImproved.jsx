@@ -28,7 +28,8 @@ const VideoDisplayImproved = ({
 
   const getMainVideo = () => {
     try {
-      if (mainCamera === "local" && localParticipant) {
+      // Por defecto mostrar modelo en grande, pero si mainCamera es "remote" mostrar cliente
+      if ((mainCamera === "local" || !mainCamera) && localParticipant) {
         const localVideoTrack = tracks.find(
           trackRef => trackRef.participant.sid === localParticipant.sid && 
           trackRef.source === Track.Source.Camera
@@ -36,21 +37,28 @@ const VideoDisplayImproved = ({
         
         if (localVideoTrack) {
           return (
-            <div className="relative w-full h-full">
-              <VideoTrack
-                trackRef={localVideoTrack}
-                className="w-full h-full object-cover rounded-2xl"
-              />
-              {/* Overlay sutil para video local */}
-              <div className="absolute bottom-4 left-4">
-                <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm px-3 py-1 rounded-lg border border-[#ff007a]/30">
-                  <span className="text-[#ff007a] text-xs font-medium">Tu cámara</span>
+            <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-b from-[#0a0d10] to-[#131418]">
+              {/* Contenedor responsivo para el video */}
+              <div className="relative w-full h-full max-w-4xl max-h-[80vh] flex items-center justify-center">
+                <VideoTrack
+                  trackRef={localVideoTrack}
+                  className="w-full h-full object-contain rounded-2xl"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                  }}
+                />
+                {/* Overlay sutil para video local */}
+                <div className="absolute bottom-4 left-4">
+                  <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm px-3 py-1 rounded-lg border border-[#ff007a]/30">
+                    <span className="text-[#ff007a] text-xs font-medium">Tu cámara</span>
+                  </div>
                 </div>
               </div>
             </div>
           );
         }
-      } else if (remoteParticipant) {
+      } else if (mainCamera === "remote" && remoteParticipant) {
         const remoteVideoTrack = tracks.find(
           trackRef => trackRef.participant.sid === remoteParticipant.sid && 
           trackRef.source === Track.Source.Camera
@@ -58,19 +66,26 @@ const VideoDisplayImproved = ({
         
         if (remoteVideoTrack && !isRemoteCameraOff) {
           return (
-            <div className="relative w-full h-full">
-              <VideoTrack
-                trackRef={remoteVideoTrack}
-                className="w-full h-full object-cover rounded-2xl"
-              />
-              {/* Overlay para video remoto */}
-              <div className="absolute bottom-4 left-4">
-                <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm px-3 py-1 rounded-lg border border-green-400/30">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-[#00ff66] rounded-full animate-pulse"></div>
-                    <span className="text-[#00ff66] text-xs font-medium">
-                      {otherUser?.name || 'Chico'}
-                    </span>
+            <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-b from-[#0a0d10] to-[#131418]">
+              {/* Contenedor responsivo para el video */}
+              <div className="relative w-full h-full max-w-4xl max-h-[80vh] flex items-center justify-center">
+                <VideoTrack
+                  trackRef={remoteVideoTrack}
+                  className="w-full h-full object-contain rounded-2xl"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                  }}
+                />
+                {/* Overlay para video remoto */}
+                <div className="absolute bottom-4 left-4">
+                  <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm px-3 py-1 rounded-lg border border-green-400/30">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-[#00ff66] rounded-full animate-pulse"></div>
+                      <span className="text-[#00ff66] text-xs font-medium">
+                        {otherUser?.name || 'Chico'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -82,7 +97,7 @@ const VideoDisplayImproved = ({
       console.log("Error rendering main video:", error);
     }
 
-    // Estados de espera con diseño Ligand
+    // Estados de espera con diseño Ligand para Modelo
     const getConnectionStatus = () => {
       if (remoteParticipant && isRemoteCameraOff) {
         return {
@@ -173,7 +188,7 @@ const VideoDisplayImproved = ({
           {/* Información adicional */}
           <div className="mt-8 space-y-3">
             {connected && (
-              <div className="bg-[#00ff66]/10 backdrop-blur-sm rounded-xl p-3 border border-[#00ff66]/20">
+              <div className="bg-[#00ff66]/10 backdrop-blur-sm rounded-xl p-3 border border-[#00ff66]/20 hidden md:block">
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-2 h-2 bg-[#00ff66] rounded-full animate-pulse"></div>
                   <span className="text-[#00ff66] text-sm font-medium">
@@ -182,8 +197,8 @@ const VideoDisplayImproved = ({
                 </div>
               </div>
             )}
-            
-            <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm rounded-xl p-3 border border-gray-600/20">
+
+            <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm rounded-xl p-3 border border-gray-600/20 hidden md:block">
               <div className="flex items-center justify-center gap-2">
                 <Eye size={14} className="text-gray-400" />
                 <span className="text-gray-300 text-xs">
@@ -199,7 +214,8 @@ const VideoDisplayImproved = ({
 
   const getMiniVideo = () => {
     try {
-      if (mainCamera === "local" && remoteParticipant && !isRemoteCameraOff) {
+      // Si modelo está en grande (por defecto), mostrar cliente en mini
+      if ((mainCamera === "local" || !mainCamera) && remoteParticipant && !isRemoteCameraOff) {
         const remoteVideoTrack = tracks.find(
           trackRef => trackRef.participant.sid === remoteParticipant.sid && 
           trackRef.source === Track.Source.Camera
@@ -226,7 +242,9 @@ const VideoDisplayImproved = ({
             </div>
           );
         }
-      } else if (localParticipant) {
+      } 
+      // Si cliente está en grande, mostrar modelo en mini
+      else if (mainCamera === "remote" && localParticipant) {
         const localVideoTrack = tracks.find(
           trackRef => trackRef.participant.sid === localParticipant.sid && 
           trackRef.source === Track.Source.Camera
@@ -239,6 +257,17 @@ const VideoDisplayImproved = ({
                 trackRef={localVideoTrack}
                 className="w-full h-full object-cover rounded-xl"
               />
+              {/* Indicador de modelo en mini video */}
+              <div className="absolute bottom-1 left-1 right-1">
+                <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-sm px-2 py-1 rounded-md">
+                  <div className="flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 bg-[#ff007a] rounded-full animate-pulse"></div>
+                    <span className="text-white text-xs font-medium truncate">
+                      Tu cámara
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           );
         }
@@ -253,7 +282,7 @@ const VideoDisplayImproved = ({
         <div className="relative z-10 text-center">
           <CameraOff size={16} className="text-gray-400 mb-1" />
           <div className="text-gray-400 text-xs font-medium">
-            {mainCamera === "local" ? "Remoto" : "Local"}
+            {(mainCamera === "local" || !mainCamera) ? "Chico" : "Tu cámara"}
           </div>
         </div>
       </div>
@@ -267,9 +296,15 @@ const VideoDisplayImproved = ({
         {getMainVideo()}
       </div>
       
-      {/* Mini video con borde fucsia */}
+      {/* Mini video con borde fucsia - Tamaños responsivos mejorados */}
       <div 
-        className="absolute bottom-4 left-4 w-20 h-24 lg:w-28 lg:h-32 rounded-xl overflow-hidden border-2 border-[#ff007a]/50 shadow-2xl cursor-pointer transition-all duration-300 hover:scale-105 hover:border-[#ff007a] group backdrop-blur-sm"
+        className="absolute bottom-4 left-4 
+                   w-16 h-20 
+                   sm:w-20 sm:h-24 
+                   md:w-24 md:h-28 
+                   lg:w-28 lg:h-32 
+                   xl:w-32 xl:h-36
+                   rounded-xl overflow-hidden border-2 border-[#ff007a]/50 shadow-2xl cursor-pointer transition-all duration-300 hover:scale-105 hover:border-[#ff007a] group backdrop-blur-sm"
         onClick={onCameraSwitch}
       >
         {getMiniVideo()}
@@ -280,7 +315,6 @@ const VideoDisplayImproved = ({
             <Camera size={14} className="text-white" />
           </div>
         </div>
-        
       </div>
     </>
   );

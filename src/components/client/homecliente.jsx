@@ -7,7 +7,7 @@ import { getUser } from "../../utils/auth";
 import CallingSystem from '../../components/CallingOverlay';
 import IncomingCallOverlay from '../../components/IncomingCallOverlay';
 import { useState, useEffect } from "react";
-import StripeBuyMinutes from "../StripeBuyCoins";
+import UnifiedPaymentModal from '../../components/payments/UnifiedPaymentModal';
 import MinutesBalanceWidget from '../CoinsBalanceWidget';
 
 
@@ -15,22 +15,20 @@ export default function InterfazCliente() {
   const navigate = useNavigate();
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-
   // Estados
   const [user, setUser] = React.useState(null);
   const [chicasActivas, setChicasActivas] = React.useState([]);
   const [loadingUsers, setLoadingUsers] = React.useState(true);
   const [initialLoad, setInitialLoad] = React.useState(true);
   const [showBuyMinutes, setShowBuyMinutes] = useState(false);
+  
   const abrirModalCompraMinutos = () => {
-  setShowBuyMinutes(true);
+    setShowBuyMinutes(true);
   };
   const cerrarModalCompraMinutos = () => {
     setShowBuyMinutes(false);
   };
 
-
-  
   // 🔥 ESTADOS DE LLAMADAS
   const [isCallActive, setIsCallActive] = React.useState(false);
   const [currentCall, setCurrentCall] = React.useState(null);
@@ -38,7 +36,7 @@ export default function InterfazCliente() {
   const [incomingCall, setIncomingCall] = React.useState(null);
   const [callPollingInterval, setCallPollingInterval] = React.useState(null);
   const [incomingCallPollingInterval, setIncomingCallPollingInterval] = React.useState(null);
-    // 🔥 ESTADOS PARA MODAL DE CONFIRMACIÓN
+  // 🔥 ESTADOS PARA MODAL DE CONFIRMACIÓN
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
 
@@ -311,7 +309,8 @@ export default function InterfazCliente() {
       alert('Error al iniciar llamada');
     }
   };
-    // 🔥 CARGAR USUARIOS BLOQUEADOS
+
+  // 🔥 CARGAR USUARIOS BLOQUEADOS
   const cargarUsuariosBloqueados = async () => {
     try {
       setLoadingBloqueados(true);
@@ -485,92 +484,92 @@ export default function InterfazCliente() {
 
   // 🔥 NUEVA FUNCIÓN: POLLING PARA LLAMADAS ENTRANTES
   const verificarLlamadasEntrantes = async () => {
-  try {
-    const token = sessionStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
-      if (data.has_incoming && data.incoming_call) {
-        console.log('📞 Llamada entrante de chica detectada:', data.incoming_call);
+      if (response.ok) {
+        const data = await response.json();
         
-        const isMyOutgoingCall = currentCall && 
-                                currentCall.callId === data.incoming_call.id;
-        
-        if (isMyOutgoingCall) {
-          console.log('⚠️ Ignorando llamada entrante - es mi propia llamada saliente');
-          return;
+        if (data.has_incoming && data.incoming_call) {
+          console.log('📞 Llamada entrante de chica detectada:', data.incoming_call);
+          
+          const isMyOutgoingCall = currentCall && 
+                                  currentCall.callId === data.incoming_call.id;
+          
+          if (isMyOutgoingCall) {
+            console.log('⚠️ Ignorando llamada entrante - es mi propia llamada saliente');
+            return;
+          }
+          
+          if (!isReceivingCall && !isCallActive) {
+            console.log('🔊 Reproduciendo sonido de llamada entrante');
+            playIncomingCallSound();
+            setIncomingCall(data.incoming_call);
+            setIsReceivingCall(true);
+          }
+        } else if (isReceivingCall && !data.has_incoming) {
+          console.log('📞 Llamada entrante ya no disponible');
+          stopIncomingCallSound();
+          setIsReceivingCall(false);
+          setIncomingCall(null);
         }
-        
-        if (!isReceivingCall && !isCallActive) {
-          console.log('🔊 Reproduciendo sonido de llamada entrante');
-          playIncomingCallSound();
-          setIncomingCall(data.incoming_call);
-          setIsReceivingCall(true);
-        }
-      } else if (isReceivingCall && !data.has_incoming) {
-        console.log('📞 Llamada entrante ya no disponible');
-        stopIncomingCallSound();
-        setIsReceivingCall(false);
-        setIncomingCall(null);
       }
+    } catch (error) {
+      console.log('⚠️ Error verificando llamadas entrantes:', error);
     }
-  } catch (error) {
-    console.log('⚠️ Error verificando llamadas entrantes:', error);
-  }
   };
 
   // 🔥 NUEVA FUNCIÓN: RESPONDER LLAMADA ENTRANTE
   const responderLlamada = async (accion) => {
-  if (!incomingCall) return;
-  
-  try {
-    console.log(`📱 Respondiendo llamada de chica: ${accion}`);
+    if (!incomingCall) return;
     
-    stopIncomingCallSound(); // 🔥 AGREGAR ESTA LÍNEA
-    
-    const token = sessionStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        call_id: incomingCall.id,
-        action: accion
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok && data.success) {
-      if (accion === 'accept') {
-        console.log('✅ Llamada de chica aceptada:', data);
-        setIsReceivingCall(false);
-        setIncomingCall(null);
-        redirigirAVideochat(data);
+    try {
+      console.log(`📱 Respondiendo llamada de chica: ${accion}`);
+      
+      stopIncomingCallSound(); // 🔥 AGREGAR ESTA LÍNEA
+      
+      const token = sessionStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          call_id: incomingCall.id,
+          action: accion
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        if (accion === 'accept') {
+          console.log('✅ Llamada de chica aceptada:', data);
+          setIsReceivingCall(false);
+          setIncomingCall(null);
+          redirigirAVideochat(data);
+        } else {
+          console.log('❌ Llamada de chica rechazada');
+          setIsReceivingCall(false);
+          setIncomingCall(null);
+        }
       } else {
-        console.log('❌ Llamada de chica rechazada');
+        console.error('❌ Error respondiendo llamada:', data.error);
         setIsReceivingCall(false);
         setIncomingCall(null);
       }
-    } else {
-      console.error('❌ Error respondiendo llamada:', data.error);
+    } catch (error) {
+      console.error('❌ Error:', error);
       setIsReceivingCall(false);
       setIncomingCall(null);
     }
-  } catch (error) {
-    console.error('❌ Error:', error);
-    setIsReceivingCall(false);
-    setIncomingCall(null);
-  }
   };
 
   // 🔥 NUEVA FUNCIÓN: REDIRIGIR AL VIDEOCHAT CLIENTE
@@ -652,55 +651,44 @@ export default function InterfazCliente() {
     };
   }, [user?.id, isReceivingCall, isCallActive]);
 
-  // 🔥 CLEANUP AL DESMONTAR COMPONENTE
-  React.useEffect(() => {
-    return () => {
-      if (callPollingInterval) {
-        clearInterval(callPollingInterval);
-      }
-      if (incomingCallPollingInterval) {
-        clearInterval(incomingCallPollingInterval);  
-      }
-    };
-  }, []);
   // 🔥 CARGAR USUARIOS BLOQUEADOS
-React.useEffect(() => {
-  if (!user?.id) return;
-  cargarUsuariosBloqueados();
-}, [user?.id]);
+  React.useEffect(() => {
+    if (!user?.id) return;
+    cargarUsuariosBloqueados();
+  }, [user?.id]);
 
-// 🔥 CONFIGURAR SISTEMA DE AUDIO
-React.useEffect(() => {
-  console.log('🎵 Configurando sistema de audio...');
-  
-  const enableAudioContext = async () => {
-    console.log('👆 Primera interacción detectada - habilitando audio');
-    try {
-      const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAAABAABABkAAgAAACAJAAEAAABkYXRhBAAAAAEA');
-      silentAudio.volume = 0.01;
-      await silentAudio.play();
-      console.log('🔓 Sistema de audio desbloqueado');
-    } catch (e) {
-      console.log('⚠️ No se pudo desbloquear audio:', e);
-    }
+  // 🔥 CONFIGURAR SISTEMA DE AUDIO
+  React.useEffect(() => {
+    console.log('🎵 Configurando sistema de audio...');
     
-    document.removeEventListener('click', enableAudioContext);
-    document.removeEventListener('touchstart', enableAudioContext);
-  };
-  
-  document.addEventListener('click', enableAudioContext, { once: true });
-  document.addEventListener('touchstart', enableAudioContext, { once: true });
-  
-  return () => {
-    document.removeEventListener('click', enableAudioContext);
-    document.removeEventListener('touchstart', enableAudioContext);
-  };
-}, []);
+    const enableAudioContext = async () => {
+      console.log('👆 Primera interacción detectada - habilitando audio');
+      try {
+        const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAAABAABABkAAgAAACAJAAEAAABkYXRhBAAAAAEA');
+        silentAudio.volume = 0.01;
+        await silentAudio.play();
+        console.log('🔓 Sistema de audio desbloqueado');
+      } catch (e) {
+        console.log('⚠️ No se pudo desbloquear audio:', e);
+      }
+      
+      document.removeEventListener('click', enableAudioContext);
+      document.removeEventListener('touchstart', enableAudioContext);
+    };
+    
+    document.addEventListener('click', enableAudioContext, { once: true });
+    document.addEventListener('touchstart', enableAudioContext, { once: true });
+    
+    return () => {
+      document.removeEventListener('click', enableAudioContext);
+      document.removeEventListener('touchstart', enableAudioContext);
+    };
+  }, []);
 
-// 🔥 CLEANUP MEJORADO
+  // 🔥 CLEANUP MEJORADO
   React.useEffect(() => {
     return () => {
-      stopIncomingCallSound(); // 🔥 AGREGAR ESTA LÍNEA
+      stopIncomingCallSound();
       if (callPollingInterval) {
         clearInterval(callPollingInterval);
       }
@@ -709,7 +697,6 @@ React.useEffect(() => {
       }
     };
   }, []);
-  
 
   return (
     <ProtectedPage requiredConditions={{
@@ -743,9 +730,9 @@ React.useEffect(() => {
 
               <button
                 className="w-full bg-[#ffe4f1] hover:bg-[#ffd1e8] text-[#4b2e35] px-8 py-4 rounded-full text-lg font-semibold shadow-md transition-all duration-200 transform hover:scale-105"
-                onClick={setShowBuyMinutes}
+                onClick={() => setShowBuyMinutes(true)}
               >
-                Comprar Minutos
+                Comprar Monedas
               </button>
 
               {/* Consejo del día */}
@@ -918,6 +905,7 @@ React.useEffect(() => {
             animation: fadeIn 0.3s ease-out forwards;
           }
         `}</style>
+
         {/* 🔥 MODAL DE CONFIRMACIÓN */}
         {showConfirmModal && confirmAction && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -937,44 +925,35 @@ React.useEffect(() => {
             </div>
           </div>
         )}
+
+        {/* 🔄 CAMBIO: Reemplazar StripeBuyMinutes con UnifiedPaymentModal */}
+        {showBuyMinutes && (
+          <UnifiedPaymentModal onClose={cerrarModalCompraMinutos} />
+        )}
+
+        {/* 🔥 OVERLAY PARA LLAMADAS SALIENTES */}
+        <CallingSystem
+          isVisible={isCallActive}
+          callerName={currentCall?.name || currentCall?.alias}
+          callerAvatar={currentCall?.avatar}
+          onCancel={cancelarLlamada}
+          callStatus={currentCall?.status || 'initiating'}
+        />
+
+        {/* 🔥 OVERLAY PARA LLAMADAS ENTRANTES */}
+        <IncomingCallOverlay
+          isVisible={isReceivingCall}
+          callData={incomingCall}
+          onAnswer={() => responderLlamada('accept')}
+          onDecline={() => responderLlamada('reject')}
+        />
+
+        <MinutesBalanceWidget
+          onBuyClick={abrirModalCompraMinutos}
+          showFullStats={true}
+          showHistory={true}
+        />
       </div>
-      {showBuyMinutes && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
-          <div className="bg-[#1a1c20] rounded-xl p-1  w-[80vw] shadow-xl border border-[#ff007a]/40 relative">
-            <StripeBuyMinutes onClose={cerrarModalCompraMinutos} />
-            <button 
-              onClick={cerrarModalCompraMinutos}
-              className="absolute top-2 right-2 text-white hover:text-[#ff007a]"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
-
-      {/* 🔥 OVERLAY PARA LLAMADAS SALIENTES */}
-      <CallingSystem
-        isVisible={isCallActive}
-        callerName={currentCall?.name || currentCall?.alias}
-        callerAvatar={currentCall?.avatar}
-        onCancel={cancelarLlamada}
-        callStatus={currentCall?.status || 'initiating'}
-      />
-
-      {/* 🔥 OVERLAY PARA LLAMADAS ENTRANTES */}
-      <IncomingCallOverlay
-        isVisible={isReceivingCall}
-        callData={incomingCall}
-        onAnswer={() => responderLlamada('accept')}
-        onDecline={() => responderLlamada('reject')}
-      />
-      <MinutesBalanceWidget
-        onBuyClick={abrirModalCompraMinutos}
-        showFullStats={true}
-        showHistory={true}
-      />
-
     </ProtectedPage>
   );
 }

@@ -10,13 +10,85 @@
   "ayuda": "Ayuda",
   "comenzar": "Comenzar a chatear",
   "subtitulo": "Video chat con personas aleatorias en línea al instante",
+  "activa": "Activa",
+  "inactiva": "Inactiva",
+  "chatear": "Chatear",
+  "videollamada": "Videollamada",
+  "welcomeMessage": "¡Hola! {{name}} ¿Listo para tu próxima conexión?",
+  "instructionText": "Da click en el botón de abajo para comenzar una videollamada aleatoria con una chica en línea, o llama directamente a alguna de las chicas disponibles.",
+  "startVideoCall": "Iniciar Videollamada",
+  "buyMinutes": "Comprar Minutos",
+  "tipOfTheDay": "💡 Consejo del día:",
+  "tipMessage": "Sé auténtico. Las mejores conexiones nacen de una sonrisa genuina.",
+  "activeGirls": "Chicas Activas",
+  "loadingGirls": "Cargando chicas...",
+  "noActiveGirls": "No hay chicas activas",
+  "girlsWillAppear": "Las chicas disponibles aparecerán aquí cuando estén en línea",
+  "online": "En línea",
+  "callInProgress": "Llamada en curso",
+  "callThisGirl": "Llamar a esta chica",
+  "messageThisGirl": "Mensaje a esta chica",
+  "yourHistory": "Tu Historial",
+  "notAvailable": "No disponible",
+  "youBlockedUser": "Has bloqueado a {{name}}. Debes desbloquearla para poder llamarla.",
+  "userBlockedYou": "{{name}} te ha bloqueado. No puedes realizar llamadas a esta chica.",
+  "callError": "Error de llamada",
+  "callFailed": "No se pudo completar la llamada",
+  "understood": "Entendido",
+  "callEnded": "Llamada finalizada",
+  "sentMessage": "Te envió un mensaje",
+  "addedToFavorites": "Agregada a favoritos",
+  "searchUsers": "Buscar usuarios",
+  "viewStories": "Ver historias",
+  "buyCoins": "Comprar monedas",
+  "coinPackages": "Paquetes de monedas",
+  "videoMinutes10": "≈ 10 minutos de videochat",
+  "videoMinutes30": "≈ 30 minutos + 50 bonus",
+  "videoMinutes80": "≈ 80 minutos + 200 bonus",
+  "popular": "Popular",
+  "securePayment": "Pago seguro • Ofertas limitadas",
+  "yourFavorites": "Tus Favoritos",
+  "favorite": "favorito",
+  "favoritesClient": "favoritas",
+  "blockedGirls": "Chicas Bloqueadas",
+  "update": "Actualizar",
+  "noFavoritesYet": "No tienes favoritas aún",
+  "favoritesWillAppear": "Cuando agregues chicas como favoritas, aparecerán aquí",
+  "searchGirls": "Buscar chicas",
+  "justNow": "Hace un momento",
+  "minutesAgo": "Hace {{minutes}}min",
+  "hoursAgo": "Hace {{hours}}h",
+  "daysAgo": "Hace {{days}}d",
+  "offline": "Desconectado",
+  "unknown": "Desconocido",
+  "block": "Bloquear",
+  "removeFromFavorites": "Eliminar de favoritas",
+  "call": "Llamar",
+  "loadingFavorites": "Cargando favoritas...",
+  "errorLoadingFavorites": "Error cargando favoritas",
+  "retry": "Reintentar",
+  "blockedGirl": "chica bloqueado",
+  "blockedMens": "chicos bloqueados",
+  "blockGirl": "Bloquear Chica",
+  "blockingGirl": "Bloqueando...",
+  "unblockGirl": "Desbloquear chica",
+  "unblocking": "Desbloqueando...",
+  "loadingBlockedUsers": "Cargando chicos bloqueados...",
+  "noBlockedUsers": "No has bloqueado a ningún chica",
+  "blockedUsersWillAppear": "Los chicos que bloquees desde el chat aparecerán aquí",
+  "blocked": "Bloqueado",
+  "blockReason": "Motivo del bloqueo:",
+  "blockedMinutesAgo": "Bloqueado hace {{minutes}}min",
+  "blockedHoursAgo": "Bloqueado hace {{hours}}h",
+  "blockedDaysAgo": "Bloqueado hace {{days}}d",
+  "blockedOn": "Bloqueado {{date}}",
+  "blockTip": "Los chicos bloqueados no pueden enviarte mensajes ni llamarte. Puedes desbloquearlos cuando quieras.",
+  "cancel": "Cancelar",
   "genero": {
     "femenino": "Femenino",
     "masculino": "Masculino"
   },
   "chicasRelevantes": "¡Chicas Relevantes!",
-  "activa": "🟢 Activa",
-  "inactiva": "⚫ Inactiva",
   "frasePrincipal": "¡Habla con extraños!",
   "login": {
     "titulo": "¡Bienvenida de nuevo!",
@@ -37,19 +109,33 @@
     "msg_recuperacion_enviada": "Se ha enviado un correo con instrucciones.",
     "error_recuperacion_invalido": "Correo inválido o no registrado.",
     "error_generico": "Ocurrió un error al intentar enviar el correo.",
-    "error_credenciales": "Correo o contraseña incorrectos."
+    "error_credenciales": "Correo o contraseña incorrectos.",
+      "google_button": "Iniciar sesión con Google"
   },
   "register": {
     "title": "¡Crea tu cuenta!",
     "subtitle": "Regístrate para empezar a conectar",
     "emailPlaceholder": "Correo electrónico",
-    "passwordPlaceholder": "Contraseña",
+    "passwordPlaceholder": "Contraseña (mínimo 6 caracteres)",
     "errorFields": "Por favor completa todos los campos.",
     "errorGeneric": "Ocurrió un error. Inténtalo nuevamente.",
     "loading": "Registrando...",
     "button": "Registrarse",
     "haveAccount": "¿Ya tienes cuenta?",
-    "loginLink": "Inicia sesión"
+    "loginLink": "Inicia sesión",
+    "errors": {
+      "emailRequired": "El correo electrónico es obligatorio",
+      "emailInvalid": "Por favor ingresa un correo válido",
+      "emailExists": "Ya existe una cuenta con este correo electrónico",
+      "passwordRequired": "La contraseña es obligatoria",
+      "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+      "passwordConfirm": "Las contraseñas no coinciden",
+      "tooManyAttempts": "Demasiados intentos. Intenta nuevamente en unos minutos",
+      "generic": "Ocurrió un error inesperado. Inténtalo nuevamente"
+    },
+    "hints": {
+      "passwordLength": "{{current}}/{{required}} caracteres"
+    }
   },
   "verification": {
     "title": "Verificación de correo",
@@ -102,8 +188,10 @@
       "online": "Online",
       "offline": "Desconectado"
     },
-    "status.home": {
-      "online": "En línea"
+    "status": {
+      "home": {
+        "online": "En línea"
+      }
     },
     "history": {
       "today": "Hoy",
@@ -111,6 +199,26 @@
       "callEnded": "Llamada finalizada",
       "messageSent": "Mensaje enviado",
       "addedToFavorites": "Te agregó a favoritos"
+    },
+    "restrictions": {
+      "pendingApproval": "Historia Pendiente de Aprobación",
+      "activeStory": "Historia Activa - En Espera",
+      "waitTime": "Espera {{hours}}h {{minutes}}m",
+      "activeRestriction": "Restricción Activa",
+      "timeRemaining": "Tiempo restante: {{hours}}h {{minutes}}m",
+      "pendingApprovalDesc": "Historia pendiente de aprobación",
+      "professionalTip": "Consejo Profesional",
+      "professionalTipText": "Mantén tu perfil actualizado y responde rápidamente a los mensajes para aumentar tus oportunidades."
+    },
+    "errors": {
+      "notAvailable": "No disponible",
+      "userBlocked": "Has bloqueado a {{name}}. Debes desbloquearlo para poder llamarle.",
+      "blockedByUser": "{{name}} te ha bloqueado. No puedes realizar llamadas a este usuario.",
+      "understood": "Entendido",
+      "callRejected": "La llamada fue rechazada",
+      "callExpired": "La llamada expiró sin respuesta",
+      "timeoutExpired": "Tiempo de espera agotado",
+      "callError": "Error al iniciar llamada"
     }
   },
   "interfazMensajes": {
@@ -126,19 +234,106 @@
   },
   "favorites": {
     "title": "Tus Favoritos",
+    "count": "favorito",
+    "countPlural": "favoritos",
+    "loading": "Cargando favoritos...",
+    "updating": "Actualizando...",
+    "refresh": "Actualizar",
+    "noFavorites": "No tienes favoritos aún",
+    "noFavoritesDesc": "Cuando agregues usuarios como favoritos, aparecerán aquí",
+    "searchUsers": "Buscar usuarios",
+    "errorLoading": "Error cargando favoritos",
+    "retry": "Reintentar",
+    "noSession": "No hay sesión activa",
     "status": {
       "online": "En línea",
-      "offline": "Desconectado"
+      "recentlyOnline": "Hace un momento",
+      "minutesAgo": "Hace {{minutes}}min",
+      "hoursAgo": "Hace {{hours}}h",
+      "daysAgo": "Hace {{days}}d",
+      "offline": "Desconectado",
+      "unknown": "Desconocido"
     },
-    "block": "Bloquear",
-    "remove": "Eliminar de favoritos",
-    "blockedUser": "Usuario {{name}} bloqueado.",
-    "chat": "Chatear",
-    "call": "Llamar",
-    "description": {
-      "niceConnection": "Nos llevamos genial ✨",
-      "interestingChat": "Charla interesante",
-      "veryFunny": "Muy divertida"
+    "actions": {
+      "chat": "Chatear",
+      "call": "Llamar",
+      "videoCall": "Videollamada",
+      "block": "Bloquear",
+      "removeFromFavorites": "Eliminar de favoritos",
+      "unblock": "Desbloquear chico",
+      "cancel": "Cancelar"
+    },
+    "dates": {
+      "addedAgo": "Agregado hace {{time}}",
+      "addedDays": "{{days}} día",
+      "addedDaysPlural": "{{days}} días",
+      "addedWeeks": "{{weeks}} semana",
+      "addedWeeksPlural": "{{weeks}} semanas",
+      "addedOn": "Agregado {{date}}"
+    },
+    "blocking": {
+      "title": "Bloquear Usuario",
+      "confirmTitle": "Bloquear Chico",
+      "confirmMessage": "¿Estás seguro que quieres bloquear a este chico?",
+      "selectReason": "Selecciona el motivo:",
+      "consequences": "Al bloquear este chico:",
+      "consequencesList": {
+        "noMessages": "No podrá enviarte mensajes",
+        "noCalls": "No podrá realizarte llamadas",
+        "removedFromFavorites": "Será removido de tus favoritos",
+        "noOnlineStatus": "No verá cuando estés en línea"
+      },
+      "reasons": {
+        "inappropriate": "Comportamiento inapropiado",
+        "offensive": "Contenido ofensivo",
+        "spam": "Spam o acoso",
+        "requests": "Solicitudes inapropiadas",
+        "terms": "Violación de términos",
+        "other": "Otro motivo"
+      },
+      "blocking": "Bloqueando...",
+      "blockUser": "Bloquear Chico",
+      "success": "Chico bloqueado y removido de favoritos",
+      "blocked": "Bloqueado",
+      "blockedReason": "Motivo del bloqueo:",
+      "blockedAgo": "Bloqueado hace {{time}}",
+      "unblocking": "Desbloqueando..."
+    },
+    "blockedUsers": {
+      "title": "Chicos Bloqueados",
+      "count": "chico bloqueado",
+      "countPlural": "chicos bloqueados",
+      "loading": "Cargando chicos bloqueados...",
+      "noBlocked": "No has bloqueado a ningún chico",
+      "noBlockedDesc": "Los chicos que bloquees desde el chat aparecerán aquí",
+      "unblockSuccess": "Chico desbloqueado",
+      "tip": "Los chicos bloqueados no pueden enviarte mensajes ni llamarte. Puedes desbloquearlos cuando quieras."
+    },
+    "calls": {
+      "initiating": "Iniciando llamada...",
+      "calling": "Llamando...",
+      "rejected": "La llamada fue rechazada",
+      "expired": "La llamada expiró sin respuesta",
+      "error": "Error en llamada",
+      "connectionError": "Error de conexión",
+      "cannotCall": "No se pudo conectar para iniciar la llamada",
+      "blockedByUser": "{{name}} te ha bloqueado. No puedes realizar llamadas a este chico.",
+      "userBlocked": "Has bloqueado a {{name}}. Debes desbloquearlo para poder llamarlo.",
+      "notAvailable": "No disponible",
+      "understood": "Entendido"
+    },
+    "modals": {
+      "close": "Cerrar",
+      "confirm": "Confirmar",
+      "cancel": "Cancelar"
+    },
+    "errors": {
+      "removingFavorite": "Error eliminando favorito",
+      "blockingUser": "Error bloqueando chico",
+      "unblockingUser": "Error desbloqueando chico",
+      "startingChat": "Error de conexión",
+      "loadingOnlineUsers": "Error cargando usuarios online",
+      "loadingBlockedUsers": "Error cargando usuarios bloqueados"
     }
   },
   "settings": {
@@ -188,15 +383,7 @@
     "intercambiarCamara": "Intercambiar cámara",
     "siguiente": "Siguiente"
   },  
-  "roulette": {
-    "titulo": "✨ Lista para empezar",
-    "estado": "👩‍💻 Chica conectada",
-    "camera_label": "Cámara",
-    "mic_label": "Micrófono",
-    "start_button": "Iniciar",
-    "searching_user": "Buscando usuario...",
-    "random_user_notice": "🔗 Te conectarás con un usuario aleatorio"
-  },"roulette_cliente": {
+  "roulette_cliente": {
     "titulo": "✨ Listo para empezar",
     "estado": "👨‍💻 Chico conectado",
     "camera_label": "Cámara",
@@ -253,11 +440,266 @@
     "camera": "Cámara",
     "microphone": "Micrófono"
   },
-    "chat": {
-    "respondToClient": "Responde al chico..."
+  "chat": {
+    "title": "Chat Privado",
+    "searchPlaceholder": "Buscar conversaciones...",
+    "loading": "Cargando...",
+    "noConversations": "No hay conversaciones",
+    "selectConversation": "Selecciona una conversación",
+    "selectConversationDesc": "Elige una conversación para ver los mensajes",
+    "noMessages": "No hay mensajes aún",
+    "messagePlaceholder": "Escribe un mensaje...",
+    "send": "Enviar",
+    "videochat": "Videochat",
+    "calling": "Llamando...",
+    "blocked": "Bloqueado",
+    "online": "En línea",
+    "offline": "Desconectado",
+    "you": "Tú:",
+    "typing": "escribiendo...",
+    "lastSeen": "Visto por última vez",
+    "today": "hoy",
+    "yesterday": "ayer",
+    "menu": {
+      "translation": "Traducción",
+      "translationActive": "Activa",
+      "translationInactive": "Inactiva",
+      "addFavorite": "Agregar Favorito",
+      "removeFavorite": "Quitar Favorito",
+      "changeNickname": "Cambiar apodo",
+      "block": "Bloquear",
+      "unblock": "Desbloquear",
+      "settings": "Configuración"
+    },
+    "status": {
+      "blockedByYou": "Bloqueado por ti",
+      "blockedYou": "Te bloqueó",
+      "mutualBlock": "Bloqueo mutuo",
+      "userBlocked": "Usuario Bloqueado",
+      "userBlockedDesc": "Has bloqueado a {{name}}. No pueden enviarte mensajes ni llamarte.",
+      "unblockUser": "Desbloquear Usuario",
+      "unblocking": "Desbloqueando...",
+      "confirmUnblock": "¿Desbloquear a {{name}}?",
+      "cannotSendBlocked": "Usuario bloqueado - no puedes enviar mensajes",
+      "userBlockedYou": "Este usuario te ha bloqueado",
+      "cannotSendGiftsBlocked": "Usuario bloqueado - No puedes enviar regalos ni emojis",
+      "userBlockedYouGifts": "Este usuario te bloqueó - No puedes enviar regalos ni emojis",
+      "notAvailableBlocked": "No disponible - usuario bloqueado"
+    },
+    "gifts": {
+      "requestGift": "Pedir Regalo",
+      "sendingRequest": "Enviando solicitud...",
+      "requestSent": "Solicitud Enviada",
+      "requestSentDesc": "Tu solicitud de regalo ha sido enviada exitosamente",
+      "giftRequest": "Solicitud de Regalo",
+      "giftReceived": "¡Regalo Recibido!",
+      "giftSent": "Regalo Enviado",
+      "specialGift": "Regalo Especial",
+      "coins": "monedas",
+      "sentBy": "te envió este regalo",
+      "debugRequest": "🔍 Depurar Solicitud"
+    },
+    "nickname": {
+      "title": "Cambiar Apodo",
+      "description": "Personaliza cómo quieres ver a {{name}}",
+      "label": "Apodo personalizado",
+      "charactersCount": "{{current}}/{{max}} caracteres",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "placeholder": "Escribe un apodo..."
+    },
+    "calls": {
+      "startCall": "Iniciar videochat",
+      "inCall": "Llamada en curso",
+      "unavailable": "No disponible",
+      "callActive": "Llamada activa"
+    },
+    "notifications": {
+      "newMessage": "Mensaje nuevo de {{name}}",
+      "unreadMessages": "Tienes {{count}} mensajes nuevos de {{name}}",
+      "giftReceived": "¡Regalo Recibido!",
+      "giftSent": "Regalo Enviado",
+      "giftSentDesc": "Tu regalo ha sido enviado exitosamente"
+    },
+    "errors": {
+      "loadingConversations": "Error cargando conversaciones",
+      "loadingMessages": "Error cargando mensajes",
+      "sendingMessage": "Error enviando mensaje",
+      "sendingGift": "Error enviando regalo",
+      "savingNickname": "Error guardando apodo",
+      "addingFavorite": "Error agregando favorito",
+      "blocking": "Error bloqueando usuario",
+      "startingCall": "Error iniciando llamada",
+      "connectionError": "Error de conexión",
+      "tryAgain": "Intenta nuevamente"
+    },
+    "actions": {
+      "retry": "Reintentar",
+      "cancel": "Cancelar",
+      "confirm": "Confirmar",
+      "close": "Cerrar",
+      "back": "Volver",
+      "understood": "Entendido"
+    },
+    "time": {
+      "justNow": "Hace un momento",
+      "minutesAgo": "{{minutes}}min",
+      "hoursAgo": "{{hours}}h", 
+      "daysAgo": "{{days}}d"
+    }
+  },
+  "earnings": {
+    "title": "Sistema de Pagos",
+    "subtitle": "Ganancias y pagos semanales",
+    "loading": "Cargando...",
+    "error": "Error",
+    "retry": "Reintentar",
+    "tabs": {
+      "thisWeek": "Esta Semana",
+      "pending": "Pendientes",
+      "paid": "Pagados"
+    },
+    "balance": {
+      "general": "Saldo General",
+      "available": "Balance disponible total",
+      "weeklyBreakdown": "Desglose Esta Semana",
+      "timeEarnings": "Por Tiempo",
+      "giftEarnings": "Por Regalos",
+      "totalWeekly": "Total Semanal",
+      "chatSessions": "Sesiones de chat",
+      "giftsReceived": "Regalos recibidos",
+      "sessions": "sesiones",
+      "totalHistoric": "Total Histórico Ganado",
+      "lastEarning": "Última Ganancia",
+      "none": "Ninguna",
+      "loadingBalance": "Cargando balance..."
+    },
+    "weekly": {
+      "noEarnings": "No tienes ganancias registradas esta semana",
+      "dailyDetail": "Detalle por día",
+      "dayEarnings": "ganancia del día",
+      "valid": "Válida",
+      "tooShort": "Muy Corta",
+      "earningPercentage": "60% ganancia",
+      "page": "Página",
+      "of": "de",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "loadingEarnings": "Cargando ganancias...",
+      "errorLoadingEarnings": "Error al cargar las ganancias semanales",
+      "connectionError": "Error de conexión"
+    },
+    "pending": {
+      "title": "Total Pendiente",
+      "subtitle": "pago(s) esperando",
+      "processing": "Procesando...",
+      "loadingPending": "Cargando pagos pendientes...",
+      "errorLoadingPending": "Error al cargar pagos pendientes",
+      "allClear": "¡Todo al día!",
+      "noPendingPayments": "No tienes pagos pendientes",
+      "week": "Semana",
+      "pending": "Pendiente",
+      "sessions": "sesiones",
+      "processed": "Procesado:",
+      "daysWaiting": "día(s) esperando",
+      "inProcess": "En proceso",
+      "weeklyProcessing": "Los pagos se procesan semanalmente. Tu dinero llegará pronto."
+    },
+    "history": {
+      "title": "Total Pagado",
+      "subtitle": "pago(s) completado(s)",
+      "completed": "Completado",
+      "loadingHistory": "Cargando historial...",
+      "errorLoadingHistory": "Error al cargar historial de pagos",
+      "noHistory": "Sin historial",
+      "noPayments": "Aún no tienes pagos realizados",
+      "week": "Semana",
+      "paid": "Pagado",
+      "paidOn": "Pagado:",
+      "method": "Método:",
+      "reference": "Ref:",
+      "by": "Por:",
+      "received": "Recibido"
+    },
+    "duration": {
+      "lessThanMinute": "< 1 min",
+      "hours": "h",
+      "minutes": "m"
+    },
+    "weekdays": {
+      "monday": "lunes",
+      "tuesday": "martes",
+      "wednesday": "miércoles",
+      "thursday": "jueves",
+      "friday": "viernes",
+      "saturday": "sábado",
+      "sunday": "domingo"
+    }
+  },
+  "preCallLobby": {
+    "title": "Lista para empezar",
+    "status": "Chica conectada",
+    "devices": {
+      "camera": "Cámara",
+      "microphone": "Micrófono",
+      "defaultCamera": "Cámara {{number}}",
+      "defaultMicrophone": "Micrófono {{number}}"
+    },
+    "mirror": {
+      "label": "Modo espejo",
+      "enable": "Activar espejo",
+      "disable": "Desactivar espejo",
+      "active": "Espejo activo",
+      "description": "Ver mi imagen como en un espejo"
+    },
+    "actions": {
+      "start": "Iniciar",
+      "searching": "Buscando usuario...",
+      "preparing": "Preparando...",
+      "connecting": "Conectando..."
+    },
+    "notices": {
+      "randomUser": "Te conectarás con un usuario aleatorio",
+      "permissionsRequired": "Se requieren permisos de cámara y micrófono",
+      "checkDevices": "Verifica que tu cámara y micrófono funcionen correctamente"
+    },
+    "errors": {
+      "permissionDenied": "Necesitas permitir el acceso a cámara y micrófono para continuar.",
+      "cameraInUse": "Error: La cámara está siendo usada por otra aplicación. Por favor cierra otras aplicaciones que puedan estar usando la cámara (Zoom, Teams, etc.) y recarga la página.",
+      "deviceAccess": "No se puede acceder a la cámara. Verifica que no esté siendo usada por otra aplicación.",
+      "enumeratingDevices": "Error enumerando dispositivos",
+      "gettingStream": "Error accediendo cámara/micrófono",
+      "retryVideoOnly": "Reintentando solo con video...",
+      "videoOnlyFailed": "Error incluso con solo video"
+    },
+    "permissions": {
+      "requesting": "Solicitando permisos de media...",
+      "videoObtained": "Video stream obtenido",
+      "tryingMinimal": "Error con video, intentando configuración mínima",
+      "combiningStreams": "Streams de video y audio combinados",
+      "audioError": "Error obteniendo audio, continuando solo con video",
+      "granted": "Permisos otorgados, obteniendo dispositivos...",
+      "streamAssigned": "Stream inicial asignado al video"
+    },
+    "deviceSelection": {
+      "selectCamera": "Selecciona tu cámara",
+      "selectMicrophone": "Selecciona tu micrófono",
+      "noDevices": "No se detectaron dispositivos",
+      "testCamera": "Prueba tu cámara",
+      "testMicrophone": "Prueba tu micrófono"
+    }
+  },
+  "header": {
+    "payments_and_coins": "Pagos y monedas",
+    "home": "Inicio",
+    "videocall_chat": "Chat en videollamada",
+    "messages": "Mensajes",
+    "favorites": "Favoritos",
+    "account_menu": "Menú de cuenta",
+    "settings": "Configuración",
+    "logout": "Cerrar sesión",
+    "new_messages_count": "{{count}} mensajes nuevos",
+    "menu": "Menú",
+    "language": "Idioma"
   }
-
 }
-  
-
-  

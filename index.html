@@ -2,9 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Ligand UI</title>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script&display=swap" rel="stylesheet">
+    
+    <!-- 🔧 CONFIGURACIONES ESPECÍFICAS PARA MÓVIL -->
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- 🔧 VCONSOLE PARA DEBUG EN MÓVIL -->
+    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+    <script>
+      if (window.innerWidth < 768) {
+        var vConsole = new window.VConsole();
+      }
+    </script>
   </head>
   <body class="bg-gray-100 text-gray-900">
     <div id="root"></div>

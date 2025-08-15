@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { register } from "/src/utils/auth.js";
 import ReCAPTCHA from "react-google-recaptcha";
-import { useTranslation } from "react-i18next"; // idioma
+import { useTranslation } from "react-i18next";
+import GoogleLoginButton from '../../auth/GoogleLoginButton'; // Ajusta la ruta
 
 const RECAPTCHA_SITE_KEY = "6LfNonwrAAAAAIgJSmx1LpsprNhNct1VVWMWp2rz";
 
@@ -13,7 +14,8 @@ export default function Register({ onClose, onShowLogin }) {
   const [recaptchaToken, setCaptchaToken] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const { t } = useTranslation(); // idioma
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,12 +25,6 @@ export default function Register({ onClose, onShowLogin }) {
       setError(t("register.errorFields"));
       return;
     }
-
-    // Si activas CAPTCHA:
-    // if (!recaptchaToken) {
-    //   setError(t("register.errorCaptcha"));
-    //   return;
-    // }
 
     try {
       setLoading(true);
@@ -43,6 +39,11 @@ export default function Register({ onClose, onShowLogin }) {
     }
   };
 
+  const handleGoogleError = (errorMessage) => {
+    setError(errorMessage);
+    setGoogleLoading(false);
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 px-4"
@@ -52,7 +53,6 @@ export default function Register({ onClose, onShowLogin }) {
         className="bg-[#1a1c20] rounded-2xl p-6 sm:p-10 w-[350px] max-w-full shadow-xl relative"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Botón de cerrar */}
         <button
           className="absolute top-3 right-4 text-white text-xl hover:text-[#ff007a] transition"
           onClick={onClose}
@@ -67,6 +67,29 @@ export default function Register({ onClose, onShowLogin }) {
           {t("register.subtitle")}
         </p>
 
+        {error && (
+          <div className="text-red-500 text-sm mb-4 text-center">
+            {error}
+          </div>
+        )}
+
+        {/* Botón de Google */}
+        <div className="mb-4">
+          <GoogleLoginButton
+            loading={googleLoading}
+            onError={handleGoogleError}
+            disabled={loading}
+            text={t('register.google_button') || "Registrarse con Google"}
+          />
+        </div>
+
+        {/* Separador */}
+        <div className="flex items-center my-6">
+          <div className="flex-1 border-t border-gray-600"></div>
+          <span className="px-3 text-white/60 text-sm">o</span>
+          <div className="flex-1 border-t border-gray-600"></div>
+        </div>
+
         <form onSubmit={handleSubmit}>
           <input
             type="email"
@@ -75,6 +98,7 @@ export default function Register({ onClose, onShowLogin }) {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full p-3 mb-4 bg-[#1a1c20] border border-[#2c2e33] text-white rounded-xl placeholder-white/60"
             required
+            disabled={loading || googleLoading}
           />
 
           <input
@@ -84,25 +108,12 @@ export default function Register({ onClose, onShowLogin }) {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full p-3 mb-4 bg-[#1a1c20] border border-[#2c2e33] text-white rounded-xl placeholder-white/60"
             required
+            disabled={loading || googleLoading}
           />
-
-          {error && (
-            <div className="text-red-500 text-sm mb-4 text-center">
-              {error}
-            </div>
-          )}
-
-          {/* reCAPTCHA opcional */}
-          {/* <div className="mb-4 flex justify-center">
-            <ReCAPTCHA
-              sitekey={RECAPTCHA_SITE_KEY}
-              onChange={(token) => setCaptchaToken(token)}
-            />
-          </div> */}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || googleLoading}
             className="w-full py-3 bg-[#ff007a] text-white font-bold rounded-xl hover:bg-[#e6006e] transition disabled:opacity-50"
           >
             {loading ? t("register.loading") : t("register.button")}
@@ -114,6 +125,7 @@ export default function Register({ onClose, onShowLogin }) {
               type="button"
               className="text-[#ff007a] underline"
               onClick={() => navigate("/home?auth=login")}
+              disabled={loading || googleLoading}
             >
               {t("register.loginLink")}
             </button>

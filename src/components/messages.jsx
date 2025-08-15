@@ -106,7 +106,9 @@ const SimpleChat = ({
   onMessageReceived = null,
   onGiftReceived = null, 
   onUserLoaded = null,
-  onParticipantsUpdated = null
+  onParticipantsUpdated = null,
+  disabled = false,           // 🔥 AGREGAR ESTA LÍNEA
+  suppressMessages = false    // 🔥 AGREGAR ESTA LÍNEA
 }) => {
   const [messages, setMessages] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -218,6 +220,12 @@ const SimpleChat = ({
 
   // 🔥 FUNCIÓN SIN RATE LIMITING: fetchMessages - URL CORREGIDA
   const fetchMessages = async () => {
+
+  if (disabled || suppressMessages) {
+    console.log('🚫 [SimpleChat] Bloqueado por disabled/suppressMessages');
+    return;
+  }
+
   if (!roomName) {
     console.log('⚠️ No hay roomName para fetch');
     return;
@@ -267,7 +275,6 @@ const SimpleChat = ({
         }
 
         const data = await response.json();
-        console.log('📥 Mensajes obtenidos exitosamente:', data.messages?.length || 0);
         
         return data;
       }
@@ -279,14 +286,6 @@ const SimpleChat = ({
       console.log('📥 [SimpleChat] Todos los mensajes recibidos:', result.messages.length);
       
       result.messages.forEach((msg, index) => {
-        console.log(`📨 [SimpleChat] Mensaje ${index}:`, {
-          id: msg.id,
-          type: msg.type,
-          message: msg.message?.substring(0, 50),
-          hasExtraData: !!msg.extra_data,
-          extraDataType: typeof msg.extra_data,
-          isGiftRequest: msg.type === 'gift_request'
-        });
         
         // 🔥 SI ES GIFT_REQUEST, MOSTRAR DATOS COMPLETOS
         if (msg.type === 'gift_request') {

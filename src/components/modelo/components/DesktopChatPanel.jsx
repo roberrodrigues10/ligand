@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo,useState } from 'react';
 import { Star, UserX, Gift, Send, Smile, Shield, Crown, MessageCircle } from 'lucide-react';
 import { GiftMessageComponent } from '../../GiftSystem/GiftMessageComponent';
 
@@ -20,6 +20,149 @@ const DesktopChatPanel = ({
   userData,
   t
 }) => {
+
+const uniqueMessages = useMemo(() => {
+  if (!messages || !Array.isArray(messages)) return [];
+  
+  console.log('🔄 [DESKTOP] Procesando mensajes:', messages.length);
+  
+  // 🔥 DEDUPLICACIÓN AGRESIVA POR MÚLTIPLES CRITERIOS
+  const messageMap = new Map();
+  const textTimestampMap = new Map(); // Para detectar duplicados por contenido + tiempo
+  
+  messages.forEach((msg, index) => {
+    if (!msg || !msg.id) {
+      console.warn(`⚠️ [DESKTOP] Mensaje sin ID en índice ${index}:`, msg);
+      return;
+    }
+    
+    // 🔥 CRITERIO 1: ID único
+    if (messageMap.has(msg.id)) {
+      console.log(`🚫 [DESKTOP] Duplicado por ID: ${msg.id}`);
+      return;
+    }
+    
+    // 🔥 CRITERIO 2: Mismo texto + timestamp similar (±5 segundos)
+    const messageText = msg.text || msg.message || '';
+    const messageTime = msg.timestamp || msg.created_at || 0;
+    
+    const textKey = `${messageText}_${Math.floor(messageTime / 5000)}`; // Ventana de 5 segundos
+    
+    if (textTimestampMap.has(textKey)) {
+      console.log(`🚫 [DESKTOP] Duplicado por texto+tiempo: "${messageText.substring(0, 20)}..."`);
+      return;
+    }
+    
+    // 🔥 CRITERIO 3: Regalos duplicados (mismo tipo + precio + tiempo)
+    if (msg.type && msg.type.includes('gift')) {
+      const giftData = msg.gift_data || msg.extra_data || {};
+      const giftName = typeof giftData === 'object' ? giftData.gift_name : '';
+      const giftPrice = typeof giftData === 'object' ? giftData.gift_price : '';
+      
+      const giftKey = `${msg.type}_${giftName}_${giftPrice}_${Math.floor(messageTime / 10000)}`;
+      
+      if (textTimestampMap.has(giftKey)) {
+        console.log(`🚫 [DESKTOP] Regalo duplicado: ${giftName}`);
+        return;
+      }
+      
+      textTimestampMap.set(giftKey, true);
+    } else {
+      textTimestampMap.set(textKey, true);
+    }
+    
+    // ✅ Mensaje único, agregarlo
+    messageMap.set(msg.id, msg);
+  });
+  
+  const result = Array.from(messageMap.values());
+  
+  console.log(`✅ [DESKTOP] Deduplicación completada:`, {
+    originales: messages.length,
+    unicos: result.length,
+    eliminados: messages.length - result.length
+  });
+  
+  return result;
+}, [messages]);
+
+// 🔥 AGREGAR LOGGING MEJORADO PARA DETECTAR DUPLICADOS
+useEffect(() => {
+  if (messages.length > 0) {
+    console.log('🔍 [DESKTOP] Análisis de mensajes:', {
+      total: messages.length,
+      ultimoId: messages[0]?.id,
+      ultimoTexto: messages[0]?.text?.substring(0, 30),
+      ultimoTimestamp: messages[0]?.timestamp,
+      tipos: messages.map(m => m.type).join(', ')
+    });
+    
+    // 🔥 DETECTAR DUPLICADOS EN TIEMPO REAL
+    const duplicateIds = [];
+    const seenIds = new Set();
+    
+    messages.forEach(msg => {
+      if (seenIds.has(msg.id)) {
+        duplicateIds.push(msg.id);
+      } else {
+        seenIds.add(msg.id);
+      }
+    });
+    
+    if (duplicateIds.length > 0) {
+      console.error('🚨 [DESKTOP] DUPLICADOS DETECTADOS:', duplicateIds);
+    }
+  }
+}, [messages]);
+
+// 🔥 FUNCIÓN PARA FORZAR LIMPIEZA DE DUPLICADOS
+const forceClearDuplicates = useCallback(() => {
+  console.log('🧹 [DESKTOP] Forzando limpieza de duplicados...');
+  
+  // Trigger re-render forzado
+  const cleanMessages = uniqueMessages.filter((msg, index, arr) => 
+    arr.findIndex(m => m.id === msg.id) === index
+  );
+  
+  console.log(`🧹 [DESKTOP] Limpieza forzada: ${messages.length} → ${cleanMessages.length}`);
+}, [uniqueMessages, messages.length]);
+
+// 🔥 RENDERIZADO CON VERIFICACIÓN ADICIONAL
+{uniqueMessages.slice().reverse().map((msg, index) => {
+  // 🔥 LOG PARA CADA MENSAJE RENDERIZADO
+  console.log(`🖼️ [DESKTOP] Renderizando mensaje ${index}:`, {
+    id: msg.id,
+    type: msg.type,
+    texto: msg.text?.substring(0, 20),
+    timestamp: msg.timestamp
+  });
+  
+  return (
+    <div key={`${msg.id}_${index}`} className="space-y-3">
+      {/* Tu contenido de mensaje existente */}
+    </div>
+  );
+})}
+
+// 🔥 BOTÓN DE DEBUG (agregar temporalmente)
+{process.env.NODE_ENV === 'development' && (
+  <div className="fixed bottom-4 right-4 z-50">
+    <button
+      onClick={forceClearDuplicates}
+      className="bg-red-500 text-white px-3 py-1 rounded text-xs"
+    >
+      Debug: Limpiar Duplicados
+    </button>
+    <div className="text-xs text-white bg-black/50 p-1 rounded mt-1">
+      Msgs: {messages.length} → {uniqueMessages.length}
+    </div>
+  </div>
+)}
+// AGREGAR useEffect PARA FORZAR UPDATE INMEDIATO
+useEffect(() => {
+  console.log('🔄 [DESKTOP] Mensajes cambiaron, forzando render');
+}, [messages]);
+console.log('🖥️ [DESKTOP] Mensajes únicos:', uniqueMessages.length, 'de', messages?.length || 0);
 
   // Ref para el contenedor de mensajes
   const messagesEndRef = useRef(null);
@@ -116,26 +259,114 @@ const DesktopChatPanel = ({
     }
   }, [playGiftReceivedSound]);
 
-  // Auto-scroll al final cuando hay nuevos mensajes
-  const scrollToBottom = () => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+// 🔥 AGREGAR ESTAS VARIABLES AL INICIO DEL COMPONENTE
+const [isUserScrolling, setIsUserScrolling] = useState(false);
+const previousMessageCountRef = useRef(0);
+const scrollTimeoutRef = useRef(null);
+
+// 🔥 FUNCIÓN DE SCROLL MÁS FUERTE
+const scrollToBottom = useCallback(() => {
+  if (messagesContainerRef.current) {
+    const container = messagesContainerRef.current;
+    container.scrollTop = container.scrollHeight;
+    console.log('🚀 SCROLL FORZADO:', container.scrollHeight);
+  }
+}, []);
+
+// 🔥 REEMPLAZAR TODOS LOS useEffect DE SCROLL CON ESTOS:
+
+// 1. DETECTAR SCROLL MANUAL (MÁS SENSIBLE)
+useEffect(() => {
+  const container = messagesContainerRef.current;
+  if (!container) return;
+
+  const handleScroll = () => {
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
+    
+    if (!isNearBottom) {
+      setIsUserScrolling(true);
+      console.log('👆 Usuario scrolling manual');
+      
+      // Resetear después de 3 segundos
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsUserScrolling(false);
+        console.log('⏰ Timeout - permitir auto-scroll');
+      }, 3000);
+    } else {
+      setIsUserScrolling(false);
     }
   };
 
-  // Efecto para hacer scroll automático cuando cambian los mensajes
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  container.addEventListener('scroll', handleScroll);
+  return () => {
+    container.removeEventListener('scroll', handleScroll);
+    clearTimeout(scrollTimeoutRef.current);
+  };
+}, []);
 
-  // También scroll cuando se envía un mensaje
-  useEffect(() => {
-    if (mensaje === '') {
-      // Mensaje acabado de enviar, hacer scroll
-      setTimeout(scrollToBottom, 100);
+// 2. AUTO-SCROLL AGRESIVO PARA MENSAJES NUEVOS
+useEffect(() => {
+  const currentCount = uniqueMessages.length;
+  const hasNewMessages = currentCount > previousMessageCountRef.current;
+  
+  console.log('📊 Check scroll:', {
+    currentCount,
+    previous: previousMessageCountRef.current,
+    hasNewMessages,
+    isUserScrolling
+  });
+  
+  if (hasNewMessages) {
+    if (!isUserScrolling) {
+      console.log('✅ AUTO-SCROLL FORZADO - mensaje nuevo');
+      // TRIPLE SCROLL PARA ASEGURAR
+      setTimeout(scrollToBottom, 50);
+      setTimeout(scrollToBottom, 150);
+      setTimeout(scrollToBottom, 300);
+    } else {
+      console.log('🚫 Usuario scrolling - no auto-scroll');
     }
-  }, [mensaje]);
+  }
+  
+  previousMessageCountRef.current = currentCount;
+}, [uniqueMessages.length, isUserScrolling, scrollToBottom]);
 
+// 3. SCROLL INICIAL MÁS FUERTE
+useEffect(() => {
+  if (uniqueMessages.length > 0) {
+    console.log('🔄 SCROLL INICIAL');
+    // MÚLTIPLES INTENTOS PARA ASEGURAR
+    setTimeout(scrollToBottom, 100);
+    setTimeout(scrollToBottom, 300);
+    setTimeout(scrollToBottom, 500);
+  }
+}, [uniqueMessages.length > 0, scrollToBottom]);
+
+// 4. SCROLL DESPUÉS DE ENVIAR (MÁS AGRESIVO)
+useEffect(() => {
+  if (mensaje === '') {
+    console.log('📤 MENSAJE ENVIADO - SCROLL FORZADO');
+    setIsUserScrolling(false); // Resetear inmediatamente
+    
+    // SCROLL MÚLTIPLE AGRESIVO
+    scrollToBottom();
+    setTimeout(scrollToBottom, 50);
+    setTimeout(scrollToBottom, 100);
+    setTimeout(scrollToBottom, 200);
+    setTimeout(scrollToBottom, 400);
+  }
+}, [mensaje, scrollToBottom]);
+
+// 5. SCROLL FORZADO CADA VEZ QUE CAMBIAN LOS MENSAJES (BACKUP)
+useEffect(() => {
+  if (!isUserScrolling && uniqueMessages.length > 0) {
+    setTimeout(scrollToBottom, 100);
+  }
+}, [uniqueMessages, isUserScrolling, scrollToBottom]);
+
+  
   // 🎁 DETECTAR REGALOS RECIBIDOS EN MENSAJES NUEVOS
   const previousMessagesRef = useRef([]);
   
@@ -351,8 +582,8 @@ const DesktopChatPanel = ({
             </div>
           ) : (
             <>
-              {messages.filter(msg => msg.id > 2).reverse().map((msg, index) => (
-                <div key={msg.id} className="space-y-3">
+        {uniqueMessages.slice().reverse().map((msg, index) => (
+          <div key={msg.id} className="space-y-3">
                   {/* 🎁 RENDERIZAR MENSAJES DE REGALO SEGÚN TU CÓDIGO */}
                   {(msg.type === 'gift_request' || msg.type === 'gift_sent' || msg.type === 'gift_received' || msg.type === 'gift') && (
                     <div className="relative">
@@ -365,16 +596,25 @@ const DesktopChatPanel = ({
                       )}
 
                       {msg.type === 'gift_request' && (() => {
-                        const giftData = msg.gift_data || msg.extra_data || {};
+                      const giftData = msg.gift_data || msg.extra_data || msg.extraData || {};
                         let finalGiftData = giftData;
                         
                         if (typeof msg.extra_data === 'string') {
-                          try {
-                            finalGiftData = JSON.parse(msg.extra_data);
-                          } catch (e) {
-                            finalGiftData = giftData;
-                          }
+                      try {
+                        giftData = JSON.parse(msg.extra_data);
+                      } catch (e) {
+                        giftData = giftData || {};
                         }
+                      }
+
+                      // Si extraData (camelCase) es string, parsearlo también
+                      if (typeof msg.extraData === 'string') {
+                        try {
+                          giftData = JSON.parse(msg.extraData);
+                        } catch (e) {
+                          giftData = giftData || {};
+                        }
+                      }
                         
                         // Construir URL de imagen
                         let imageUrl = null;
@@ -450,7 +690,7 @@ const DesktopChatPanel = ({
 
                       {msg.type === 'gift_received' && (() => {
                         
-                        const receivedGiftData = msg.gift_data || msg.extra_data || {};
+                        const receivedGiftData = msg.gift_data || msg.extra_data || msg.extraData || {};
                         let finalReceivedGiftData = receivedGiftData;
                         
                         if (typeof msg.extra_data === 'string') {
@@ -536,8 +776,9 @@ const DesktopChatPanel = ({
                   
                   {/* 🔥 MENSAJES NORMALES REDISEÑADOS */}
                   {!['gift_request', 'gift_sent', 'gift_received', 'gift'].includes(msg.type) && (
-                    <div className={`flex ${msg.type === 'local' ? 'justify-end' : 'justify-start'} group`}>
-                      {msg.type === 'local' ? (
+                    <div className={`flex ${msg.isLocal ? 'justify-end' : 'justify-start'} group`}>
+                      {msg.isLocal ? (
+                        // 🔥 MENSAJE TUYO (LOCAL) - LADO DERECHO
                         <div className="w-full space-y-2">
                           <div className="text-right">
                             <span className="text-xs text-gray-400 font-medium">Tú</span>
@@ -563,6 +804,7 @@ const DesktopChatPanel = ({
                           </div>
                         </div>
                       ) : msg.type === 'system' ? (
+                        // 🔥 MENSAJE DEL SISTEMA - CENTRO
                         <div className="w-full flex justify-center">
                           <div className="bg-gradient-to-r from-[#00ff66]/10 to-[#00ff66]/5 border border-[#00ff66]/30 px-4 py-3 rounded-2xl max-w-[90%] backdrop-blur-sm">
                             <div className="flex items-center gap-2 mb-1">
@@ -577,6 +819,7 @@ const DesktopChatPanel = ({
                           </div>
                         </div>
                       ) : (
+                        // 🔥 MENSAJE DEL OTRO USUARIO - LADO IZQUIERDO
                         <div className="max-w-[70%] space-y-2">
                           <div className="text-left">
                             <div className="flex items-center gap-2">
@@ -586,7 +829,7 @@ const DesktopChatPanel = ({
                                 </span>
                               </div>
                               <span className="text-xs text-[#ff007a] font-medium">
-                                {msg.senderRole === 'chico' ? otherUser?.name || 'Chico' : 'Usuario'}
+                                {msg.sender || otherUser?.name || 'Usuario'}
                               </span>
                             </div>
                           </div>

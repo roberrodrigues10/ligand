@@ -521,6 +521,9 @@ const UserSearch = () => {
       // 🔥 CORREGIDO: chico/chica en lugar de cliente/modelo
       const targetRoute = role === 'modelo' ? '/videochat' : '/videochatclient';
       
+      // 🔥 ASEGURAR CÁMARA PRINCIPAL PARA MODELO (MOVIDO AQUÍ)
+      const camaraPrincipal = role === 'modelo' ? 'local' : 'remote';
+      
       console.log(`🧭 [REDIRECT] Navegando a: ${targetRoute}`);
 
       // 🔥 REDIRECCIÓN MÚLTIPLE PARA ASEGURAR
@@ -533,6 +536,7 @@ const UserSearch = () => {
           ruletaData,
           fromMatch,
           from: 'usersearch',
+          camaraPrincipal, // 🔥 NUEVO: Asegurar cámara principal
           chica: ruletaData?.chica || null, // 🔥 CAMBIADO: chica en lugar de modelo
           chico: ruletaData?.chico || null   // 🔥 AGREGADO: chico
         },
@@ -752,7 +756,6 @@ const UserSearch = () => {
     }
     return t("usersearch.iniciando_llamada", "Iniciando llamada...");
   };
-
   // 🚨 RENDER MEJORADO
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex items-center justify-center p-4">

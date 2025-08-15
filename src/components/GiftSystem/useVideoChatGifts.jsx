@@ -33,7 +33,6 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
     
     try {
       loadingGiftsRef.current = true;
-      console.log('🎁 [VIDEOCHAT] Cargando regalos disponibles...');
       
       const response = await fetch(`${API_BASE_URL}/api/videochat/gifts/available`, {
         method: 'GET',
@@ -44,7 +43,6 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
         const data = await response.json();
         if (data.success) {
           setGifts(data.gifts || []);
-          console.log('✅ [VIDEOCHAT] Regalos cargados:', data.gifts?.length);
           return { success: true, gifts: data.gifts };
         } else {
           console.error('❌ [VIDEOCHAT] Error en respuesta:', data.error);
@@ -331,31 +329,6 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
     }
   }, [currentUser, getAuthHeaders]);
 
-  // 💰 Cargar balance del usuario
-  const loadUserBalance = useCallback(async () => {
-    try {
-      console.log('💰 [VIDEOCHAT] Cargando balance...');
-      
-      const response = await fetch(`${API_BASE_URL}/api/videochat/gifts/balance`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setUserBalance(data.balance);
-          console.log('✅ [VIDEOCHAT] Balance cargado:', data.balance);
-          return { success: true, balance: data.balance };
-        }
-      }
-      
-      return { success: false, error: 'Error cargando balance' };
-    } catch (error) {
-      console.error('❌ [VIDEOCHAT] Error cargando balance:', error);
-      return { success: false, error: 'Error de conexión' };
-    }
-  }, [getAuthHeaders]);
 
   // 📊 Obtener historial de regalos
   const loadGiftHistory = useCallback(async (limit = 20) => {
@@ -372,7 +345,6 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          console.log('📊 [VIDEOCHAT] Historial cargado:', data.history?.length);
           return { 
             success: true, 
             history: data.history,
@@ -392,20 +364,13 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
   // 🚀 Inicializar al montar
   useEffect(() => {
     if (roomName && currentUser) {
-      console.log('🎁 [VIDEOCHAT] Inicializando sistema de regalos...', {
-        roomName,
-        userRole: currentUser.role,
-        hasOtherUser: !!otherUser
-      });
-      
       loadGifts();
-      loadUserBalance();
       
       if (currentUser.role === 'cliente') {
         loadPendingRequests();
       }
     }
-  }, [roomName, currentUser, loadGifts, loadUserBalance, loadPendingRequests]);
+  }, [roomName, currentUser, loadGifts, loadPendingRequests]);
 
   // 🔄 Polling para solicitudes pendientes (solo clientes)
   useEffect(() => {
@@ -455,7 +420,6 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
     // Loaders
     loadGifts,
     loadPendingRequests,
-    loadUserBalance,
     loadGiftHistory,
     
     // Utilidades

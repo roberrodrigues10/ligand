@@ -10,9 +10,7 @@ const FloatingMessagesImproved = ({ messages = [], t }) => {
 
   // Debug: mostrar mensajes en consola
   useEffect(() => {
-    console.log('📨 Mensajes recibidos:', messages);
-    console.log('📊 Total mensajes:', messages?.length || 0);
-    
+
     // Mostrar estadísticas de tipos de mensaje
     if (Array.isArray(messages)) {
       const stats = messages.reduce((acc, msg) => {
@@ -20,10 +18,7 @@ const FloatingMessagesImproved = ({ messages = [], t }) => {
         acc[key] = (acc[key] || 0) + 1;
         return acc;
       }, {});
-      console.log('📈 Tipos de mensaje:', stats);
       
-      // Mostrar IDs para debuggear el filtro
-      console.log('🔢 IDs de mensajes:', messages.map(m => ({ id: m.id, text: m.text?.substring(0, 20) })));
     }
   }, [messages]);
 
@@ -395,18 +390,6 @@ const FloatingMessagesImproved = ({ messages = [], t }) => {
                       console.log('🚫 Filtrando mensaje duplicado:', message.text || message.message);
                       return null;
                     }
-                    
-                    // Debug para cada mensaje
-                    console.log('💬 Mensaje:', {
-                      index,
-                      text: message.text,
-                      type: message.type,
-                      sender: message.sender,
-                      senderRole: message.senderRole,
-                      isUserMessage: isUserMessage,
-                      isRemoteMessage: isRemoteMessage,
-                      isGiftMessage: isGiftMessage
-                    });
                     
                     return (
                       <div

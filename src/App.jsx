@@ -25,8 +25,9 @@ import EsperandoCallCliente from "./components/client/esperacallclient";
 import Videochat from "./components/modelo/videochat.jsx";
 import VideochatClient from "./components/client/videochatclient";
 import ConfiPerfil from "./components/confiperfil";
-import MessageClient from "./components/client/message.jsx"
+import MessageClient from "./components/client/TestMessage.jsx"
 import Favoritesboy from "./components/client/favoritesclient.jsx"
+import ResetPasswordPage from './components/verificacion/login/ResetPasswordPage.jsx';
 
 import RouteGuard from "./routes/blockchat";
 import VerificacionesAdmin from "./components/admin/adminverification";
@@ -42,6 +43,7 @@ import RateLimitWait from "./components/RateLimitWait";
 import { SearchingProvider } from './contexts/SearchingContext.jsx';
 import { GlobalTranslationProvider } from './contexts/GlobalTranslationContext.jsx';
 import { NotificationProvider } from './contexts/NotificationContext.jsx';
+import GoogleCallback from './components/auth/GoogleCallback.jsx';
 
 
 function App() {
@@ -64,6 +66,10 @@ function App() {
               <Route path="/login" element={<LoginLigand />} />
               <Route path="/logout" element={<Logout />} />
               <Route path="/rate-limit-wait" element={<RateLimitWait />} />
+              <Route path="/auth/google/callback" element={<GoogleCallback />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+
 
               {/* 🔒 RUTAS PROTEGIDAS */}
               <Route path="/*" element={

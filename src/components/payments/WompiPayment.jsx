@@ -1,0 +1,850 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  CreditCard,
+  Star, 
+  Check, 
+  AlertCircle, 
+  Loader,
+  Gift,
+  Shield,
+  DollarSign,
+  X,
+  Lock,
+  Wallet,
+  Heart,
+  ExternalLink,
+  RefreshCw,
+  MapPin,
+  Building2,
+  ArrowLeft,
+  Clock
+} from 'lucide-react';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+export default function WompiPayment({ onClose }) {
+  const [packages, setPackages] = useState([]);
+  const [balance, setBalance] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [showPaymentWindow, setShowPaymentWindow] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [purchaseHistory, setPurchaseHistory] = useState([]);
+  const [activePackageType, setActivePackageType] = useState('minutes');
+  const [wompiConfig, setWompiConfig] = useState(null);
+  const [purchaseId, setPurchaseId] = useState(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [wompiData, setWompiData] = useState(null);
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
+  const [paymentUrl, setPaymentUrl] = useState(null);
+
+  const getAuthHeaders = () => {
+    const token = sessionStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
+  useEffect(() => {
+    const initializeWompi = async () => {
+      try {
+        await Promise.all([
+          fetchWompiConfig(),
+          fetchPackages(), 
+          fetchBalance(),
+          fetchPurchaseHistory()
+        ]);
+      } catch (error) {
+        console.error('Error inicializando Wompi:', error);
+        showNotification('Error de configuración. Intenta más tarde.', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeWompi();
+  }, []);
+
+  // Polling para verificar estado de compras pendientes - MÁS AGRESIVO
+  useEffect(() => {
+    if (purchaseId && showPaymentWindow) {
+      const interval = setInterval(() => {
+        checkPurchaseStatus(purchaseId);
+      }, 3000); // ⚡ Verificar cada 3 segundos para respuesta más rápida
+
+      return () => clearInterval(interval);
+    }
+  }, [purchaseId, showPaymentWindow]);
+
+  // Countdown para redirección automática
+  useEffect(() => {
+    if (showPaymentWindow && paymentUrl && redirectCountdown > 0) {
+      const timer = setTimeout(() => {
+        setRedirectCountdown(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (showPaymentWindow && paymentUrl && redirectCountdown === 0) {
+      // Redirigir automáticamente
+      window.open(paymentUrl, '_blank');
+    }
+  }, [showPaymentWindow, paymentUrl, redirectCountdown]);
+
+  const fetchWompiConfig = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wompi/config`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (data.success) {
+        setWompiConfig(data);
+      }
+    } catch (error) {
+      console.error('Error obteniendo configuración Wompi:', error);
+    }
+  };
+
+  const fetchBalance = async () => {
+    try {
+      const minutesResponse = await fetch(`${API_BASE_URL}/api/coins/balance`, {
+        headers: getAuthHeaders()
+      });
+      const minutesData = await minutesResponse.json();
+
+      const giftsResponse = await fetch(`${API_BASE_URL}/api/gifts/balance`, {
+        headers: getAuthHeaders()
+      });
+      const giftsData = await giftsResponse.json();
+
+      let combinedBalance = {
+        purchased_coins: 0,
+        gift_coins: 0,
+        total_coins: 0,
+        minutes_available: 0,
+        gift_balance: 0,
+        total_received_gifts: 0,
+        total_sent_gifts: 0
+      };
+
+      if (minutesData.success) {
+        combinedBalance.purchased_coins = minutesData.balance.purchased_coins || 0;
+        combinedBalance.gift_coins = minutesData.balance.gift_coins || 0;
+        combinedBalance.total_coins = minutesData.balance.total_coins || 0;
+        combinedBalance.minutes_available = minutesData.balance.minutes_available || 0;
+      }
+
+      if (giftsData.success) {
+        combinedBalance.gift_balance = giftsData.balance.gift_balance || 0;
+        combinedBalance.total_received_gifts = giftsData.balance.total_received || 0;
+        combinedBalance.total_sent_gifts = giftsData.balance.total_sent || 0;
+      }
+
+      setBalance(combinedBalance);
+    } catch (error) {
+      console.error('Error obteniendo balance:', error);
+    }
+  };
+
+  const fetchPackages = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wompi/packages`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (data.success) {
+        setPackages(data.packages);
+      }
+    } catch (error) {
+      console.error('Error obteniendo paquetes:', error);
+    }
+  };
+
+  const fetchPurchaseHistory = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wompi/history`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (data.success) {
+        setPurchaseHistory((data.purchases.data || []).slice(0, 3));
+      }
+    } catch (error) {
+      console.error('Error obteniendo historial:', error);
+    }
+  };
+
+  const getFilteredPackages = () => {
+    return packages.filter(pkg => pkg.type === activePackageType);
+  };
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  };
+
+  const selectPackage = async (pkg) => {
+    setSelectedPackage(pkg);
+    setProcessing(true);
+    
+    try {
+      // Detectar modo automáticamente
+      const configResponse = await fetch(`${API_BASE_URL}/api/wompi/config`, {
+        headers: getAuthHeaders()
+      });
+      const config = await configResponse.json();
+      
+      // Usar ruta según el modo
+      const endpoint = config.sandbox 
+        ? '/api/wompi/sandbox-purchase'
+        : '/api/wompi/create-payment';
+      
+      console.log(`Modo Wompi: ${config.sandbox ? 'SANDBOX' : 'PRODUCCIÓN'}`);
+      
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          package_id: pkg.id
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        if (config.sandbox) {
+          // SANDBOX: Monedas instantáneas
+          showNotification(
+            `¡Compra completada! Se agregaron ${data.total_coins_added} monedas (Sandbox)`,
+            'success'
+          );
+          
+          await Promise.all([
+            fetchBalance(),
+            fetchPurchaseHistory()
+          ]);
+          
+          setTimeout(() => {
+            if (onClose) onClose();
+          }, 2000);
+          
+        } else {
+          // PRODUCCIÓN: Mostrar página de verificación y redirigir
+          setWompiData(data.wompi_data);
+          setPurchaseId(data.purchase_id);
+          
+          // Crear URL de pago de Wompi
+          const paymentParams = new URLSearchParams({
+            'public-key': data.wompi_data.public_key,
+            'currency': data.wompi_data.currency || 'COP',
+            'amount-in-cents': data.wompi_data.amount_in_cents,
+            'reference': data.wompi_data.reference,
+            'signature:integrity': data.wompi_data.signature_integrity
+          });
+
+          // Agregar datos opcionales
+          if (data.wompi_data.customer_email) {
+            paymentParams.append('customer-data:email', data.wompi_data.customer_email);
+          }
+          if (data.wompi_data.customer_full_name) {
+            paymentParams.append('customer-data:full-name', data.wompi_data.customer_full_name);
+          }
+          
+          const fullPaymentUrl = `https://checkout.wompi.co/p/?${paymentParams.toString()}`;
+          setPaymentUrl(fullPaymentUrl);
+          setShowPaymentWindow(true);
+          setRedirectCountdown(3); // Reiniciar countdown
+          
+          showNotification(
+            'Pago creado. Serás redirigido a Wompi en unos segundos.',
+            'success'
+          );
+        }
+        
+      } else {
+        showNotification(data.error || 'Error creando el pago', 'error');
+      }
+
+    } catch (error) {
+      console.error('Error creando pago:', error);
+      showNotification('Error de conexión. Intenta nuevamente.', 'error');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const checkPurchaseStatus = async (purchaseId) => {
+    if (checkingStatus) return;
+    
+    setCheckingStatus(true);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wompi/status/${purchaseId}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+
+      if (data.success && data.purchase.status === 'completed') {
+        // Pago completado
+        showNotification(
+          `¡Pago completado! Se agregaron ${data.purchase.total_coins} monedas a tu cuenta`,
+          'success'
+        );
+        
+        // Actualizar balance e historial
+        await Promise.all([
+          fetchBalance(),
+          fetchPurchaseHistory()
+        ]);
+        
+        // Cerrar ventana de pago
+        setShowPaymentWindow(false);
+        setSelectedPackage(null);
+        setPurchaseId(null);
+        setWompiData(null);
+        setPaymentUrl(null);
+        
+        // Cerrar modal después de un momento
+        setTimeout(() => {
+          if (onClose) onClose();
+        }, 2000);
+      }
+
+    } catch (error) {
+      console.error('Error verificando estado:', error);
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setShowPaymentWindow(false);
+    setSelectedPackage(null);
+    setPurchaseId(null);
+    setWompiData(null);
+    setPaymentUrl(null);
+    setRedirectCountdown(3);
+  };
+
+  const handleManualRedirect = () => {
+    if (paymentUrl) {
+      window.open(paymentUrl, '_blank');
+    }
+  };
+
+  const formatCoins = (coins) => {
+    return coins ? `${coins.toLocaleString()}` : '0';
+  };
+
+  const formatMinutesFromCoins = (coins, costPerMinute = 10) => {
+    const minutes = Math.floor(coins / costPerMinute);
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+    return `${mins}m`;
+  };
+
+  const formatCOP = (amount) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="animate-spin text-[#ff007a] mx-auto mb-4" size={48} />
+          <p className="text-white/70">Cargando Wompi...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-white w-full max-w-7xl mx-auto overflow-auto px-2 sm:px-4 lg:px-6">
+      {/* Notificación */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-3 sm:p-4 rounded-lg shadow-lg max-w-xs sm:max-w-sm ${
+          notification.type === 'success'
+            ? 'bg-green-500/90 border border-green-400'
+            : 'bg-red-500/90 border border-red-400'
+        }`}>
+          <div className="flex items-center gap-2">
+            {notification.type === 'success' ? (
+              <Check size={18} className="text-white flex-shrink-0" />
+            ) : (
+              <AlertCircle size={18} className="text-white flex-shrink-0" />
+            )}
+            <p className="text-white font-medium text-sm">{notification.message}</p>
+          </div>
+        </div>
+      )}
+
+      {!showPaymentWindow ? (
+        <div className="py-4 sm:py-6">
+          {/* Header */}
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                <CreditCard size={20} sm:size={24} className="text-white" />
+              </div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white">
+                {activePackageType === 'minutes' ? 'Comprar Minutos' : 'Enviar Regalos'}
+              </h1>
+            </div>
+
+            {/* Badge de Wompi */}
+            <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-500/30 rounded-full px-3 py-2 mb-4 sm:mb-6">
+              <MapPin size={14} className="text-green-400" />
+              <span className="text-green-400 text-xs sm:text-sm font-medium">
+                Powered by Wompi - Pagos seguros en Colombia
+              </span>
+            </div>
+
+            {/* Balance */}
+            <div className="bg-[#2b2d31] rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 border border-[#ff007a]/20">
+              <div className="text-center">
+                <p className="text-white/70 mb-3 text-sm sm:text-base">Tu balance actual</p>
+                
+                {balance && (
+                  <>
+                    {activePackageType === 'minutes' ? (
+                      <>
+                        <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#ff007a] mb-2">
+                          {formatCoins(balance.total_coins)} monedas
+                        </div>
+                        <div className="text-base sm:text-lg text-blue-400 mb-3">
+                          ≈ {formatMinutesFromCoins(balance.total_coins)} disponibles para videochat
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-4 text-sm">
+                          <div className="bg-[#1a1c20] rounded-lg p-2 sm:p-3">
+                            <div className="text-white/60 text-xs sm:text-sm">Compradas</div>
+                            <div className="text-green-400 font-bold text-sm sm:text-base">{formatCoins(balance.purchased_coins)}</div>
+                          </div>
+                          <div className="bg-[#1a1c20] rounded-lg p-2 sm:p-3">
+                            <div className="text-white/60 text-xs sm:text-sm">Regalo (minutos)</div>
+                            <div className="text-yellow-400 font-bold text-sm sm:text-base">{formatCoins(balance.gift_coins)}</div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#ff007a] mb-2">
+                          {formatCoins(balance.gift_balance)} monedas regalo
+                        </div>
+                        <div className="text-base sm:text-lg text-yellow-400 mb-3">
+                          Disponibles para enviar regalos
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-4 text-sm">
+                          <div className="bg-[#1a1c20] rounded-lg p-2 sm:p-3">
+                            <div className="text-white/60 text-xs sm:text-sm">Recibidos</div>
+                            <div className="text-green-400 font-bold text-sm sm:text-base">{formatCoins(balance.total_received_gifts)}</div>
+                          </div>
+                          <div className="bg-[#1a1c20] rounded-lg p-2 sm:p-3">
+                            <div className="text-white/60 text-xs sm:text-sm">Enviados</div>
+                            <div className="text-orange-400 font-bold text-sm sm:text-base">{formatCoins(balance.total_sent_gifts)}</div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Selector de tipo de paquete */}
+          <div className="flex justify-center mb-6 sm:mb-8">
+            <div className="bg-[#2b2d31] rounded-xl p-1 sm:p-2 border border-gray-600 w-full max-w-md">
+              <div className="grid grid-cols-2 gap-1 sm:gap-2">
+                <button
+                  onClick={() => setActivePackageType('minutes')}
+                  className={`px-3 py-2 sm:px-6 sm:py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 text-sm sm:text-base ${
+                    activePackageType === 'minutes'
+                      ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg'
+                      : 'text-white/70 hover:text-white hover:bg-[#1a1c20]'
+                  }`}
+                >
+                  <CreditCard size={16} />
+                  <span className="hidden sm:inline">Comprar</span> Minutos
+                </button>
+                <button
+                  onClick={() => setActivePackageType('gifts')}
+                  className={`px-3 py-2 sm:px-6 sm:py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 text-sm sm:text-base ${
+                    activePackageType === 'gifts'
+                      ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg'
+                      : 'text-white/70 hover:text-white hover:bg-[#1a1c20]'
+                  }`}
+                >
+                  <Gift size={16} />
+                  <span className="hidden sm:inline">Enviar</span> Regalos
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Paquetes */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            {getFilteredPackages().map((pkg) => {
+              const isGiftPackage = pkg.type === 'gifts';
+
+              return (
+                <div
+                  key={pkg.id}
+                  className={`relative bg-[#2b2d31] rounded-xl p-4 sm:p-6 border-2 transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
+                    pkg.is_popular
+                      ? 'border-green-500 shadow-lg shadow-green-500/20'
+                      : 'border-gray-600 hover:border-green-500/50'
+                  } ${processing ? 'pointer-events-none opacity-50' : ''}`}
+                  onClick={() => !processing && selectPackage(pkg)}
+                >
+                  {pkg.is_popular && (
+                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                      <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                        <Star size={12} fill="currentColor" />
+                        MÁS POPULAR
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-center">
+                    <h3 className="text-base sm:text-lg font-bold mb-3">{pkg.name}</h3>
+
+                    <div className="mb-4">
+                      <div className="text-xl sm:text-2xl font-bold text-[#ff007a] mb-1">
+                        {formatCoins(pkg.coins)} monedas
+                      </div>
+                      
+                      {pkg.bonus_coins > 0 && (
+                        <div className="flex items-center justify-center gap-1 text-yellow-400 text-xs sm:text-sm">
+                          <Gift size={12} />
+                          +{formatCoins(pkg.bonus_coins)} gratis
+                        </div>
+                      )}
+                      
+                      {!isGiftPackage && (
+                        <div className="text-blue-400 text-xs sm:text-sm mt-1">
+                          ≈ {formatMinutesFromCoins(pkg.total_coins)} de videochat
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="text-lg sm:text-xl font-bold mb-1 text-green-400">
+                        {formatCOP(pkg.price_cop)}
+                      </div>
+                      <div className="text-xs text-white/40">
+                        {formatCOP(pkg.price_cop / pkg.total_coins)} por moneda
+                      </div>
+                    </div>
+
+                    <button
+                      disabled={processing}
+                      className={`w-full py-2 sm:py-3 px-4 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 text-sm sm:text-base ${
+                        pkg.is_popular
+                          ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <CreditCard size={16} />
+                        Pagar con Wompi
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Ventajas de Wompi */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+            <div className="bg-[#2b2d31] rounded-xl p-3 sm:p-6 text-center border border-green-500/20">
+              <CreditCard className="text-green-400 mx-auto mb-2 sm:mb-3" size={24} />
+              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">Tarjetas y PSE</h3>
+              <p className="text-white/60 text-xs sm:text-sm">
+                Visa, Mastercard, PSE y todos los bancos
+              </p>
+            </div>
+            <div className="bg-[#2b2d31] rounded-xl p-3 sm:p-6 text-center border border-blue-500/20">
+              <MapPin className="text-blue-400 mx-auto mb-2 sm:mb-3" size={24} />
+              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">100% Colombiano</h3>
+              <p className="text-white/60 text-xs sm:text-sm">
+                Plataforma líder en pagos digitales
+              </p>
+            </div>
+            <div className="bg-[#2b2d31] rounded-xl p-3 sm:p-6 text-center border border-yellow-500/20">
+              <Shield className="text-yellow-400 mx-auto mb-2 sm:mb-3" size={24} />
+              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">Pago Seguro</h3>
+              <p className="text-white/60 text-xs sm:text-sm">
+                Certificación PCI DSS y cifrado
+              </p>
+            </div>
+            <div className="bg-[#2b2d31] rounded-xl p-3 sm:p-6 text-center border border-red-500/20">
+              <Check className="text-red-400 mx-auto mb-2 sm:mb-3" size={24} />
+              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">Confirmación Rápida</h3>
+              <p className="text-white/60 text-xs sm:text-sm">
+                Recibe tus monedas al instante
+              </p>
+            </div>
+          </div>
+
+          {/* Historial reciente */}
+          {purchaseHistory.length > 0 && (
+            <div className="bg-[#2b2d31] rounded-xl p-4 sm:p-6 border border-gray-600">
+              <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
+                <DollarSign className="text-green-400" size={20} />
+                Compras Recientes (Wompi)
+              </h3>
+              <div className="space-y-3">
+                {purchaseHistory.map((purchase) => (
+                  <div
+                    key={purchase.id}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-[#1a1c20] rounded-lg gap-2"
+                  >
+                    <div>
+                      <div className="font-medium text-sm sm:text-base">
+                        {formatCoins(purchase.total_coins)} monedas
+                      </div>
+                      <div className="text-xs sm:text-sm text-white/50">
+                        {new Date(purchase.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <div className="font-bold text-green-400 text-sm sm:text-base">
+                        {formatCOP(purchase.amount * (wompiConfig?.usd_to_cop_rate || 4000))}
+                      </div>
+                      <div className={`text-xs px-2 py-1 rounded-full inline-block ${
+                        purchase.status === 'completed'
+                          ? 'bg-green-500/20 text-green-400'
+                          : purchase.status === 'pending'
+                          ? 'bg-yellow-500/20 text-yellow-400'
+                          : 'bg-red-500/20 text-red-400'
+                      }`}>
+                        {purchase.status === 'completed' 
+                          ? 'Completado' 
+                          : purchase.status === 'pending'
+                          ? 'Pendiente'
+                          : 'Fallido'
+                        }
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        // Pantalla de verificación y redirección
+        <div className="py-4 sm:py-6">
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-[#2b2d31] rounded-xl p-4 sm:p-6 lg:p-8 border border-green-500/20">
+              
+              {/* Header con botón de regreso */}
+              <div className="flex items-center justify-between mb-6">
+                <button
+                  onClick={handleCancel}
+                  className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+                >
+                  <ArrowLeft size={20} />
+                  <span className="text-sm sm:text-base">Regresar</span>
+                </button>
+                <div className="flex items-center gap-2 text-green-400">
+                  <MapPin size={18} />
+                  <span className="text-sm">Colombia</span>
+                </div>
+              </div>
+
+              {/* Resumen del paquete */}
+              <div className="bg-[#1a1c20] rounded-lg p-4 sm:p-6 border border-[#ff007a]/30 mb-6">
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-4 text-center">
+                  Verificación de Pago
+                </h3>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-white/70 text-sm sm:text-base">{selectedPackage.name}</span>
+                    <span className="text-[#ff007a] font-bold text-sm sm:text-base">
+                      {formatCoins(selectedPackage.coins)} monedas
+                    </span>
+                  </div>
+                  
+                  {selectedPackage.bonus_coins > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-green-400 text-sm flex items-center gap-1">
+                        <Gift size={14} />
+                        Monedas bonus
+                      </span>
+                      <span className="text-green-400 text-sm">
+                        +{formatCoins(selectedPackage.bonus_coins)}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="border-t border-gray-600 pt-3 mt-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-white font-semibold text-sm sm:text-base">Total a pagar:</span>
+                      <span className="text-xl sm:text-2xl font-bold text-[#ff007a]">
+                        {formatCOP(selectedPackage.price_cop)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Estado de redirección */}
+              <div className="text-center mb-6">
+                {redirectCountdown > 0 ? (
+                  <div className="bg-gradient-to-r from-blue-500/20 to-green-500/20 border border-blue-500/30 rounded-lg p-4 sm:p-6">
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                      <Clock className="text-blue-400 animate-pulse" size={24} />
+                      <h3 className="text-lg sm:text-xl font-bold text-white">
+                        Preparando tu pago
+                      </h3>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <div className="text-3xl sm:text-4xl font-bold text-blue-400 mb-2">
+                        {redirectCountdown}
+                      </div>
+                      <p className="text-white/70 text-sm sm:text-base">
+                        Serás redirigido automáticamente a Wompi
+                      </p>
+                    </div>
+                    
+                    <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-1000"
+                        style={{ width: `${((3 - redirectCountdown) / 3) * 100}%` }}
+                      />
+                    </div>
+                    
+                    <button
+                      onClick={handleManualRedirect}
+                      className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 sm:py-3 sm:px-6 rounded-lg font-semibold transition-colors text-sm sm:text-base"
+                    >
+                      Ir a pagar ahora
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4 sm:p-6">
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                      <ExternalLink className="text-green-400" size={24} />
+                      <h3 className="text-lg sm:text-xl font-bold text-white">
+                        ¡Redirigido a Wompi!
+                      </h3>
+                    </div>
+                    
+                    <p className="text-white/70 mb-4 text-sm sm:text-base">
+                      Se abrió una nueva ventana con tu checkout de pago.
+                    </p>
+                    
+                    <button
+                      onClick={handleManualRedirect}
+                      className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 sm:py-3 sm:px-6 rounded-lg font-semibold transition-colors text-sm sm:text-base flex items-center gap-2 mx-auto"
+                    >
+                      <ExternalLink size={16} />
+                      Abrir Wompi nuevamente
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Información del proceso */}
+              <div className="bg-[#1a1c20] rounded-lg p-4 sm:p-6 border border-blue-500/20 mb-6">
+                <h4 className="text-white font-semibold mb-3 flex items-center gap-2 text-sm sm:text-base">
+                  <Shield className="text-blue-400" size={18} />
+                  ¿Qué sucede ahora?
+                </h4>
+                <div className="space-y-2 text-white/70 text-sm sm:text-base">
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold mt-0.5">1</div>
+                    <span>Te redirigimos al checkout seguro de Wompi</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold mt-0.5">2</div>
+                    <span>Completas tu pago con tarjeta, PSE o Nequi</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold mt-0.5">3</div>
+                    <span>Las monedas se agregan automáticamente a tu cuenta</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Verificación manual */}
+              <div className="bg-[#1a1c20] rounded-lg p-4 sm:p-6 border border-yellow-500/20 mb-6">
+                <h4 className="text-white font-semibold mb-3 flex items-center gap-2 text-sm sm:text-base">
+                  <AlertCircle className="text-yellow-400" size={18} />
+                  ¿Ya completaste el pago?
+                </h4>
+                
+                {/* Indicador de verificación automática */}
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4">
+                  <div className="flex items-center gap-2 text-blue-400 text-xs sm:text-sm">
+                    <RefreshCw className="animate-spin" size={14} />
+                    <span>Verificando automáticamente cada 3 segundos...</span>
+                  </div>
+                </div>
+                
+                <p className="text-white/70 mb-4 text-xs sm:text-sm">
+                  Las monedas aparecerán automáticamente, o puedes verificar manualmente:
+                </p>
+                
+                <button
+                  onClick={() => checkPurchaseStatus(purchaseId)}
+                  disabled={checkingStatus}
+                  className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white py-2 sm:py-3 px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base flex items-center justify-center gap-2"
+                >
+                  {checkingStatus ? (
+                    <>
+                      <Loader className="animate-spin" size={16} />
+                      Verificando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw size={16} />
+                      Verificar Ahora
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Métodos de pago aceptados */}
+              <div className="bg-[#1a1c20] rounded-lg p-4 sm:p-6 border border-green-500/20">
+                <h4 className="text-white font-semibold mb-3 flex items-center gap-2 text-sm sm:text-base">
+                  <Building2 className="text-green-400" size={18} />
+                  Métodos de Pago en Wompi
+                </h4>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="bg-[#2b2d31] rounded-lg p-3 text-center">
+                    <div className="text-blue-400 font-bold text-xs sm:text-sm">Tarjetas</div>
+                    <div className="text-white/50 text-xs">Visa, Mastercard</div>
+                  </div>
+                  <div className="bg-[#2b2d31] rounded-lg p-3 text-center">
+                    <div className="text-green-400 font-bold text-xs sm:text-sm">PSE</div>
+                    <div className="text-white/50 text-xs">Bancos Colombia</div>
+                  </div>
+                  <div className="bg-[#2b2d31] rounded-lg p-3 text-center">
+                    <div className="text-yellow-400 font-bold text-xs sm:text-sm">Nequi</div>
+                    <div className="text-white/50 text-xs">Pago móvil</div>
+                  </div>
+                  <div className="bg-[#2b2d31] rounded-lg p-3 text-center">
+                    <div className="text-red-400 font-bold text-xs sm:text-sm">Bancolombia</div>
+                    <div className="text-white/50 text-xs">Transferencia</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

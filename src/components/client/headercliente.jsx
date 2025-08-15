@@ -17,9 +17,11 @@ import { useTranslation } from 'react-i18next';
 import logoproncipal from "../imagenes/logoprincipal.png";
 import LanguageSelector from "../../components/languageSelector";
 import { getUser } from "../../utils/auth";
-import StripeBuyCoins from '../StripeBuyCoins';
+import StripeBuyCoins from '../payments/CoinbaseCommerceBuyCoins';
 import StoriesModal from './StoriesModal'; // 👈 IMPORTAR EL MODAL
 import { useAppNotifications } from '../../contexts/NotificationContext'; // 👈 IMPORTAR NOTIFICACIONES
+
+
 
 export default function HeaderCliente() {
   const navigate = useNavigate();
@@ -234,6 +236,7 @@ export default function HeaderCliente() {
             <Home className="text-[#ff007a]" size={24} />
           </button>
           
+          {/* 🔧 CORREGIDO: Ruta correcta */}
           <button
             className="hover:scale-110 transition p-2"
             onClick={() => navigate("/message")}
@@ -406,9 +409,10 @@ export default function HeaderCliente() {
                     Inicio
                   </button>
                   
+                  {/* 🔧 CORREGIDO: Ruta correcta para móvil */}
                   <button
                     onClick={() => {
-                      navigate("/messageclient");
+                      navigate("/message");
                       setMobileMenuAbierto(false);
                     }}
                     className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"

@@ -7,6 +7,7 @@ import {
   RoomAudioRenderer,
   useParticipants,
   useLocalParticipant,
+  useRoomContext,        
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 
@@ -49,6 +50,19 @@ const USER_CACHE = new Map();
 // Función para generar clave única de la sala
 const getRoomCacheKey = (roomName, currentUserName) => {
   return `${roomName}_${currentUserName}`;
+};
+const RoomCapture = ({ onRoomReady }) => {
+  const room = useRoomContext();
+  const { localParticipant } = useLocalParticipant();
+  
+  useEffect(() => {
+    if (room && localParticipant) {
+      console.log('🏠 Room capturada exitosamente!');
+      onRoomReady(room);
+    }
+  }, [room, localParticipant, onRoomReady]);
+  
+  return null;
 };
 
 // 🔥 FUNCIONES PARA ESPEJO
@@ -206,6 +220,18 @@ export default function VideoChatClient() {
   const [isAddingFavorite, setIsAddingFavorite] = useState(false);
   const [isMonitoringBalance, setIsMonitoringBalance] = useState(false);
   const [availableGifts, setAvailableGifts] = useState([]);
+  const [cameras, setCameras] = useState([]);
+  const [microphones, setMicrophones] = useState([]);
+  const [selectedCameraDevice, setSelectedCameraDevice] = useState('');
+  const [selectedMicrophoneDevice, setSelectedMicrophoneDevice] = useState('');
+  const [isLoadingDevices, setIsLoadingDevices] = useState(false);
+  const handleRoomReady = (roomInstance) => {
+    console.log('✅ Room lista:', !!roomInstance);
+    setRoom(roomInstance);
+    setConnected(true);
+  };
+
+
 
 
   // Estados de notificaciones
@@ -888,122 +914,363 @@ export default function VideoChatClient() {
       return { success: false, error: 'Error de conexión' };
     }
   };
-  // 🔥 FUNCIÓN PARA ENVIAR REGALO DIRECTAMENTE (CLIENTE)
-const handleSendGift = async (giftId, recipientId, roomName, message) => {
+ 
+  const loadDevices = async () => {
+  setIsLoadingDevices(true);
   try {
-    console.log('🎁 [CLIENTE] Enviando regalo directamente:', {
-      giftId,
-      recipientId,
-      roomName,
-      message,
-      userBalance
+    console.log('🎥 Cargando dispositivos disponibles...');
+    
+    // Solicitar permisos primero
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: true, 
+      audio: true 
     });
-
-    const authToken = sessionStorage.getItem('token');
-    if (!authToken) {
-      throw new Error('No hay token de autenticación');
+    
+    // Obtener lista de dispositivos
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    console.log('📱 Dispositivos encontrados:', devices.length);
+    
+    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+    const audioDevices = devices.filter(device => device.kind === 'audioinput');
+    
+    setCameras(videoDevices);
+    setMicrophones(audioDevices);
+    
+    console.log('🎥 Cámaras:', videoDevices.length);
+    console.log('🎤 Micrófonos:', audioDevices.length);
+    
+    // Establecer dispositivos seleccionados actuales
+    if (videoDevices.length > 0 && !selectedCameraDevice) {
+      const defaultCamera = selectedCamera || videoDevices[0].deviceId;
+      setSelectedCameraDevice(defaultCamera);
+      console.log('🎥 Cámara por defecto:', defaultCamera);
     }
+    
+    if (audioDevices.length > 0 && !selectedMicrophoneDevice) {
+      const defaultMic = selectedMic || audioDevices[0].deviceId;
+      setSelectedMicrophoneDevice(defaultMic);
+      console.log('🎤 Micrófono por defecto:', defaultMic);
+    }
+    
+    // Cerrar el stream temporal
+    stream.getTracks().forEach(track => track.stop());
+    
+  } catch (error) {
+    console.error('❌ Error obteniendo dispositivos:', error);
+    addNotification('error', 'Error', 'No se pudieron obtener los dispositivos de audio/video');
+  } finally {
+    setIsLoadingDevices(false);
+  }
+};
 
-    // 🔥 ENVIAR REGALO DIRECTAMENTE AL ENDPOINT
-    const response = await fetch(`${API_BASE_URL}/api/gifts/send-direct`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({
-        gift_id: giftId,
-        recipient_id: recipientId,
-        room_name: roomName,
-        message: message || '',
-        sender_type: 'cliente'  // Especificar que es un cliente
-      })
-    });
+const handleCameraChange = (deviceId) => {
+  console.log('🎥 [SYNC] Seleccionando cámara:', deviceId);
+  
+  // Solo actualizar el estado, el cambio real lo hace el useEffect
+  setSelectedCameraDevice(deviceId);
+};
 
-    const result = await response.json();
+// 2️⃣ REEMPLAZAR handleMicrophoneChange - VERSION SINCRONIZADA  
+const handleMicrophoneChange = (deviceId) => {
+  console.log('🎤 [SYNC] Seleccionando micrófono:', deviceId);
+  
+  // Solo actualizar el estado, el cambio real lo hace el useEffect
+  setSelectedMicrophoneDevice(deviceId);
+};
 
-    if (result.success) {
-      console.log('✅ [CLIENTE] Regalo enviado exitosamente:', result);
+// 3️⃣ AGREGAR useEffect PARA CAMBIO REAL DE CÁMARA
+useEffect(() => {
+  if (!selectedCameraDevice || !room?.localParticipant || !cameraEnabled) {
+    console.log('🎥 [EFFECT] Condiciones no cumplidas para cámara');
+    return;
+  }
+
+  const changeCameraDevice = async () => {
+    try {
+      console.log('🎥 [EFFECT] Cambiando cámara a:', selectedCameraDevice);
       
-      // 🔥 ACTUALIZAR SALDO LOCAL INMEDIATAMENTE
-      const giftPrice = result.gift_price || result.amount || 0;
-      setUserBalance(prev => Math.max(0, prev - giftPrice));
+      const localParticipant = room.localParticipant;
       
-      // 🔥 AGREGAR MENSAJE AL CHAT CON DATOS COMPLETOS
-      const giftMessage = {
-        id: Date.now(),
-        type: 'gift_sent',
-        text: `🎁 Enviaste: ${result.gift_name}`,
-        timestamp: Date.now(),
-        isOld: false,
-        sender: userData.name,
-        senderRole: userData.role,
-        // 🔥 DATOS COMPLETOS DEL REGALO
-        gift_data: {
-          gift_name: result.gift_name,
-          gift_image: result.gift_image,
-          gift_price: giftPrice,
-          action_text: "Enviaste",
-          recipient_name: otherUser?.name || "Modelo"
-        },
-        extra_data: {
-          gift_name: result.gift_name,
-          gift_image: result.gift_image,
-          gift_price: giftPrice,
-          action_text: "Enviaste",
-          recipient_name: otherUser?.name || "Modelo"
-        }
-      };
-      
-      setMessages(prev => [giftMessage, ...prev]);
-      
-      // 🔥 ACTUALIZAR BALANCE DESDE SERVIDOR (VERIFICACIÓN)
-      setTimeout(() => {
-        updateBalance();
-      }, 1000);
-      
-      // 🔥 NOTIFICACIÓN DE ÉXITO
-      addNotification(
-        'success', 
-        '🎁 Regalo Enviado', 
-        `${result.gift_name} enviado a ${otherUser?.name || 'Modelo'}`
-      );
-      
-      return { 
-        success: true, 
-        gift_name: result.gift_name,
-        gift_price: giftPrice
-      };
-      
-    } else {
-      console.error('❌ [CLIENTE] Error del servidor:', result.error);
-      
-      // 🔥 MANEJO DE ERRORES ESPECÍFICOS
-      if (result.error?.includes('saldo insuficiente') || result.error?.includes('insufficient balance')) {
-        addNotification('error', 'Saldo Insuficiente', 'No tienes suficientes monedas para este regalo');
-      } else if (result.error?.includes('no encontrado') || result.error?.includes('not found')) {
-        addNotification('error', 'Regalo No Disponible', 'Este regalo ya no está disponible');
-      } else {
-        addNotification('error', 'Error', result.error || 'Error enviando regalo');
+      // Detener cámara actual
+      const currentVideoTrack = localParticipant.getTrackPublication('camera')?.track;
+      if (currentVideoTrack) {
+        console.log('🛑 [EFFECT] Deteniendo cámara actual...');
+        currentVideoTrack.stop();
+        await localParticipant.unpublishTrack(currentVideoTrack);
       }
+
+      // Crear nueva cámara
+      console.log('🎬 [EFFECT] Creando stream con deviceId:', selectedCameraDevice);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          deviceId: { exact: selectedCameraDevice },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        console.log('📤 [EFFECT] Publicando nueva cámara...');
+        await localParticipant.publishTrack(videoTrack, {
+          name: 'camera',
+          source: 'camera'
+        });
+        
+        console.log('✅ [EFFECT] Cámara cambiada exitosamente');
+        addNotification('success', 'Cámara Cambiada', 'Dispositivo actualizado');
+        
+        // Re-aplicar espejo
+        setTimeout(() => {
+          console.log('🪞 [EFFECT] Aplicando espejo...');
+          applyMirrorToAllVideos(mirrorMode);
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('❌ [EFFECT] Error cambiando cámara:', error);
+      addNotification('error', 'Error', `Error: ${error.message}`);
+    }
+  };
+
+  // Pequeño delay para evitar llamadas muy rápidas
+  const timer = setTimeout(changeCameraDevice, 200);
+  return () => clearTimeout(timer);
+
+}, [selectedCameraDevice, room, cameraEnabled, mirrorMode]); // ← DEPENDENCIAS
+
+// 4️⃣ AGREGAR useEffect PARA CAMBIO REAL DE MICRÓFONO
+useEffect(() => {
+  if (!selectedMicrophoneDevice || !room?.localParticipant || !micEnabled) {
+    console.log('🎤 [EFFECT] Condiciones no cumplidas para micrófono');
+    return;
+  }
+
+  const changeMicrophoneDevice = async () => {
+    try {
+      console.log('🎤 [EFFECT] Cambiando micrófono a:', selectedMicrophoneDevice);
+      
+      const localParticipant = room.localParticipant;
+      
+      // Detener micrófono actual
+      const currentAudioTrack = localParticipant.getTrackPublication('microphone')?.track;
+      if (currentAudioTrack) {
+        console.log('🛑 [EFFECT] Deteniendo micrófono actual...');
+        currentAudioTrack.stop();
+        await localParticipant.unpublishTrack(currentAudioTrack);
+      }
+
+      // Crear nuevo micrófono
+      console.log('🎙️ [EFFECT] Creando stream con deviceId:', selectedMicrophoneDevice);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { 
+          deviceId: { exact: selectedMicrophoneDevice },
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack) {
+        console.log('📤 [EFFECT] Publicando nuevo micrófono...');
+        await localParticipant.publishTrack(audioTrack, {
+          name: 'microphone',
+          source: 'microphone'
+        });
+        
+        console.log('✅ [EFFECT] Micrófono cambiado exitosamente');
+        addNotification('success', 'Micrófono Cambiado', 'Dispositivo actualizado');
+      }
+    } catch (error) {
+      console.error('❌ [EFFECT] Error cambiando micrófono:', error);
+      addNotification('error', 'Error', `Error: ${error.message}`);
+    }
+  };
+
+  // Pequeño delay para evitar llamadas muy rápidas
+  const timer = setTimeout(changeMicrophoneDevice, 200);
+  return () => clearTimeout(timer);
+
+}, [selectedMicrophoneDevice, room, micEnabled]); // ← DEPENDENCIAS
+
+// 4️⃣ EFECTO PARA CARGAR DISPOSITIVOS INICIALMENTE (agregar después de otros useEffect)
+useEffect(() => {
+  // Cargar dispositivos cuando el componente se monta
+  loadDevices();
+  
+  // Listener para detectar cambios en dispositivos
+  const handleDeviceChange = () => {
+    console.log('🔄 Dispositivos cambiaron, recargando...');
+    setTimeout(() => loadDevices(), 1000);
+  };
+  
+  navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+  
+  return () => {
+    navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+  };
+}, []);
+
+// 5️⃣ EFECTO PARA CONFIGURAR ROOM INSTANCE (agregar después del efecto anterior)
+useEffect(() => {
+  // Listener global para establecer la instancia de room
+  const handleRoomReady = (event) => {
+    if (event.detail && event.detail.room) {
+      console.log('🏠 Room instancia recibida desde LiveKit');
+      setRoom(event.detail.room);
+    }
+  };
+  
+  // Escuchar evento personalizado
+  window.addEventListener('livekitRoomReady', handleRoomReady);
+  
+  // También verificar si ya existe globalmente
+  if (window.livekitRoom && !room) {
+    console.log('🏠 Room encontrada globalmente');
+    setRoom(window.livekitRoom);
+  }
+  
+  return () => {
+    window.removeEventListener('livekitRoomReady', handleRoomReady);
+  };
+}, [room]);
+
+// 6️⃣ EFECTO PARA APLICAR CONFIGURACIONES CUANDO CAMBIA LA ROOM (agregar después del efecto anterior)
+useEffect(() => {
+  if (room && connected) {
+    console.log('🔧 Room conectada, configurando dispositivos...');
+    
+    // Pequeño delay para asegurar que todo esté listo
+    setTimeout(() => {
+      // Re-aplicar dispositivos seleccionados
+      if (selectedCameraDevice && cameraEnabled) {
+        handleCameraChange(selectedCameraDevice);
+      }
+      
+      if (selectedMicrophoneDevice && micEnabled) {
+        handleMicrophoneChange(selectedMicrophoneDevice);
+      }
+      
+      // Re-aplicar modo espejo
+      applyMirrorToAllVideos(mirrorMode);
+    }, 2000);
+  }
+}, [room, connected]);
+    // 🔥 FUNCIÓN PARA ENVIAR REGALO DIRECTAMENTE (CLIENTE)
+  const handleSendGift = async (giftId, recipientId, roomName, message) => {
+    try {
+      console.log('🎁 [CLIENTE] Enviando regalo directamente:', {
+        giftId,
+        recipientId,
+        roomName,
+        message,
+        userBalance
+      });
+
+      const authToken = sessionStorage.getItem('token');
+      if (!authToken) {
+        throw new Error('No hay token de autenticación');
+      }
+
+      // 🔥 ENVIAR REGALO DIRECTAMENTE AL ENDPOINT
+      const response = await fetch(`${API_BASE_URL}/api/gifts/send-direct`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          gift_id: giftId,
+          recipient_id: recipientId,
+          room_name: roomName,
+          message: message || '',
+          sender_type: 'cliente'  // Especificar que es un cliente
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('✅ [CLIENTE] Regalo enviado exitosamente:', result);
+        
+        // 🔥 ACTUALIZAR SALDO LOCAL INMEDIATAMENTE
+        const giftPrice = result.gift_price || result.amount || 0;
+        setUserBalance(prev => Math.max(0, prev - giftPrice));
+        
+        // 🔥 AGREGAR MENSAJE AL CHAT CON DATOS COMPLETOS
+        const giftMessage = {
+          id: Date.now(),
+          type: 'gift_sent',
+          text: `🎁 Enviaste: ${result.gift_name}`,
+          timestamp: Date.now(),
+          isOld: false,
+          sender: userData.name,
+          senderRole: userData.role,
+          // 🔥 DATOS COMPLETOS DEL REGALO
+          gift_data: {
+            gift_name: result.gift_name,
+            gift_image: result.gift_image,
+            gift_price: giftPrice,
+            action_text: "Enviaste",
+            recipient_name: otherUser?.name || "Modelo"
+          },
+          extra_data: {
+            gift_name: result.gift_name,
+            gift_image: result.gift_image,
+            gift_price: giftPrice,
+            action_text: "Enviaste",
+            recipient_name: otherUser?.name || "Modelo"
+          }
+        };
+        
+        setMessages(prev => [giftMessage, ...prev]);
+        
+        // 🔥 ACTUALIZAR BALANCE DESDE SERVIDOR (VERIFICACIÓN)
+        setTimeout(() => {
+          updateBalance();
+        }, 1000);
+        
+        // 🔥 NOTIFICACIÓN DE ÉXITO
+        addNotification(
+          'success', 
+          '🎁 Regalo Enviado', 
+          `${result.gift_name} enviado a ${otherUser?.name || 'Modelo'}`
+        );
+        
+        return { 
+          success: true, 
+          gift_name: result.gift_name,
+          gift_price: giftPrice
+        };
+        
+      } else {
+        console.error('❌ [CLIENTE] Error del servidor:', result.error);
+        
+        // 🔥 MANEJO DE ERRORES ESPECÍFICOS
+        if (result.error?.includes('saldo insuficiente') || result.error?.includes('insufficient balance')) {
+          addNotification('error', 'Saldo Insuficiente', 'No tienes suficientes monedas para este regalo');
+        } else if (result.error?.includes('no encontrado') || result.error?.includes('not found')) {
+          addNotification('error', 'Regalo No Disponible', 'Este regalo ya no está disponible');
+        } else {
+          addNotification('error', 'Error', result.error || 'Error enviando regalo');
+        }
+        
+        return { 
+          success: false, 
+          error: result.error || 'Error desconocido' 
+        };
+      }
+      
+    } catch (error) {
+      console.error('❌ [CLIENTE] Error de conexión enviando regalo:', error);
+      
+      addNotification('error', 'Error de Conexión', 'No se pudo enviar el regalo. Verifica tu conexión.');
       
       return { 
         success: false, 
-        error: result.error || 'Error desconocido' 
+        error: 'Error de conexión' 
       };
     }
-    
-  } catch (error) {
-    console.error('❌ [CLIENTE] Error de conexión enviando regalo:', error);
-    
-    addNotification('error', 'Error de Conexión', 'No se pudo enviar el regalo. Verifica tu conexión.');
-    
-    return { 
-      success: false, 
-      error: 'Error de conexión' 
-    };
-  }
-};
+  };
 
   // 🔥 FUNCIÓN DE RATE LIMITING
   const handleRateLimit = useCallback((error, context = 'general') => {
@@ -1756,6 +2023,8 @@ const handleSendGift = async (giftId, recipientId, roomName, message) => {
             }}
           >
             <RoomAudioRenderer />
+            <RoomCapture onRoomReady={handleRoomReady} />
+
             
             {/* SimpleChat original */}
             {memoizedRoomName && memoizedUserName && (
@@ -1820,27 +2089,42 @@ const handleSendGift = async (giftId, recipientId, roomName, message) => {
                 
                 {/* Controles móviles mejorados para cliente */}
                 <MobileControlsImprovedClient
-                  mensaje={mensaje}
-                  setMensaje={setMensaje}
-                  enviarMensaje={enviarMensaje}
-                  handleKeyPress={handleKeyPress}
-                  toggleFavorite={toggleFavorite}
-                  blockCurrentUser={blockCurrentUser}
-                  isFavorite={isFavorite}
-                  isAddingFavorite={isAddingFavorite}
-                  isBlocking={isBlocking}
-                  otherUser={otherUser}
-                  setShowGiftsModal={setShowGiftsModal}
-                  micEnabled={micEnabled}
-                  setMicEnabled={setMicEnabled}
-                  cameraEnabled={cameraEnabled}
-                  setCameraEnabled={setCameraEnabled}
-                  onCameraSwitch={onCameraSwitch}
-                  onEndCall={finalizarChat}
-                  siguientePersona={siguientePersona}
-                  userBalance={userBalance}
-                  giftBalance={giftBalance}           // Balance de GIFTS  
-                />
+                mensaje={mensaje}
+                setMensaje={setMensaje}
+                enviarMensaje={enviarMensaje}
+                handleKeyPress={handleKeyPress}
+                toggleFavorite={toggleFavorite}
+                blockCurrentUser={blockCurrentUser}
+                isFavorite={isFavorite}
+                isAddingFavorite={isAddingFavorite}
+                isBlocking={isBlocking}
+                otherUser={otherUser}
+                setShowGiftsModal={setShowGiftsModal}
+                micEnabled={micEnabled}
+                setMicEnabled={setMicEnabled}
+                cameraEnabled={cameraEnabled}
+                setCameraEnabled={setCameraEnabled}
+                volumeEnabled={volumeEnabled}          // ← NUEVA
+                setVolumeEnabled={setVolumeEnabled}    // ← NUEVA
+                onCameraSwitch={onCameraSwitch}
+                onEndCall={finalizarChat}
+                siguientePersona={siguientePersona}
+                finalizarChat={finalizarChat}
+                userBalance={userBalance}
+                giftBalance={giftBalance}
+                cameras={cameras}
+                microphones={microphones}
+                selectedCamera={selectedCameraDevice}
+                selectedMicrophone={selectedMicrophoneDevice}
+                isLoadingDevices={isLoadingDevices}
+                onCameraChange={handleCameraChange}
+                onMicrophoneChange={handleMicrophoneChange}
+                onLoadDevices={loadDevices}
+                
+                // 🔥 AGREGAR ESTAS 2 PROPS PARA CONFIGURACIÓN:
+                showMainSettings={showMainSettings}     // ← NUEVA
+                setShowMainSettings={setShowMainSettings} // ← NUEVA
+              />
               </div>
               
               
@@ -1896,9 +2180,17 @@ const handleSendGift = async (giftId, recipientId, roomName, message) => {
                 finalizarChat={finalizarChat}
                 showMainSettings={showMainSettings}
                 setShowMainSettings={setShowMainSettings}
-                setShowCameraAudioModal={setShowCameraAudioModal}
                 loading={loading}
                 t={t}
+                // 🔥 NUEVAS PROPS PARA DISPOSITIVOS
+                cameras={cameras}
+                microphones={microphones}
+                selectedCamera={selectedCameraDevice}
+                selectedMicrophone={selectedMicrophoneDevice}
+                isLoadingDevices={isLoadingDevices}
+                onCameraChange={handleCameraChange}
+                onMicrophoneChange={handleMicrophoneChange}
+                onLoadDevices={loadDevices}
               />
             </div>
           </LiveKitRoom>
