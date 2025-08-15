@@ -6,8 +6,8 @@ const RouteGuard = ({ children }) => {
   const location = useLocation();
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
-    const roomName = sessionStorage.getItem('roomName');
+    const token = localStorage.getItem('token');
+    const roomName = localStorage.getItem('roomName');
     
     if (token && roomName) {
       const currentPath = location.pathname;

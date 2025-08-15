@@ -8,7 +8,6 @@ import CallingSystem from '../../components/CallingOverlay';
 import IncomingCallOverlay from '../../components/IncomingCallOverlay';
 import { useState, useEffect } from "react";
 import UnifiedPaymentModal from '../../components/payments/UnifiedPaymentModal';
-import MinutesBalanceWidget from '../CoinsBalanceWidget';
 
 
 export default function InterfazCliente() {
@@ -56,7 +55,7 @@ export default function InterfazCliente() {
 
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TOKEN
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -263,7 +262,7 @@ export default function InterfazCliente() {
       });
       setIsCallActive(true);
       
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/calls/start`, {
         method: 'POST',
         headers: {
@@ -385,7 +384,7 @@ export default function InterfazCliente() {
     
     const interval = setInterval(async () => {
       try {
-        const token = sessionStorage.getItem('token');
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE_URL}/api/calls/status`, {
           method: 'POST',
           headers: {
@@ -455,7 +454,7 @@ export default function InterfazCliente() {
       console.log('🛑 Cancelando llamada...');
       
       if (currentCall?.callId) {
-        const token = sessionStorage.getItem('token');
+        const token = localStorage.getItem('token');
         await fetch(`${API_BASE_URL}/api/calls/cancel`, {
           method: 'POST',
           headers: {
@@ -485,7 +484,7 @@ export default function InterfazCliente() {
   // 🔥 NUEVA FUNCIÓN: POLLING PARA LLAMADAS ENTRANTES
   const verificarLlamadasEntrantes = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {
         method: 'GET',
         headers: {
@@ -534,7 +533,7 @@ export default function InterfazCliente() {
       
       stopIncomingCallSound(); // 🔥 AGREGAR ESTA LÍNEA
       
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
         method: 'POST',
         headers: {
@@ -577,11 +576,11 @@ export default function InterfazCliente() {
     console.log('🚀 Redirigiendo a videochat cliente:', callData);
     
     // Guardar datos de la llamada
-    sessionStorage.setItem('roomName', callData.room_name);
-    sessionStorage.setItem('userName', user?.name || 'Cliente');
-    sessionStorage.setItem('currentRoom', callData.room_name);
-    sessionStorage.setItem('inCall', 'true');
-    sessionStorage.setItem('videochatActive', 'true');
+    localStorage.setItem('roomName', callData.room_name);
+    localStorage.setItem('userName', user?.name || 'Cliente');
+    localStorage.setItem('currentRoom', callData.room_name);
+    localStorage.setItem('inCall', 'true');
+    localStorage.setItem('videochatActive', 'true');
     
     // Limpiar estados de llamada
     setIsCallActive(false);
@@ -948,11 +947,6 @@ export default function InterfazCliente() {
           onDecline={() => responderLlamada('reject')}
         />
 
-        <MinutesBalanceWidget
-          onBuyClick={abrirModalCompraMinutos}
-          showFullStats={true}
-          showHistory={true}
-        />
       </div>
     </ProtectedPage>
   );

@@ -36,7 +36,7 @@ export default function CoinbaseCommerceBuyCoins({ onClose }) {
   const [checkingStatus, setCheckingStatus] = useState(false);
 
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     return {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`

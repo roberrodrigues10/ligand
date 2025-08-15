@@ -22,7 +22,7 @@ const TimeDisplayImprovedClient = ({
   useEffect(() => {
     const updateBalances = async () => {
       try {
-        const authToken = sessionStorage.getItem('token');
+        const authToken = localStorage.getItem('token');
         if (!authToken) return;
 
         // 1️⃣ Balance de COINS

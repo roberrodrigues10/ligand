@@ -15,8 +15,8 @@ export default function RutaProtegida() {
         setUser(res.data.user);
 
         // 🔁 Si el perfil fue actualizado, forzar recarga una sola vez
-        if (sessionStorage.getItem("perfil_actualizado") === "1") {
-          sessionStorage.removeItem("perfil_actualizado");
+        if (localStorage.getItem("perfil_actualizado") === "1") {
+          localStorage.removeItem("perfil_actualizado");
           window.location.reload();
         }
       } catch (error) {

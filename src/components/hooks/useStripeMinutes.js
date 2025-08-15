@@ -39,7 +39,7 @@ export const useStripeCoins = (options = {}) => {
 
   // Headers de autenticación
   const getAuthHeaders = useCallback(() => {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     if (!token || token === 'null' || token === 'undefined') {
       throw new Error('Token de autenticación no válido');
     }

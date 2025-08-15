@@ -12,7 +12,7 @@ const ClientRemainingMinutes = ({ roomName, clientUserId, connected }) => {
     try {
       if (!roomName || !clientUserId || !connected) return;
       
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) return;
 
       const response = await fetch(`${API_BASE_URL}/api/client-balance/get`, {

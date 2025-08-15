@@ -45,7 +45,7 @@ export default function CoinsPurchaseHistory({
   const [refreshing, setRefreshing] = useState(false);
 
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     return {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`

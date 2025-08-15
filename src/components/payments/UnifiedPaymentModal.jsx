@@ -31,7 +31,7 @@ export default function UnifiedPaymentModal({ onClose }) {
   const [notification, setNotification] = useState(null);
 
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     return {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`

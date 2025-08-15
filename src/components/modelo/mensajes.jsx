@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./header";
-import { getUser } from "../utils/auth";
+import { getUser } from "../../utils/auth.js";
 
 import {
   useTranslation as useCustomTranslation,
   TranslationSettings,
   TranslatedMessage
-} from '../utils/translationSystem.jsx';
+} from '../../utils/translationSystem.jsx';
 
 import {
   MessageSquare,
@@ -26,9 +26,9 @@ import {
 } from "lucide-react";
 
 // 🔥 IMPORTACIONES NECESARIAS
-import CallingSystem from './CallingOverlay';
-import IncomingCallOverlay from './IncomingCallOverlay';
-import { useGiftSystem, GiftMessageComponent, GiftNotificationOverlay, GiftsModal, giftSystemStyles } from '../components/GiftSystem';
+import CallingSystem from '../CallingOverlay.jsx';
+import IncomingCallOverlay from '../IncomingCallOverlay.jsx';
+import { useGiftSystem, GiftMessageComponent, GiftNotificationOverlay, GiftsModal, giftSystemStyles } from '../GiftSystem/index.jsx';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -85,7 +85,7 @@ export default function ChatPrivado() {
 
   // 🔥 FUNCIONES MEMOIZADAS (DEFINIR PRIMERO)
   const getAuthHeaders = useCallback(() => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -949,7 +949,7 @@ const cargarMensajes = useCallback(async (roomName) => {
       security_level: 'high',
       
       // Información de sesión adicional
-      session_id: sessionStorage.getItem('app_session_id'),
+      session_id: localStorage.getItem('app_session_id'),
       browser_info: {
         language: navigator.language,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,

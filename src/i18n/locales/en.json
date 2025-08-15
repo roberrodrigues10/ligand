@@ -717,5 +717,127 @@
     "new_messages_count": "{{count}} new messages",
     "menu": "Menu",
     "language": "Language"
+  },
+  "seleccion_genero": {
+    "titulo": "What gender are you?",
+    "mujer": "Woman",
+    "hombre": "Man",
+    "continuar": "Continue",
+    "guardando": "Saving...",
+    "cancelar": "Cancel",
+    "placeholder_nombre": "Your name",
+    "modal_nombre_cliente": "Enter your name",
+    "modal_nombre_modelo": "Enter your stage name",
+    "error_seleccionar": "Please select a role",
+    "error_nombre_obligatorio": "Name is required.",
+    "error_solo_letras": "Only letters are allowed.",
+    "error_confirmar_datos": "Could not confirm data. Please try again.",
+    "error_guardar": "Error saving role. Please try again."
+  },
+  "anteveri": {
+    "title": "Ligando",
+    "waiting": {
+      "title": "Waiting for verification",
+      "message": "Thank you for registering.\nWe will notify you when you are verified.",
+      "button": "Verification in progress",
+      "checking": "Checking status...",
+      "waiting_to_check": "Waiting to check..."
+    },
+    "approved": {
+      "title": "Verification approved!",
+      "default_message": "Your account has been successfully verified. You will be redirected in a few seconds...",
+      "button": "Verification completed",
+      "button_redirecting": "Accessing...",
+      "redirect_message": "Redirecting to your dashboard in 2 seconds..."
+    },
+    "rejected": {
+      "title": "Verification rejected",
+      "default_message": "Your verification was rejected. Please try again with clearer documents.",
+      "button": "Try again",
+      "button_redirecting": "Redirecting...",
+      "redirect_message": "You will be redirected to the verification process in 3 seconds..."
+    },
+    "common": {
+      "redirecting": "Redirecting...",
+      "error_message": "Error verifying status. Retrying..."
+    }
+  },
+  "stopverification": {
+    "title": "Identity Verification",
+    "description": "To get started, you must read our documentation and accept our terms.",
+    "startButton": "Start verification",
+    "readDocsButton": "Read documentation",
+    "modal": {
+      "title": "Terms and Conditions",
+      "subtitle": "Join our company",
+      "paragraph1": "By continuing with verification, you accept that the information provided is truthful and that the documents submitted are valid. We reserve the right to reject any suspicious or fraudulent verification attempt.",
+      "paragraph2": "Your data will be used solely to validate your identity for security purposes on the platform.",
+      "paragraph3": "By accepting these terms, you officially become part of our company with all the rights and responsibilities that this entails.",
+      "checkboxLabel": "I agree to become a company member and comply with all established policies",
+      "checkboxRequired": "You must accept to be part of the company to continue",
+      "cancelButton": "Cancel",
+      "acceptButton": "Accept and continue",
+      "readMoreButton": "Read more details"
+    }
+  },
+  "verificacion": {
+    "title": "Verify Identity",
+    "progressLabel": "Verification progress",
+    "steps": {
+      "selfie": {
+        "title": "Selfie",
+        "description": "Clear photo of your face",
+        "uploadText": "Upload selfie",
+        "changeText": "Change image",
+        "icon": "👤"
+      },
+      "document": {
+        "title": "Identity document",
+        "description": "ID card or passport",
+        "uploadText": "Upload identity document",
+        "changeText": "Change image",
+        "icon": "📋"
+      },
+      "selfieDoc": {
+        "title": "Selfie with document",
+        "description": "Your face next to the document",
+        "uploadText": "Upload selfie with document",
+        "changeText": "Change image",
+        "icon": "🤳"
+      }
+    },
+    "video": {
+      "title": "Verification video",
+      "description": "Record a video holding your document",
+      "recordButton": "Record verification video",
+      "recorded": "Video recorded successfully",
+      "icon": "🎥",
+      "modal": {
+        "title": "Record verification video",
+        "instructions": "Instructions:",
+        "steps": [
+          "Keep your face clearly visible",
+          "Hold your identity document in front of the camera",
+          "Make sure there is good lighting",
+          "The document must be readable in the video"
+        ]
+      }
+    },
+    "actions": {
+      "submit": "Submit complete verification",
+      "submitting": "Submitting verification...",
+      "delete": "Delete",
+      "deleteImage": "Delete image",
+      "deleteVideo": "Delete video"
+    },
+    "messages": {
+      "incompleteSteps": "Please complete all steps before submitting.",
+      "invalidVideoType": "Video type '{type}' is not valid. Required: video/webm or video/mp4",
+      "sending": "Sending verification...",
+      "success": "Verification sent successfully. You will be redirected...",
+      "validationError": "Validation errors found:",
+      "fileTooLarge": "Files are too large. Please reduce the video size.",
+      "genericError": "Error sending verification. Please try again."
+    }
   }
 }

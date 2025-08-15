@@ -117,7 +117,7 @@ const HybridChatSystem = ({
   // 💾 FUNCIÓN PARA GUARDAR EN BASE DE DATOS
   const saveMessageToDatabase = useCallback(async (messageData) => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('No authentication token');
       }
@@ -361,7 +361,7 @@ const HybridChatSystem = ({
     try {
       log('📚 Cargando historial', { roomName, otherUserId: otherUser.id });
       
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('No authentication token');
       }
@@ -468,7 +468,7 @@ const HybridChatSystem = ({
     try {
       const since = lastMessageId.current ? `&since=${lastMessageId.current}` : '';
       
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/chat/messages/${roomName}?limit=10${since}`, {
         headers: {
           'Authorization': `Bearer ${token}`,

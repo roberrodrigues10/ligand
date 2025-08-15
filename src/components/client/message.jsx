@@ -85,7 +85,7 @@ export default function ChatPrivado() {
 
   // 🔥 FUNCIONES MEMOIZADAS (DEFINIR PRIMERO)
   const getAuthHeaders = useCallback(() => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -896,7 +896,7 @@ export default function ChatPrivado() {
           try {
             // Generar usando los mismos parámetros que el backend
             const currentHour = new Date().toISOString().slice(0, 13).replace('T', '-');
-            const sessionId = sessionStorage.getItem('app_session_id') || 'web_fallback';
+            const sessionId = localStorage.getItem('app_session_id') || 'web_fallback';
             
             // Recrear el hash como lo hace el backend
             const data = [

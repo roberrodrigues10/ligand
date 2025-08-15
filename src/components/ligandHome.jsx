@@ -366,9 +366,9 @@ useEffect(() => {
         console.log("👤 Usuario detectado en HOME, verificando...", user);
 
         if (user) {
-          const sessionToken = sessionStorage.getItem('token');
-          const sessionRoomName = sessionStorage.getItem('roomName');
-          const sessionUserName = sessionStorage.getItem('userName');
+          const sessionToken = localStorage.getItem('token');
+          const sessionRoomName = localStorage.getItem('roomName');
+          const sessionUserName = localStorage.getItem('userName');
 
           console.log("🎮 Verificando token de videochat:", {
             hasToken: !!sessionToken,
@@ -505,7 +505,7 @@ useEffect(() => {
 
         <div className="flex items-center justify-center">
           <img src={logoproncipal} alt="Logo" className="w-16 h-16" />
-          <span className="text-2xl text-zorrofucsia font-pacifico ml-[-5px]">Ligand</span>
+          <span className="text-2xl text-zorrofucsia font-pacifico ml-[-5px]">Ligando</span>
         </div>
 
         <div className="flex items-center space-x-4">
@@ -531,7 +531,7 @@ useEffect(() => {
         {/* Logo + Ligand */}
         <div className="flex items-center">
           <img src={logoproncipal} alt="Logo" className="w-8 h-8 mr-2" />
-          <span className="text-lg text-zorrofucsia font-pacifico ml-[-5px]">Ligand</span>
+          <span className="text-lg text-zorrofucsia font-pacifico ml-[-5px]">Ligando</span>
         </div>
 
         {/* Iniciar Sesión + Dropdown */}
@@ -551,7 +551,7 @@ useEffect(() => {
         {/* Lado Izquierdo */}
         <div className="w-full lg:max-w-lg">
           <div className="text-center mb-6 sm:mb-8">
-            <h1 className="font-pacifico text-fucsia text-8xl sm:text-11xl bg-backgroundDark rounded-lg">Ligand</h1>
+            <h1 className="font-pacifico text-fucsia text-8xl sm:text-11xl bg-backgroundDark rounded-lg">Ligando</h1>
             <p className="text-lg sm:text-4xl text-pink-200 mt-4 sm:mt-[30px] font-semibold italic">{t('frasePrincipal')}</p>
           </div>
 

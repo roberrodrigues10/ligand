@@ -146,7 +146,7 @@ export default function VideoChatClient() {
   const modelo = location.state?.modelo;
   const getParam = (key) => {
     const stateValue = location.state?.[key];
-    const sessionValue = sessionStorage.getItem(key);
+    const sessionValue = localStorage.getItem(key);
     const urlValue = searchParams.get(key);
     return stateValue || sessionValue || urlValue;
   };
@@ -409,7 +409,7 @@ export default function VideoChatClient() {
   // 🔥 FUNCIÓN PARA ACTUALIZAR BALANCE
  const updateBalance = async () => {
   try {
-    const authToken = sessionStorage.getItem('token');
+    const authToken = localStorage.getItem('token');
     if (!authToken) return;
 
     // 1️⃣ OBTENER BALANCE DE COINS (monedas generales)
@@ -460,7 +460,7 @@ export default function VideoChatClient() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({ roomName })
       }).catch(() => {});
@@ -500,7 +500,7 @@ export default function VideoChatClient() {
     window.finalizandoChat = true;
     
     try {
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       
       if (!authToken) {
         console.warn('⚠️ [CLIENTE] No hay token de auth');
@@ -588,7 +588,7 @@ export default function VideoChatClient() {
         'inCall', 'callToken', 'videochatActive'
       ];
       
-      itemsToRemove.forEach(item => sessionStorage.removeItem(item));
+      itemsToRemove.forEach(item => localStorage.removeItem(item));
       
       // Limpiar cache
       if (typeof clearUserCache === 'function') {
@@ -639,7 +639,7 @@ export default function VideoChatClient() {
       
       // Fallback
       try {
-        sessionStorage.clear();
+        localStorage.clear();
         navigate('/homecliente', { replace: true });
       } catch (fallbackError) {
         console.error('❌ Fallback error:', fallbackError);
@@ -697,7 +697,7 @@ export default function VideoChatClient() {
     setIsAddingFavorite(true);
     
     try {
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       
       if (isFavorite) {
         const response = await fetch(`${API_BASE_URL}/api/favorites/remove`, {
@@ -750,7 +750,7 @@ export default function VideoChatClient() {
     setIsBlocking(true);
     
     try {
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/blocks/block-user`, {
         method: 'POST',
         headers: {
@@ -784,7 +784,7 @@ export default function VideoChatClient() {
 
   const checkIfFavorite = async (userId) => {
     try {
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/favorites/list`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
@@ -1166,7 +1166,7 @@ useEffect(() => {
         userBalance
       });
 
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       if (!authToken) {
         throw new Error('No hay token de autenticación');
       }
@@ -1345,7 +1345,7 @@ useEffect(() => {
   useEffect(() => {
   const loadAvailableGifts = async () => {
     try {
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/gifts/available`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -1395,7 +1395,7 @@ useEffect(() => {
           userName: memoizedUserName
         });
 
-        const authToken = sessionStorage.getItem('token');
+        const authToken = localStorage.getItem('token');
         if (!authToken) {
           throw new Error('No se encontró token de autenticación');
         }
@@ -1621,7 +1621,7 @@ useEffect(() => {
       if (!isPolling) return;
 
       try {
-        const authToken = sessionStorage.getItem('token');
+        const authToken = localStorage.getItem('token');
         if (!authToken) {
           console.warn('⚠️ [CLIENTE] No hay token - deteniendo polling');
           return;
@@ -1683,11 +1683,11 @@ useEffect(() => {
                 setReceivedNotification(true);
                 clearUserCache();
                 
-                sessionStorage.removeItem('roomName');
-                sessionStorage.removeItem('userName');
-                sessionStorage.removeItem('currentRoom');
-                sessionStorage.removeItem('inCall');
-                sessionStorage.removeItem('videochatActive');
+                localStorage.removeItem('roomName');
+                localStorage.removeItem('userName');
+                localStorage.removeItem('currentRoom');
+                localStorage.removeItem('inCall');
+                localStorage.removeItem('videochatActive');
                 
                 startSearching();
                 
@@ -1756,7 +1756,7 @@ useEffect(() => {
       }
 
       try {
-        const authToken = sessionStorage.getItem('token');
+        const authToken = localStorage.getItem('token');
         
         if (!authToken) {
           console.warn('⚠️ [CLIENTE] No hay token - deteniendo monitoreo');
@@ -1898,10 +1898,10 @@ useEffect(() => {
   // Efecto para guardar parámetros
   useEffect(() => {
     if (roomName && roomName !== 'null' && roomName !== 'undefined') {
-      sessionStorage.setItem("roomName", roomName);
+      localStorage.setItem("roomName", roomName);
     }
     if (userName && userName !== 'null' && userName !== 'undefined') {
-      sessionStorage.setItem("userName", userName);
+      localStorage.setItem("userName", userName);
     }
   }, [roomName, userName]);
 

@@ -251,10 +251,10 @@ export function useRegistrationAccess() {
       const currentPath = location.pathname;
 
       // 🏃‍♂️ SI ACABA DE VERIFICAR EMAIL, NO INTERCEPTAR
-      const justVerified = sessionStorage.getItem('email_just_verified');
+      const justVerified = localStorage.getItem('email_just_verified');
       if (justVerified) {
         console.log(`🏃‍♂️ [useRegistrationAccess] Email recién verificado, permitiendo navegación libre`);
-        sessionStorage.removeItem('email_just_verified'); // Limpiar bandera
+        localStorage.removeItem('email_just_verified'); // Limpiar bandera
         setLoading(false);
         return;
       }
@@ -267,7 +267,7 @@ export function useRegistrationAccess() {
       }
 
       // Verificar token
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) {
         console.log(`🚨 [useRegistrationAccess] No hay token - redirigiendo a /home`);
         navigate("/home", { replace: true });

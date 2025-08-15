@@ -36,10 +36,10 @@ class SessionTokenManager {
   }
   
   static getSessionId() {
-    let sessionId = sessionStorage.getItem('app_session_id');
+    let sessionId = localStorage.getItem('app_session_id');
     if (!sessionId) {
       sessionId = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      sessionStorage.setItem('app_session_id', sessionId);
+      localStorage.setItem('app_session_id', sessionId);
     }
     return sessionId;
   }

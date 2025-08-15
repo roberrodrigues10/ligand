@@ -14,7 +14,7 @@ import {
   DollarSign
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import api from '../api/axios'; // IMPORTAR TU INSTANCIA API
+import api from '../../../api/axios'; // IMPORTAR TU INSTANCIA API
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 

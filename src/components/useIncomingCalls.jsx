@@ -17,7 +17,7 @@ export const useIncomingCalls = () => {
     if (!isActiveRef.current) return;
 
     try {
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       if (!authToken) return;
 
       const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {

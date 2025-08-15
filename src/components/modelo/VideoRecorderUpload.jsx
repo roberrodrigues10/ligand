@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Camera, Video, Square, Trash2, RotateCcw, Heart, Sparkles } from "lucide-react";
-import instance from "../api/axios"; // Asegúrate que este sea tu axios con withCredentials
+import instance from "../../api/axios"; // Asegúrate que este sea tu axios con withCredentials
 
 export default function VideoRecorderUpload() {
   const videoRef = useRef(null);

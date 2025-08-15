@@ -75,7 +75,7 @@ export const sendHeartbeat = async (activityType = 'browsing', room = null) => {
   }
 
   try {
-    const authToken = sessionStorage.getItem('token');
+    const authToken = localStorage.getItem('token');
     if (!authToken) {
       console.log('⚠️ [HEARTBEAT] No hay token de autenticación');
       return false;
@@ -254,7 +254,7 @@ export const isAvailableForMatching = (activityType) => {
 export const setupHeartbeatCleanup = () => {
   const cleanup = () => {
     // Usar sendBeacon para envío confiable al cerrar
-    const authToken = sessionStorage.getItem('token');
+    const authToken = localStorage.getItem('token');
     if (authToken && navigator.sendBeacon) {
       const formData = new FormData();
       formData.append('activity_type', 'idle');

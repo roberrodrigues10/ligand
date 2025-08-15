@@ -33,18 +33,18 @@ const RateLimitWait = ({
     const tryGetUserRole = async () => {
       try {
         // 🔥 BUSCAR EN CACHE PRIMERO (sin hacer request)
-        const cachedUser = sessionStorage.getItem('userCache');
+        const cachedUser = localStorage.getItem('userCache');
         if (cachedUser) {
           try {
             const parsed = JSON.parse(cachedUser);
             const role = parsed.rol || parsed.role;
             if (role) {
-              console.log('👤 Rol obtenido desde sessionStorage:', role);
+              console.log('👤 Rol obtenido desde localStorage:', role);
               setUserRole(role);
               return;
             }
           } catch (e) {
-            console.log('⚠️ Error parseando cache de sessionStorage');
+            console.log('⚠️ Error parseando cache de localStorage');
           }
         }
 
@@ -55,8 +55,8 @@ const RateLimitWait = ({
           console.log('👤 Rol obtenido desde cache/API:', role);
           setUserRole(role);
           
-          // Guardar en sessionStorage para futuras referencias
-          sessionStorage.setItem('userCache', JSON.stringify(user));
+          // Guardar en localStorage para futuras referencias
+          localStorage.setItem('userCache', JSON.stringify(user));
         }
       } catch (error) {
         console.log('⚠️ No se pudo obtener rol (rate limited):', error.message);

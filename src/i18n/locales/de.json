@@ -135,7 +135,7 @@
     },
     "hints": {
       "passwordLength": "{{current}}/{{required}} Zeichen"
-    }
+    }, "google_button": "Mit Google fortfahren"
   },
   "verification": {
     "title": "E-Mail-Verifizierung",
@@ -701,5 +701,127 @@
     "new_messages_count": "{{count}} neue Nachrichten",
     "menu": "Menü",
     "language": "Sprache"
+  },
+  "seleccion_genero": {
+    "titulo": "Welches Geschlecht haben Sie?",
+    "mujer": "Frau",
+    "hombre": "Mann",
+    "continuar": "Fortfahren",
+    "guardando": "Speichern...",
+    "cancelar": "Abbrechen",
+    "placeholder_nombre": "Ihr Name",
+    "modal_nombre_cliente": "Geben Sie Ihren Namen ein",
+    "modal_nombre_modelo": "Geben Sie Ihren Künstlernamen ein",
+    "error_seleccionar": "Bitte wählen Sie eine Rolle",
+    "error_nombre_obligatorio": "Name ist erforderlich.",
+    "error_solo_letras": "Nur Buchstaben sind erlaubt.",
+    "error_confirmar_datos": "Daten konnten nicht bestätigt werden. Bitte versuchen Sie es erneut.",
+    "error_guardar": "Fehler beim Speichern der Rolle. Bitte versuchen Sie es erneut."
+  },
+  "anteveri": {
+    "title": "Ligando",
+    "waiting": {
+      "title": "Warte auf Verifizierung",
+      "message": "Vielen Dank für Ihre Registrierung.\nWir werden Sie benachrichtigen, wenn Sie verifiziert sind.",
+      "button": "Verifizierung in Bearbeitung",
+      "checking": "Status überprüfen...",
+      "waiting_to_check": "Warten auf Überprüfung..."
+    },
+    "approved": {
+      "title": "Verifizierung genehmigt!",
+      "default_message": "Ihr Konto wurde erfolgreich verifiziert. Sie werden in wenigen Sekunden weitergeleitet...",
+      "button": "Verifizierung abgeschlossen",
+      "button_redirecting": "Zugriff...",
+      "redirect_message": "Weiterleitung zu Ihrem Dashboard in 2 Sekunden..."
+    },
+    "rejected": {
+      "title": "Verifizierung abgelehnt",
+      "default_message": "Ihre Verifizierung wurde abgelehnt. Bitte versuchen Sie es mit deutlicheren Dokumenten erneut.",
+      "button": "Erneut versuchen",
+      "button_redirecting": "Weiterleitung...",
+      "redirect_message": "Sie werden in 3 Sekunden zum Verifizierungsprozess weitergeleitet..."
+    },
+    "common": {
+      "redirecting": "Weiterleitung...",
+      "error_message": "Fehler beim Überprüfen des Status. Wiederholung..."
+    }
+  },
+  "stopverification": {
+    "title": "Identitätsverifizierung",
+    "description": "Um zu beginnen, müssen Sie unsere Dokumentation lesen und unsere Bedingungen akzeptieren.",
+    "startButton": "Verifizierung starten",
+    "readDocsButton": "Dokumentation lesen",
+    "modal": {
+      "title": "Allgemeine Geschäftsbedingungen",
+      "subtitle": "Werden Sie Teil unseres Unternehmens",
+      "paragraph1": "Durch Fortsetzen der Verifizierung akzeptieren Sie, dass die bereitgestellten Informationen wahrheitsgemäß sind und die eingereichten Dokumente gültig sind. Wir behalten uns das Recht vor, jeden verdächtigen oder betrügerischen Verifizierungsversuch abzulehnen.",
+      "paragraph2": "Ihre Daten werden ausschließlich zur Validierung Ihrer Identität für Sicherheitszwecke auf der Plattform verwendet.",
+      "paragraph3": "Durch Annahme dieser Bedingungen werden Sie offiziell Teil unseres Unternehmens mit allen Rechten und Pflichten, die dies mit sich bringt.",
+      "checkboxLabel": "Ich stimme zu, Unternehmensmitglied zu werden und alle etablierten Richtlinien einzuhalten",
+      "checkboxRequired": "Sie müssen zustimmen, Teil des Unternehmens zu werden, um fortzufahren",
+      "cancelButton": "Abbrechen",
+      "acceptButton": "Akzeptieren und fortfahren",
+      "readMoreButton": "Weitere Details lesen"
+    },
+    "verificacion": {
+    "title": "Identität verifizieren",
+    "progressLabel": "Verifizierungsfortschritt",
+    "steps": {
+      "selfie": {
+        "title": "Selfie",
+        "description": "Klares Foto Ihres Gesichts",
+        "uploadText": "Selfie hochladen",
+        "changeText": "Bild ändern",
+        "icon": "👤"
+      },
+      "document": {
+        "title": "Identitätsdokument",
+        "description": "Personalausweis oder Reisepass",
+        "uploadText": "Identitätsdokument hochladen",
+        "changeText": "Bild ändern",
+        "icon": "📋"
+      },
+      "selfieDoc": {
+        "title": "Selfie mit Dokument",
+        "description": "Ihr Gesicht neben dem Dokument",
+        "uploadText": "Selfie mit Dokument hochladen",
+        "changeText": "Bild ändern",
+        "icon": "🤳"
+      }
+    },
+    "video": {
+      "title": "Verifizierungsvideo",
+      "description": "Nehmen Sie ein Video auf, während Sie Ihr Dokument halten",
+      "recordButton": "Verifizierungsvideo aufnehmen",
+      "recorded": "Video erfolgreich aufgenommen",
+      "icon": "🎥",
+      "modal": {
+        "title": "Verifizierungsvideo aufnehmen",
+        "instructions": "Anweisungen:",
+        "steps": [
+          "Halten Sie Ihr Gesicht deutlich sichtbar",
+          "Halten Sie Ihr Identitätsdokument vor die Kamera",
+          "Stellen Sie sicher, dass eine gute Beleuchtung vorhanden ist",
+          "Das Dokument muss im Video lesbar sein"
+        ]
+      }
+    },
+    "actions": {
+      "submit": "Vollständige Verifizierung einreichen",
+      "submitting": "Verifizierung wird gesendet...",
+      "delete": "Löschen",
+      "deleteImage": "Bild löschen",
+      "deleteVideo": "Video löschen"
+    },
+    "messages": {
+      "incompleteSteps": "Bitte vervollständigen Sie alle Schritte vor dem Einreichen.",
+      "invalidVideoType": "Videotyp '{type}' ist nicht gültig. Erforderlich: video/webm oder video/mp4",
+      "sending": "Verifizierung wird gesendet...",
+      "success": "Verifizierung erfolgreich gesendet. Sie werden weitergeleitet...",
+      "validationError": "Validierungsfehler gefunden:",
+      "fileTooLarge": "Die Dateien sind zu groß. Bitte reduzieren Sie die Videogröße.",
+      "genericError": "Fehler beim Senden der Verifizierung. Bitte versuchen Sie es erneut."
+    }
+  }
   }
 }

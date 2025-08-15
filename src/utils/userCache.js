@@ -51,7 +51,7 @@ class UserCacheManager {
 
   // Función principal para obtener usuario
   async getUser(forceRefresh = false) {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }

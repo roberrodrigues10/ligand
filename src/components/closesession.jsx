@@ -18,7 +18,7 @@ export const useSessionCleanup = (roomName, isConnected = false) => {
     try {
       console.log('🛑 Finalizando sesión:', { roomName, reason });
       
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       const data = {
         room_name: roomName,
         end_reason: reason
@@ -55,7 +55,7 @@ export const useSessionCleanup = (roomName, isConnected = false) => {
     } catch (error) {
       console.error('❌ Error finalizando sesión:', error);
     } finally {
-      // Limpiar sessionStorage
+      // Limpiar localStorage
       limpiarDatosSession();
     }
   };
@@ -64,10 +64,10 @@ export const useSessionCleanup = (roomName, isConnected = false) => {
   const limpiarDatosSession = () => {
     try {
       // Limpiar datos específicos de la sala
-      sessionStorage.removeItem('roomName');
-      sessionStorage.removeItem('userName');
-      sessionStorage.removeItem('session_data');
-      sessionStorage.removeItem('chat_messages');
+      localStorage.removeItem('roomName');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('session_data');
+      localStorage.removeItem('chat_messages');
       
       // Limpiar cache de usuarios
       if (window.debugUserCache) {
@@ -77,7 +77,7 @@ export const useSessionCleanup = (roomName, isConnected = false) => {
       
       console.log('🧹 Datos de sesión limpiados');
     } catch (error) {
-      console.error('Error limpiando sessionStorage:', error);
+      console.error('Error limpiando localStorage:', error);
     }
   };
 

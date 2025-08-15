@@ -10,7 +10,7 @@ import {
   Target
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import api from '../api/axios';
+import api from '../../../api/axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 

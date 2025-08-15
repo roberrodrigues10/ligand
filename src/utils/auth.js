@@ -10,7 +10,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 let heartbeatInterval = null;
 
 const getCurrentRoom = () => {
-  return sessionStorage.getItem("roomName") ?? null;
+  return localStorage.getItem("roomName") ?? null;
 };
 
 // 🎯 Obtener el tipo de actividad actual del usuario
@@ -19,7 +19,7 @@ const getCurrentActivityType = () => {
   const path = window.location.pathname;
 
   if (path.includes('/videochat')) {
-    const role = sessionStorage.getItem('userRole');
+    const role = localStorage.getItem('userRole');
     return role === 'modelo' ? 'videochat_model' : 'videochat';
   }
 
@@ -28,7 +28,7 @@ const getCurrentActivityType = () => {
 
 const sendHeartbeat = async () => {
   try {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     if (!token) return;
 
     const payload = {
@@ -65,7 +65,7 @@ const stopHeartbeat = () => {
 
 const markUserOffline = async () => {
   try {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     if (!token) return;
 
     await axios.post(`${API_BASE_URL}/api/user/mark-offline`, {}, {
@@ -84,7 +84,7 @@ export const register = async (email, password) => {
 
     const token = response.data.access_token;
     if (token) {
-      sessionStorage.setItem("token", token);
+      localStorage.setItem("token", token);
       console.log("✅ Token guardado en registro:", token.substring(0, 10) + "...");
     } else {
       console.warn("⚠️ No se recibió access_token en registro.", response.data);
@@ -105,7 +105,7 @@ export const loginWithoutRedirect = async (email, password) => {
 
     const token = response.data.access_token;
     if (token) {
-      sessionStorage.setItem("token", token);
+      localStorage.setItem("token", token);
       console.log("✅ Token guardado en login:", token.substring(0, 10) + "...");
       
       // 🔥 LIMPIAR CACHE AL HACER LOGIN
@@ -148,9 +148,9 @@ export const logout = async () => {
     stopHeartbeat();
     
     await axios.post(`${API_BASE_URL}/api/logout`);
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("roomName");
-    sessionStorage.removeItem("userName");
+    localStorage.removeItem("token");
+    localStorage.removeItem("roomName");
+    localStorage.removeItem("userName");
     
     // 🔥 LIMPIAR CACHE AL LOGOUT
     userCache.clearCache();
@@ -160,7 +160,7 @@ export const logout = async () => {
     console.error("❌ Error en logout:", error.response?.data || error);
     
     stopHeartbeat();
-    sessionStorage.removeItem("token");
+    localStorage.removeItem("token");
     userCache.clearCache(); // 🔥 LIMPIAR CACHE SIEMPRE
     
     throw error;
@@ -191,7 +191,7 @@ export const getUser = async (forceRefresh = false) => {
     if (error.response?.status === 401 || error.response?.status === 403) {
       console.log("🧹 Limpiando token inválido");
       stopHeartbeat();
-      sessionStorage.removeItem("token");
+      localStorage.removeItem("token");
       userCache.clearCache();
     }
     
@@ -230,7 +230,7 @@ export const asignarRol = async ({ rol, nombre }) => {
 // ✅ Reclamar sesión
 export const reclamarSesion = async () => {
   try {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     const response = await axios.post(
       `${API_BASE_URL}/api/reclamar-sesion`,
       {},
@@ -244,7 +244,7 @@ export const reclamarSesion = async () => {
 
     const nuevoToken = response.data.nuevo_token;
     if (nuevoToken) {
-      sessionStorage.setItem("token", nuevoToken);
+      localStorage.setItem("token", nuevoToken);
       
       // 🔥 LIMPIAR CACHE CON NUEVO TOKEN
       userCache.clearCache();
@@ -263,7 +263,7 @@ export const reclamarSesion = async () => {
 
 // Función para inicializar el sistema
 export const initializeAuth = () => {
-  const token = sessionStorage.getItem("token");
+  const token = localStorage.getItem("token");
   
   if (token) {
     console.log("🔄 Token encontrado, iniciando heartbeat automático");
@@ -274,7 +274,7 @@ export const initializeAuth = () => {
 // Función para actualizar heartbeat
 export const updateHeartbeatRoom = async (roomName) => {
   try {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     if (!token) return;
 
     await axios.post(`${API_BASE_URL}/api/heartbeat`, {
@@ -348,7 +348,7 @@ export const handleGoogleCallback = async (code, state) => {
 
     const { access_token, user, signup_step } = response.data;
 
-    sessionStorage.setItem('token', access_token);
+    localStorage.setItem('token', access_token);
     userCache.clearCache();
     
     try {
@@ -398,7 +398,7 @@ export const clearUserCache = () => {
 // 🔥 FUNCIÓN PARA DEBUGGING
 export const debugAuth = () => {
   return {
-    hasToken: !!sessionStorage.getItem('token'),
+    hasToken: !!localStorage.getItem('token'),
     cache: userCache.getDebugInfo(),
     heartbeatActive: !!heartbeatInterval
   };

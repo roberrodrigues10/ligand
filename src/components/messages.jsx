@@ -141,7 +141,7 @@ const SimpleChat = ({
         chatCache.participantsCache,
         chatCache.PARTICIPANTS_CACHE_DURATION,
         async () => {
-          const token = sessionStorage.getItem('token');
+          const token = localStorage.getItem('token');
           if (!token) {
             console.error('🔐 No hay token para participantes');
             throw new Error('No hay token');
@@ -239,9 +239,9 @@ const SimpleChat = ({
       chatCache.messagesCache,
       chatCache.MESSAGES_CACHE_DURATION,
       async () => {
-        const token = sessionStorage.getItem('token');
+        const token = localStorage.getItem('token');
         if (!token) {
-          console.error('🔐 No hay token de autenticación en sessionStorage');
+          console.error('🔐 No hay token de autenticación en localStorage');
           throw new Error('No hay token de autenticación');
         }
 
@@ -523,7 +523,7 @@ newMessages.forEach(msg => {
     }
 
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) return false;
 
       // 🔥 URL CORREGIDA: usar send-message en lugar de send
@@ -566,7 +566,7 @@ newMessages.forEach(msg => {
     if (!gift || !roomName) return false;
 
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) return false;
 
       // 🔥 URL CORREGIDA
@@ -608,7 +608,7 @@ newMessages.forEach(msg => {
     if (!emoji || !roomName) return false;
 
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) return false;
 
       // 🔥 URL CORREGIDA
@@ -681,7 +681,7 @@ newMessages.forEach(msg => {
       }
       
       // Limpiar cache al cambiar de sala
-      const currentRoom = sessionStorage.getItem('roomName');
+      const currentRoom = localStorage.getItem('roomName');
       if (currentRoom !== roomName) {
         console.log('🧹 Limpiando chat cache - cambio de sala');
         chatCache.clearCache();

@@ -60,7 +60,7 @@ export default function Favoritos() {
 
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TOKEN (como en mensajes)
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -384,12 +384,12 @@ export default function Favoritos() {
 
   // 🔥 REDIRIGIR AL VIDEOCHAT (igual que en mensajes)
   const redirigirAVideochat = (callData) => {
-    const userData = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
     
-    sessionStorage.setItem('roomName', callData.room_name);
-    sessionStorage.setItem('userName', userData.name || userData.alias || 'Chica');
-    sessionStorage.setItem('currentRoom', callData.room_name);
-    sessionStorage.setItem('inCall', 'true');
+    localStorage.setItem('roomName', callData.room_name);
+    localStorage.setItem('userName', userData.name || userData.alias || 'Chica');
+    localStorage.setItem('currentRoom', callData.room_name);
+    localStorage.setItem('inCall', 'true');
     
     setIsCallActive(false);
     setCurrentCall(null);
@@ -416,7 +416,7 @@ export default function Favoritos() {
       setLoading(true);
       setError(null);
 
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       if (!authToken) {
         setError('No hay sesión activa');
         return;
@@ -455,7 +455,7 @@ export default function Favoritos() {
     try {
       setProcessingAction(favoriteId);
             
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/favorites/remove`, {
         method: 'POST',
         headers: {
@@ -489,7 +489,7 @@ export default function Favoritos() {
   try {
     setProcessingAction(favoriteId);
           
-    const authToken = sessionStorage.getItem('token');
+    const authToken = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/blocks/block-user`, {
       method: 'POST',
       headers: {

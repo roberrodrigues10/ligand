@@ -135,7 +135,7 @@
     },
     "hints": {
       "passwordLength": "{{current}}/{{required}} karakter"
-    }
+    },  "google_button": "Google ile devam et"
   },
   "verification": {
     "title": "E-posta doğrulama",
@@ -701,5 +701,127 @@
     "new_messages_count": "{{count}} yeni mesaj",
     "menu": "Menü",
     "language": "Dil"
+  },
+  "seleccion_genero": {
+    "titulo": "Cinsiyetiniz nedir?",
+    "mujer": "Kadın",
+    "hombre": "Erkek",
+    "continuar": "Devam et",
+    "guardando": "Kaydediliyor...",
+    "cancelar": "İptal",
+    "placeholder_nombre": "Adınız",
+    "modal_nombre_cliente": "Adınızı girin",
+    "modal_nombre_modelo": "Sahne adınızı girin",
+    "error_seleccionar": "Lütfen bir rol seçin",
+    "error_nombre_obligatorio": "İsim gereklidir.",
+    "error_solo_letras": "Sadece harflere izin verilir.",
+    "error_confirmar_datos": "Veriler doğrulanamadı. Lütfen tekrar deneyin.",
+    "error_guardar": "Rol kaydedilirken hata. Lütfen tekrar deneyin."
+  },
+  "anteveri": {
+    "title": "Ligando",
+    "waiting": {
+      "title": "Doğrulama bekleniyor",
+      "message": "Kayıt olduğunuz için teşekkürler.\nDoğrulandığınızda size bilgi vereceğiz.",
+      "button": "Doğrulama devam ediyor",
+      "checking": "Durum kontrol ediliyor...",
+      "waiting_to_check": "Kontrol için bekleniyor..."
+    },
+    "approved": {
+      "title": "Doğrulama onaylandı!",
+      "default_message": "Hesabınız başarıyla doğrulandı. Birkaç saniye içinde yönlendirileceksiniz...",
+      "button": "Doğrulama tamamlandı",
+      "button_redirecting": "Erişim sağlanıyor...",
+      "redirect_message": "2 saniye içinde kontrol panelinize yönlendirileceksiniz..."
+    },
+    "rejected": {
+      "title": "Doğrulama reddedildi",
+      "default_message": "Doğrulamanız reddedildi. Lütfen daha net belgelerle tekrar deneyin.",
+      "button": "Tekrar dene",
+      "button_redirecting": "Yönlendiriliyor...",
+      "redirect_message": "3 saniye içinde doğrulama sürecine yönlendirileceksiniz..."
+    },
+    "common": {
+      "redirecting": "Yönlendiriliyor...",
+      "error_message": "Durum doğrulanırken hata oluştu. Tekrar deneniyor..."
+    }
+  },
+  "stopverification": {
+    "title": "Kimlik Doğrulama",
+    "description": "Başlamak için, belgelerimizi okumalı ve şartlarımızı kabul etmelisiniz.",
+    "startButton": "Doğrulamaya başla",
+    "readDocsButton": "Belgeleri oku",
+    "modal": {
+      "title": "Şartlar ve Koşullar",
+      "subtitle": "Şirketimize katılın",
+      "paragraph1": "Doğrulama ile devam ederek, sağlanan bilgilerin doğru olduğunu ve gönderilen belgelerin geçerli olduğunu kabul ediyorsunuz. Şüpheli veya hileli doğrulama girişimlerini reddetme hakkımızı saklı tutarız.",
+      "paragraph2": "Verileriniz yalnızca platformda güvenlik amaçlı kimliğinizi doğrulamak için kullanılacaktır.",
+      "paragraph3": "Bu şartları kabul ederek, tüm hak ve sorumlulukları ile birlikte resmi olarak şirketimizin bir parçası olursunuz.",
+      "checkboxLabel": "Şirket üyesi olmayı ve tüm belirlenen politikaları takip etmeyi kabul ediyorum",
+      "checkboxRequired": "Devam etmek için şirketin bir parçası olmayı kabul etmelisiniz",
+      "cancelButton": "İptal",
+      "acceptButton": "Kabul et ve devam et",
+      "readMoreButton": "Daha fazla detay oku"
+    }
+  },
+  "verificacion": {
+    "title": "Kimlik doğrulama",
+    "progressLabel": "Doğrulama ilerlemesi",
+    "steps": {
+      "selfie": {
+        "title": "Selfie",
+        "description": "Yüzünüzün net fotoğrafı",
+        "uploadText": "Selfie yükle",
+        "changeText": "Resmi değiştir",
+        "icon": "👤"
+      },
+      "document": {
+        "title": "Kimlik belgesi",
+        "description": "Kimlik kartı veya pasaport",
+        "uploadText": "Kimlik belgesi yükle",
+        "changeText": "Resmi değiştir",
+        "icon": "📋"
+      },
+      "selfieDoc": {
+        "title": "Belge ile selfie",
+        "description": "Belgenin yanında yüzünüz",
+        "uploadText": "Belge ile selfie yükle",
+        "changeText": "Resmi değiştir",
+        "icon": "🤳"
+      }
+    },
+    "video": {
+      "title": "Doğrulama videosu",
+      "description": "Belgenizi tutarak bir video kaydedin",
+      "recordButton": "Doğrulama videosu kaydet",
+      "recorded": "Video başarıyla kaydedildi",
+      "icon": "🎥",
+      "modal": {
+        "title": "Doğrulama videosu kaydet",
+        "instructions": "Talimatlar:",
+        "steps": [
+          "Yüzünüzü açıkça görünür tutun",
+          "Kimlik belgenizi kameranın önünde tutun",
+          "İyi aydınlatma olduğundan emin olun",
+          "Belge videoda okunabilir olmalı"
+        ]
+      }
+    },
+    "actions": {
+      "submit": "Tam doğrulamayı gönder",
+      "submitting": "Doğrulama gönderiliyor...",
+      "delete": "Sil",
+      "deleteImage": "Resmi sil",
+      "deleteVideo": "Videoyu sil"
+    },
+    "messages": {
+      "incompleteSteps": "Göndermeden önce lütfen tüm adımları tamamlayın.",
+      "invalidVideoType": "Video türü '{type}' geçerli değil. Gerekli: video/webm veya video/mp4",
+      "sending": "Doğrulama gönderiliyor...",
+      "success": "Doğrulama başarıyla gönderildi. Yönlendirileceksiniz...",
+      "validationError": "Doğrulama hataları bulundu:",
+      "fileTooLarge": "Dosyalar çok büyük. Lütfen video boyutunu küçültün.",
+      "genericError": "Doğrulama gönderilirken hata oluştu. Lütfen tekrar deneyin."
+    }
   }
 }

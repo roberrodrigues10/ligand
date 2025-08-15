@@ -4,13 +4,13 @@ import { MessageSquare, Star, Home, Phone, Clock, CheckCircle, Users, AlertTrian
 import { useNavigate } from "react-router-dom";
 import Header from "./header";
 import { useTranslation } from "react-i18next";
-import { ProtectedPage } from './hooks/usePageAccess';
-import { getUser } from "../utils/auth";
-import axios from "../api/axios";
-import CallingSystem from './CallingOverlay';
-import IncomingCallOverlay from './IncomingCallOverlay';
-import StoryModal from './StoryModal';
-import { useAppNotifications } from '../contexts/NotificationContext';
+import { ProtectedPage } from '../hooks/usePageAccess';
+import { getUser } from "../../utils/auth";
+import axios from "../../api/axios";
+import CallingSystem from '../CallingOverlay';
+import IncomingCallOverlay from '../IncomingCallOverlay';
+import StoryModal from '../StoryModal';
+import { useAppNotifications } from '../../contexts/NotificationContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -49,7 +49,7 @@ export default function InterfazCliente() {
 
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TOKEN
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     
     if (!token || token === 'null' || token === 'undefined') {
       console.error('❌ TOKEN INVÁLIDO - Redirigiendo a login');
@@ -67,7 +67,7 @@ export default function InterfazCliente() {
   // 🆕 VERIFICAR SI PUEDE SUBIR HISTORIA
   const checkCanUpload = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       
       if (!token || token === 'null' || token === 'undefined') {
         return;
@@ -242,8 +242,8 @@ export default function InterfazCliente() {
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         if (response.status === 401) {
-          sessionStorage.removeItem('token');
-          sessionStorage.removeItem('user');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
         }
         
         if (initialLoad) {
@@ -278,8 +278,8 @@ export default function InterfazCliente() {
         }
       } else {
         if (response.status === 401) {
-          sessionStorage.removeItem('token');
-          sessionStorage.removeItem('user');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
         }
         
         if (initialLoad) {
@@ -394,7 +394,7 @@ export default function InterfazCliente() {
     try {
       setLoadingStory(true);
       
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       
       if (!token || token === 'null' || token === 'undefined') {
         console.warn('❌ Token inválido o no encontrado');
@@ -612,7 +612,7 @@ const iniciarLlamadaReal = async (usuario) => {
     });
     setIsCallActive(true);
     
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/calls/start`, {
       method: 'POST',
       headers: {
@@ -658,7 +658,7 @@ const iniciarPollingLlamada = (callId) => {
   
   const interval = setInterval(async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/calls/status`, {
         method: 'POST',
         headers: {
@@ -727,7 +727,7 @@ const cancelarLlamada = async () => {
     console.log('🛑 Cancelando llamada...');
     
     if (currentCall?.callId) {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       await fetch(`${API_BASE_URL}/api/calls/cancel`, {
         method: 'POST',
         headers: {
@@ -757,7 +757,7 @@ const cancelarLlamada = async () => {
 // 🔥 FUNCIÓN: POLLING PARA LLAMADAS ENTRANTES
 const verificarLlamadasEntrantes = async () => {
   try {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {
       method: 'GET',
       headers: {
@@ -806,7 +806,7 @@ const responderLlamada = async (accion) => {
     
     stopIncomingCallSound();
     
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
       method: 'POST',
       headers: {
@@ -849,11 +849,11 @@ const redirigirAVideochat = (callData) => {
   console.log('🚀 Redirigiendo a videochat modelo:', callData);
   
   // Guardar datos de la llamada
-  sessionStorage.setItem('roomName', callData.room_name);
-  sessionStorage.setItem('userName', user?.name || 'Modelo');
-  sessionStorage.setItem('currentRoom', callData.room_name);
-  sessionStorage.setItem('inCall', 'true');
-  sessionStorage.setItem('videochatActive', 'true');
+  localStorage.setItem('roomName', callData.room_name);
+  localStorage.setItem('userName', user?.name || 'Modelo');
+  localStorage.setItem('currentRoom', callData.room_name);
+  localStorage.setItem('inCall', 'true');
+  localStorage.setItem('videochatActive', 'true');
   
   // Limpiar estados de llamada
   setIsCallActive(false);

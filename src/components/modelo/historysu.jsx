@@ -19,8 +19,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Header from "./header";
-import axios from "../api/axios";
-import { useAppNotifications } from "../contexts/NotificationContext";
+import axios from "../../api/axios";
+import { useAppNotifications } from "../../contexts/NotificationContext";
 
 export default function SubirHistoria() {
   const { t } = useTranslation();
@@ -64,7 +64,7 @@ export default function SubirHistoria() {
   // 🆕 Verificar si puede subir historia
   const checkCanUpload = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       
       if (!token || token === 'null' || token === 'undefined') {
         console.warn('❌ Token inválido o no encontrado');
@@ -140,7 +140,7 @@ export default function SubirHistoria() {
     try {
       setLoadingStory(true);
       
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       
       if (!token || token === 'null' || token === 'undefined') {
         console.warn('❌ Token inválido o no encontrado');

@@ -50,7 +50,7 @@ const ProfileSettings = ({ t }) => {
 
   // Función para obtener headers con autenticación
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -153,7 +153,7 @@ const ProfileSettings = ({ t }) => {
       const response = await fetch(`${API_BASE_URL}/api/profile/photo/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem("token")}`,
+          'Authorization': `Bearer ${localStorage.getItem("token")}`,
           'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
         },

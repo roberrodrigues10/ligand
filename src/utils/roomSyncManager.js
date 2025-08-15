@@ -89,7 +89,7 @@ export class RoomSyncManager {
     try {
       console.log('🔄 Ejecutando sincronización...');
       
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       if (!authToken) {
         throw new Error('No hay token de autenticación');
       }
@@ -400,7 +400,7 @@ export async function performCompleteUserCleanup(reason = 'manual_cleanup') {
   console.log('🧹 Iniciando cleanup completo del usuario...', { reason });
 
   try {
-    const authToken = sessionStorage.getItem('token');
+    const authToken = localStorage.getItem('token');
     if (!authToken) {
       console.warn('❌ No hay token para cleanup');
       return false;
@@ -431,7 +431,7 @@ export async function performCompleteUserCleanup(reason = 'manual_cleanup') {
 
     itemsToRemove.forEach(item => {
       try {
-        sessionStorage.removeItem(item);
+        localStorage.removeItem(item);
       } catch (e) {
         console.warn('⚠️ Error removiendo item:', item);
       }

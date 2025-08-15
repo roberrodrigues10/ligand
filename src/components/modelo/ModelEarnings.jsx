@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, Clock, User, Calendar, ChevronDown, ChevronRight, ChevronLeft, CreditCard, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { X, DollarSign, Clock, User, Calendar, ChevronDown, ChevronRight, ChevronLeft, CreditCard, CheckCircle, Loader2, AlertCircle, Gift, Video, MessageSquare } from 'lucide-react';
 
 const WeeklyEarnings = ({ isOpen, onClose }) => {
   const [weeklyData, setWeeklyData] = useState(null);
@@ -8,8 +8,8 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
   const [dayPages, setDayPages] = useState({});
   const [error, setError] = useState(null);
   
-  // 🔥 NUEVOS ESTADOS PARA SISTEMA DE PAGOS
-  const [activeTab, setActiveTab] = useState('weekly'); // 'weekly', 'pending', 'history'
+  // 🔥 ESTADOS PARA SISTEMA UNIFICADO
+  const [activeTab, setActiveTab] = useState('all');
   const [pendingPayments, setPendingPayments] = useState([]);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
@@ -21,23 +21,23 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
   const ITEMS_PER_PAGE = 3;
 
   useEffect(() => {
-  if (isOpen) {
-    if (activeTab === 'weekly') {
-      fetchWeeklyEarnings();
-      fetchUserBalance(); // 🔥 AGREGAR esta línea
-    } else if (activeTab === 'pending') {
-      fetchPendingPayments();
-    } else if (activeTab === 'history') {
-      fetchPaymentHistory();
+    if (isOpen) {
+      if (['all', 'sessions', 'gifts'].includes(activeTab)) {
+        fetchWeeklyEarnings();
+        fetchUserBalance();
+      } else if (activeTab === 'pending') {
+        fetchPendingPayments();
+      } else if (activeTab === 'history') {
+        fetchPaymentHistory();
+      }
     }
-  }
-}, [isOpen, activeTab]);
+  }, [isOpen, activeTab]);
 
   const fetchWeeklyEarnings = async () => {
     try {
       setLoading(true);
       setError(null);
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/earnings/weekly`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -47,17 +47,21 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('📊 Datos recibidos del backend:', data); // Para debug
+        console.log('📊 [UNIFICADO] Datos recibidos:', data);
         setWeeklyData(data.current_week);
         
-        const initialPages = {};
-        if (data.current_week?.earnings_list) {
-          const groupedByDay = groupEarningsByDay(data.current_week.earnings_list);
+        const initializePages = (earningsList) => {
+          const groupedByDay = groupEarningsByDay(earningsList);
+          const initialPages = {};
           Object.keys(groupedByDay).forEach(day => {
             initialPages[day] = 1;
           });
+          return initialPages;
+        };
+
+        if (data.current_week?.earnings_list) {
+          setDayPages(initializePages(data.current_week.earnings_list));
         }
-        setDayPages(initialPages);
       } else {
         setError('Error al cargar las ganancias semanales');
       }
@@ -69,12 +73,36 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
     }
   };
 
-  // 🔥 NUEVA FUNCIÓN: OBTENER PAGOS PENDIENTES
+  const fetchUserBalance = async () => {
+    try {
+      setBalanceLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/balance`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('💰 [UNIFICADO] Balance data:', data);
+        setBalanceData(data);
+      } else {
+        console.error('Error al obtener balance');
+      }
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
   const fetchPendingPayments = async () => {
     try {
       setPaymentsLoading(true);
       setPaymentsError(null);
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/earnings/pending-payments`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -96,12 +124,11 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
     }
   };
 
-  // 🔥 NUEVA FUNCIÓN: OBTENER HISTORIAL DE PAGOS
   const fetchPaymentHistory = async () => {
     try {
       setPaymentsLoading(true);
       setPaymentsError(null);
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/earnings/payment-history`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -123,8 +150,24 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
     }
   };
 
+  const getFilteredEarnings = (earningsList) => {
+    if (!earningsList) return [];
+    
+    switch (activeTab) {
+      case 'sessions':
+        return earningsList.filter(e => e.time_earnings > 0);
+      case 'gifts':
+        return earningsList.filter(e => e.gift_earnings > 0);
+      case 'all':
+      default:
+        return earningsList;
+    }
+  };
+
   const groupEarningsByDay = (earnings) => {
-    return earnings.reduce((groups, earning) => {
+    const filteredEarnings = getFilteredEarnings(earnings);
+    
+    return filteredEarnings.reduce((groups, earning) => {
       const date = new Date(earning.created_at);
       const dayKey = date.toISOString().split('T')[0];
       const dayName = date.toLocaleDateString('es-ES', { 
@@ -137,26 +180,25 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
         groups[dayKey] = {
           dayName,
           earnings: [],
-          total: 0
+          total: 0,
+          timeTotal: 0,
+          giftTotal: 0
         };
       }
       
       groups[dayKey].earnings.push(earning);
-      // 🔥 FIX: Usar earning_amount_gross en lugar de earning_amount
-      groups[dayKey].total += (earning.earning_amount_gross || earning.earning_amount || 0);
+      groups[dayKey].total += earning.earning_amount_gross || 0;
+      groups[dayKey].timeTotal += earning.time_earnings || 0;
+      groups[dayKey].giftTotal += earning.gift_earnings || 0;
       
       return groups;
     }, {});
   };
 
-  const formatDuration = (minutes) => {
-    if (minutes < 1) return '< 1 min';
-    const hours = Math.floor(minutes / 60);
-    const mins = Math.round(minutes % 60);
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
+  const formatDuration = (durationSeconds) => {
+    if (!durationSeconds || durationSeconds < 60) return '< 1 min';
+    const minutes = Math.floor(durationSeconds / 60);
+    return `${minutes} min`;
   };
 
   const formatTime = (dateString) => {
@@ -164,6 +206,32 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const getSourceIcon = (sourceType) => {
+    switch (sourceType) {
+      case 'video_session':
+        return <Video size={14} className="text-blue-400" />;
+      case 'direct_gift':
+        return <Gift size={14} className="text-purple-400" />;
+      case 'chat_gift':
+        return <MessageSquare size={14} className="text-green-400" />;
+      default:
+        return <Clock size={14} className="text-gray-400" />;
+    }
+  };
+
+  const getSourceLabel = (sourceType) => {
+    switch (sourceType) {
+      case 'video_session':
+        return 'Videochat';
+      case 'direct_gift':
+        return 'Regalo Directo';
+      case 'chat_gift':
+        return 'Regalo en Chat';
+      default:
+        return 'Sesión';
+    }
   };
 
   const toggleDayExpansion = (dayKey) => {
@@ -185,36 +253,12 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
     const endIndex = startIndex + ITEMS_PER_PAGE;
     return earnings.slice(startIndex, endIndex);
   };
-  const fetchUserBalance = async () => {
-  try {
-    setBalanceLoading(true);
-    const token = sessionStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/api/balance`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log('💰 Balance data recibida:', data);
-      setBalanceData(data);
-    } else {
-      console.error('Error al obtener balance');
-    }
-  } catch (error) {
-    console.error('Error fetching balance:', error);
-  } finally {
-    setBalanceLoading(false);
-  }
-  };
 
   const getTotalPages = (earnings) => {
     return Math.ceil(earnings.length / ITEMS_PER_PAGE);
   };
 
-  // 🔥 COMPONENTE: PAGOS PENDIENTES
+  // COMPONENTE: PAGOS PENDIENTES
   const PendingPaymentsTab = () => (
     <div className="p-6">
       {paymentsLoading ? (
@@ -241,7 +285,6 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Summary */}
           <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -260,27 +303,33 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* Pending Payments List */}
           {pendingPayments.map((payment) => (
             <div key={payment.id} className="bg-[#2b2d31] rounded-lg border border-yellow-500/20 p-4">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="text-yellow-400" size={16} />
-                    <span className="text-white font-medium">
-                      Semana {payment.week_range}
-                    </span>
-                    <span className="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded text-xs">
-                      Pendiente
-                    </span>
+                    <span className="text-white font-medium">Semana {payment.week_range}</span>
+                    <span className="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded text-xs">Pendiente</span>
                   </div>
                   
-                  <div className="flex items-center gap-4 text-sm text-gray-400">
+                  <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
                     <div>{payment.total_sessions || 0} sesiones</div>
                     <div>Procesado: {payment.processed_at}</div>
                     <div className="flex items-center gap-1">
                       <Clock size={12} />
                       {payment.days_pending || 0} día(s) esperando
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <Video size={12} className="text-blue-400" />
+                      Tiempo: ${(payment.time_earnings || 0).toFixed(2)}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Gift size={12} className="text-purple-400" />
+                      Regalos: ${(payment.gift_earnings || 0).toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -299,16 +348,14 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
           ))}
 
           <div className="bg-[#36393f]/50 rounded-lg p-4 text-center">
-            <p className="text-gray-400 text-sm">
-              💡 Los pagos se procesan semanalmente. Tu dinero llegará pronto.
-            </p>
+            <p className="text-gray-400 text-sm">💡 Los pagos se procesan semanalmente. Tu dinero llegará pronto.</p>
           </div>
         </div>
       )}
     </div>
   );
 
-  // 🔥 COMPONENTE: HISTORIAL DE PAGOS
+  // COMPONENTE: HISTORIAL DE PAGOS
   const PaymentHistoryTab = () => (
     <div className="p-6">
       {paymentsLoading ? (
@@ -335,7 +382,6 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Summary */}
           <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -354,16 +400,13 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* Payment History List */}
           {paymentHistory.map((payment) => (
             <div key={payment.id} className="bg-[#2b2d31] rounded-lg border border-green-500/20 p-4">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="text-green-400" size={16} />
-                    <span className="text-white font-medium">
-                      Semana {payment.week_range}
-                    </span>
+                    <span className="text-white font-medium">Semana {payment.week_range}</span>
                     <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs flex items-center gap-1">
                       <CheckCircle size={12} />
                       Pagado
@@ -375,11 +418,20 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
                     <div>Pagado: {payment.paid_at}</div>
                   </div>
 
+                  <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
+                    <div className="flex items-center gap-1">
+                      <Video size={12} className="text-blue-400" />
+                      Tiempo: ${(payment.time_earnings || 0).toFixed(2)}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Gift size={12} className="text-purple-400" />
+                      Regalos: ${(payment.gift_earnings || 0).toFixed(2)}
+                    </div>
+                  </div>
+
                   <div className="flex items-center gap-4 text-xs text-gray-500">
                     <div>Método: {payment.payment_method}</div>
-                    {payment.payment_reference && (
-                      <div>Ref: {payment.payment_reference}</div>
-                    )}
+                    {payment.payment_reference && <div>Ref: {payment.payment_reference}</div>}
                     <div>Por: {payment.paid_by}</div>
                   </div>
                 </div>
@@ -411,8 +463,8 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
           <div className="flex items-center gap-3">
             <DollarSign className="text-[#ff007a]" size={24} />
             <div>
-              <h2 className="text-xl font-bold text-white">Sistema de Pagos</h2>
-              <p className="text-sm text-gray-400">Ganancias y pagos semanales</p>
+              <h2 className="text-xl font-bold text-white">Sistema de Pagos Unificado</h2>
+              <p className="text-sm text-gray-400">Ganancias por tiempo y regalos</p>
             </div>
           </div>
           <button 
@@ -423,22 +475,44 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* 🔥 NUEVAS PESTAÑAS */}
+        {/* Pestañas */}
         <div className="flex border-b border-[#ff007a]/20">
           <button
-            onClick={() => setActiveTab('weekly')}
-            className={`flex-1 px-6 py-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
-              activeTab === 'weekly' 
+            onClick={() => setActiveTab('all')}
+            className={`flex-1 px-4 py-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
+              activeTab === 'all' 
                 ? 'text-[#ff007a] border-b-2 border-[#ff007a] bg-[#ff007a]/5' 
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            <Calendar size={16} />
-            Esta Semana
+            <DollarSign size={16} />
+            Todo
+          </button>
+          <button
+            onClick={() => setActiveTab('sessions')}
+            className={`flex-1 px-4 py-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
+              activeTab === 'sessions'
+                ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-400/5'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Video size={16} />
+            Sesiones
+          </button>
+          <button
+            onClick={() => setActiveTab('gifts')}
+            className={`flex-1 px-4 py-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
+              activeTab === 'gifts'
+                ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-400/5'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Gift size={16} />
+            Regalos
           </button>
           <button
             onClick={() => setActiveTab('pending')}
-            className={`flex-1 px-6 py-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
+            className={`flex-1 px-4 py-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
               activeTab === 'pending'
                 ? 'text-yellow-400 border-b-2 border-yellow-400 bg-yellow-400/5'
                 : 'text-gray-400 hover:text-white'
@@ -454,7 +528,7 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex-1 px-6 py-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
+            className={`flex-1 px-4 py-3 text-sm font-medium transition flex items-center justify-center gap-2 ${
               activeTab === 'history'
                 ? 'text-green-400 border-b-2 border-green-400 bg-green-400/5'
                 : 'text-gray-400 hover:text-white'
@@ -467,104 +541,113 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
 
         {/* Content Area */}
         <div className="max-h-96 overflow-y-auto">
-          {activeTab === 'weekly' && (
+          {['all', 'sessions', 'gifts'].includes(activeTab) && (
             <>
-              {/* 🔥 NUEVO: Weekly Summary con Stripe */}
-            {balanceData && (
-              <div className="p-6 bg-gradient-to-r from-[#ff007a]/10 to-purple-600/10 border-b border-[#ff007a]/20">
-                {/* Saldo General Principal */}
-                <div className="flex justify-center mb-6">
-                  <div className="bg-[#2b2d31] rounded-lg p-6 border border-[#ff007a]/20 text-center min-w-80">
-                    <div className="flex items-center justify-center gap-2 mb-3">
-                      <DollarSign className="text-[#ff007a]" size={28} />
-                      <h3 className="text-white font-medium text-xl">Saldo General</h3>
+              {/* Balance */}
+              {balanceData && (
+                <div className="p-6 bg-gradient-to-r from-[#ff007a]/10 to-purple-600/10 border-b border-[#ff007a]/20">
+                  <div className="flex justify-center mb-6">
+                    <div className="bg-[#2b2d31] rounded-lg p-6 border border-[#ff007a]/20 text-center min-w-80">
+                      <div className="flex items-center justify-center gap-2 mb-3">
+                        <DollarSign className="text-[#ff007a]" size={28} />
+                        <h3 className="text-white font-medium text-xl">Saldo General</h3>
+                      </div>
+                      <p className="text-4xl font-bold text-[#ff007a] mb-2">
+                        ${balanceData.balance?.current_balance?.toFixed(2) || '0.00'}
+                      </p>
+                      <p className="text-sm text-gray-400">Balance disponible total</p>
+                      
+                      <div className="grid grid-cols-2 gap-3 mt-4">
+                        <div className="bg-[#36393f]/50 rounded-lg p-2">
+                          <div className="flex items-center justify-center gap-1 mb-1">
+                            <Video className="text-blue-400" size={14} />
+                            <span className="text-blue-400 text-xs">Sesiones</span>
+                          </div>
+                          <p className="text-lg font-bold text-blue-400">
+                            ${balanceData.balance?.time_earnings?.toFixed(2) || '0.00'}
+                          </p>
+                        </div>
+                        <div className="bg-[#36393f]/50 rounded-lg p-2">
+                          <div className="flex items-center justify-center gap-1 mb-1">
+                            <Gift className="text-purple-400" size={14} />
+                            <span className="text-purple-400 text-xs">Regalos</span>
+                          </div>
+                          <p className="text-lg font-bold text-purple-400">
+                            ${balanceData.balance?.gift_earnings?.toFixed(2) || '0.00'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-4xl font-bold text-[#ff007a] mb-2">
-                      ${balanceData.balance?.current_balance?.toFixed(2) || '0.00'}
-                    </p>
-                    <p className="text-sm text-gray-400">Balance disponible total</p>
+                  </div>
+
+                  {/* Desglose Semanal */}
+                  <div className="bg-[#36393f]/50 rounded-lg p-4 mb-4">
+                    <h4 className="text-white font-medium text-center mb-3">
+                      📊 Esta Semana ({balanceData.weekly_breakdown?.week_range})
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                      <div className="bg-[#2b2d31] rounded-lg p-3 border border-blue-500/20">
+                        <div className="flex items-center justify-center gap-2 mb-1">
+                          <Video className="text-blue-400" size={16} />
+                          <span className="text-blue-400 text-sm font-medium">Tiempo</span>
+                        </div>
+                        <p className="text-xl font-bold text-blue-400">
+                          ${balanceData.weekly_breakdown?.time_earnings?.toFixed(2) || '0.00'}
+                        </p>
+                        <p className="text-xs text-gray-500">{balanceData.weekly_breakdown?.sessions_count || 0} sesiones</p>
+                      </div>
+
+                      <div className="bg-[#2b2d31] rounded-lg p-3 border border-purple-500/20">
+                        <div className="flex items-center justify-center gap-2 mb-1">
+                          <Gift className="text-purple-400" size={16} />
+                          <span className="text-purple-400 text-sm font-medium">Regalos</span>
+                        </div>
+                        <p className="text-xl font-bold text-purple-400">
+                          ${balanceData.weekly_breakdown?.gift_earnings?.toFixed(2) || '0.00'}
+                        </p>
+                        <p className="text-xs text-gray-500">{balanceData.weekly_breakdown?.gifts_count || 0} regalos</p>
+                      </div>
+
+                      <div className="bg-[#2b2d31] rounded-lg p-3 border border-[#ff007a]/20">
+                        <div className="flex items-center justify-center gap-2 mb-1">
+                          <CheckCircle className="text-[#ff007a]" size={16} />
+                          <span className="text-[#ff007a] text-sm font-medium">Total Semanal</span>
+                        </div>
+                        <p className="text-xl font-bold text-[#ff007a]">
+                          ${balanceData.weekly_breakdown?.total_weekly?.toFixed(2) || '0.00'}
+                        </p>
+                        <p className="text-xs text-gray-500">Sin procesar</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center text-sm">
+                    <div>
+                      <p className="text-gray-400">Total Histórico Ganado</p>
+                      <p className="text-lg font-bold text-green-400">
+                        ${balanceData.balance?.total_earned?.toFixed(2) || '0.00'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Última Ganancia</p>
+                      <p className="text-lg font-bold text-white">
+                        {balanceData.balance?.last_earning_at 
+                          ? new Date(balanceData.balance.last_earning_at).toLocaleDateString('es-ES', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : 'Ninguna'
+                        }
+                      </p>
+                    </div>
                   </div>
                 </div>
+              )}
 
-                {/* Desglose Semanal */}
-                <div className="bg-[#36393f]/50 rounded-lg p-4 mb-4">
-                  <h4 className="text-white font-medium text-center mb-3">
-                    📊 Desglose Esta Semana ({balanceData.weekly_breakdown?.week_range})
-                  </h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                    <div className="bg-[#2b2d31] rounded-lg p-3 border border-blue-500/20">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <Clock className="text-blue-400" size={16} />
-                        <span className="text-blue-400 text-sm font-medium">Por Tiempo</span>
-                      </div>
-                      <p className="text-xl font-bold text-blue-400">
-                        ${balanceData.weekly_breakdown?.time_earnings?.toFixed(2) || '0.00'}
-                      </p>
-                      <p className="text-xs text-gray-500">Sesiones de chat</p>
-                    </div>
-
-                    <div className="bg-[#2b2d31] rounded-lg p-3 border border-purple-500/20">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <DollarSign className="text-purple-400" size={16} />
-                        <span className="text-purple-400 text-sm font-medium">Por Regalos</span>
-                      </div>
-                      <p className="text-xl font-bold text-purple-400">
-                        ${balanceData.weekly_breakdown?.gift_earnings?.toFixed(2) || '0.00'}
-                      </p>
-                      <p className="text-xs text-gray-500">Regalos recibidos</p>
-                    </div>
-
-                    <div className="bg-[#2b2d31] rounded-lg p-3 border border-[#ff007a]/20">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <CheckCircle className="text-[#ff007a]" size={16} />
-                        <span className="text-[#ff007a] text-sm font-medium">Total Semanal</span>
-                      </div>
-                      <p className="text-xl font-bold text-[#ff007a]">
-                        ${balanceData.weekly_breakdown?.total_weekly?.toFixed(2) || '0.00'}
-                      </p>
-                      <p className="text-xs text-gray-500">{balanceData.weekly_breakdown?.sessions_count || 0} sesiones</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Estadísticas Generales */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center text-sm">
-                  <div>
-                    <p className="text-gray-400">Total Histórico Ganado</p>
-                    <p className="text-lg font-bold text-green-400">
-                      ${balanceData.balance?.total_earned?.toFixed(2) || '0.00'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Última Ganancia</p>
-                    <p className="text-lg font-bold text-white">
-                      {balanceData.balance?.last_earning_at 
-                        ? new Date(balanceData.balance.last_earning_at).toLocaleDateString('es-ES', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })
-                        : 'Ninguna'
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-          {/* Loading state para balance */}
-          {balanceLoading && (
-            <div className="p-6 border-b border-[#ff007a]/20">
-              <div className="text-center">
-                <Loader2 className="animate-spin h-6 w-6 text-[#ff007a] mx-auto mb-2" />
-                <p className="text-gray-400 text-sm">Cargando balance...</p>
-              </div>
-            </div>
-          )}
-
-              {/* Daily Breakdown */}
+              {/* Detalle por día */}
               <div className="p-6">
                 {loading ? (
                   <div className="text-center py-8">
@@ -585,9 +668,26 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
                   <div className="text-center py-8">
                     <p className="text-gray-400">No tienes ganancias registradas esta semana</p>
                   </div>
+                ) : getFilteredEarnings(weeklyData.earnings_list).length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">
+                      {activeTab === 'sessions' && 'No tienes ganancias por sesiones esta semana'}
+                      {activeTab === 'gifts' && 'No tienes ganancias por regalos esta semana'}
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
-                    <h3 className="text-white font-medium mb-4">📅 Detalle por día</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-white font-medium">
+                        📅 Detalle por día
+                        {activeTab === 'sessions' && ' - Solo Sesiones'}
+                        {activeTab === 'gifts' && ' - Solo Regalos'}
+                      </h3>
+                      <div className="text-sm text-gray-400">
+                        {getFilteredEarnings(weeklyData.earnings_list).length} registros
+                      </div>
+                    </div>
+                    
                     {Object.entries(groupEarningsByDay(weeklyData.earnings_list))
                       .sort(([a], [b]) => new Date(b) - new Date(a))
                       .map(([dayKey, dayData]) => {
@@ -606,12 +706,27 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
                                 {isExpanded ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
                                 <div>
                                   <h3 className="text-white font-medium capitalize">{dayData.dayName}</h3>
-                                  <p className="text-sm text-gray-400">{dayData.earnings.length} sesiones</p>
+                                  <p className="text-sm text-gray-400">{dayData.earnings.length} registros</p>
                                 </div>
                               </div>
                               <div className="text-right">
                                 <p className="text-lg font-bold text-[#ff007a]">${dayData.total.toFixed(2)}</p>
-                                <p className="text-xs text-gray-400">ganancia del día</p>
+                                {activeTab === 'all' && (
+                                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                                    {dayData.timeTotal > 0 && (
+                                      <span className="flex items-center gap-1">
+                                        <Video size={10} className="text-blue-400" />
+                                        ${dayData.timeTotal.toFixed(2)}
+                                      </span>
+                                    )}
+                                    {dayData.giftTotal > 0 && (
+                                      <span className="flex items-center gap-1">
+                                        <Gift size={10} className="text-purple-400" />
+                                        ${dayData.giftTotal.toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -630,6 +745,14 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
                                             <span className="text-xs text-gray-400">
                                               {formatTime(earning.created_at)}
                                             </span>
+                                            
+                                            <div className="flex items-center gap-1">
+                                              {getSourceIcon(earning.source_type)}
+                                              <span className="text-xs text-gray-400">
+                                                {getSourceLabel(earning.source_type)}
+                                              </span>
+                                            </div>
+
                                             {earning.qualifying_session ? (
                                               <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs">
                                                 ✓ Válida
@@ -642,20 +765,38 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
                                           </div>
                                           
                                           <div className="flex items-center gap-3 text-xs text-gray-400">
-                                            <div className="flex items-center gap-1">
-                                              <Clock size={12} />
-                                              {formatDuration(earning.session_duration_seconds / 60)}
-                                            </div>
-                                            <div>
-                                              60% ganancia
-                                            </div>
+                                            {earning.session_duration_seconds > 0 && (
+                                              <div className="flex items-center gap-1">
+                                                <Clock size={12} />
+                                                {formatDuration(earning.session_duration_seconds)}
+                                              </div>
+                                            )}
+                                            
+                                            {earning.time_earnings > 0 && (
+                                              <div className="flex items-center gap-1">
+                                                <Video size={12} className="text-blue-400" />
+                                                ${earning.time_earnings.toFixed(2)}
+                                              </div>
+                                            )}
+                                            {earning.gift_earnings > 0 && (
+                                              <div className="flex items-center gap-1">
+                                                <Gift size={12} className="text-purple-400" />
+                                                ${earning.gift_earnings.toFixed(2)}
+                                                {earning.gift_count > 0 && ` (${earning.gift_count})`}
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                         
                                         <div className="text-right">
                                           <p className="text-base font-bold text-[#ff007a]">
-                                            ${(earning.earning_amount_gross || earning.earning_amount || 0).toFixed(2)}
+                                            ${earning.earning_amount_gross.toFixed(2)}
                                           </p>
+                                          <div className="text-xs text-gray-400">
+                                            {earning.is_mixed && 'Mixto'}
+                                            {earning.is_time_only && 'Solo Tiempo'}
+                                            {earning.is_gift_only && 'Solo Regalos'}
+                                          </div>
                                         </div>
                                       </div>
                                     </div>

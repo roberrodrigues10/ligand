@@ -137,7 +137,7 @@ export default function ChatPrivado() {
 
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TU TOKEN
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -272,10 +272,10 @@ export default function ChatPrivado() {
 
   // 🔥 REDIRIGIR AL VIDEOCHAT
   const redirigirAVideochat = (callData) => {
-    sessionStorage.setItem('roomName', callData.room_name);
-    sessionStorage.setItem('userName', Chico.name || 'Chico');
-    sessionStorage.setItem('currentRoom', callData.room_name);
-    sessionStorage.setItem('inCall', 'true');
+    localStorage.setItem('roomName', callData.room_name);
+    localStorage.setItem('userName', Chico.name || 'Chico');
+    localStorage.setItem('currentRoom', callData.room_name);
+    localStorage.setItem('inCall', 'true');
     
     setIsCallActive(false);
     setCurrentCall(null);
@@ -1081,7 +1081,7 @@ const eliminarApodo = async () => {
   const cargarDatosUsuario = async () => {
   try {
     console.log('🔍 Cargando perfil usando tu sistema de auth...');
-    console.log('🔑 Token disponible:', sessionStorage.getItem("token") ? 'SÍ' : 'NO');
+    console.log('🔑 Token disponible:', localStorage.getItem("token") ? 'SÍ' : 'NO');
     
     // 🔥 USAR TU FUNCIÓN getUser EXISTENTE
     const userData = await getUser();

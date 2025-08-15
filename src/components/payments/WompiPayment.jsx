@@ -40,7 +40,7 @@ export default function WompiPayment({ onClose }) {
   const [paymentUrl, setPaymentUrl] = useState(null);
 
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     return {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`

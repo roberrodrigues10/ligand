@@ -99,7 +99,7 @@ const StoriesModal = ({
     try {
       setLoading(true);
       
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await axios.get(`${API_BASE_URL}/api/stories/active`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -151,7 +151,7 @@ const StoriesModal = ({
   // ❤️ Verificar si el usuario ya dio like
   const checkIfUserLiked = async (storyId) => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await axios.get(`${API_BASE_URL}/api/stories/${storyId}/like-status`, {
         headers: {
           Authorization: `Bearer ${token}`
@@ -168,7 +168,7 @@ const StoriesModal = ({
   // 👁️ Registrar vista de historia
   const registerStoryView = async (storyId) => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       await axios.post(`${API_BASE_URL}/api/stories/${storyId}/view`, {}, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -190,7 +190,7 @@ const StoriesModal = ({
     const currentStory = stories[currentStoryIndex];
     
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const endpoint = hasLiked ? 'unlike' : 'like';
       
       await axios.post(`${API_BASE_URL}/api/stories/${currentStory.id}/${endpoint}`, {}, {
@@ -305,7 +305,7 @@ const StoriesModal = ({
       });
       setIsCallActive(true);
       
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/calls/start`, {
         method: 'POST',
         headers: {
@@ -365,7 +365,7 @@ const StoriesModal = ({
   const startCallPolling = (callId) => {
     const interval = setInterval(async () => {
       try {
-        const token = sessionStorage.getItem('token');
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE_URL}/api/calls/status`, {
           method: 'POST',
           headers: {
@@ -432,7 +432,7 @@ const StoriesModal = ({
   const cancelCall = async () => {
     try {
       if (currentCall?.callId) {
-        const token = sessionStorage.getItem('token');
+        const token = localStorage.getItem('token');
         await fetch(`${API_BASE_URL}/api/calls/cancel`, {
           method: 'POST',
           headers: {
@@ -469,11 +469,11 @@ const StoriesModal = ({
     onClose();
     
     // Guardar datos de la sala
-    sessionStorage.setItem('roomName', callData.room_name);
-    sessionStorage.setItem('userName', currentUser?.name || 'Cliente');
-    sessionStorage.setItem('currentRoom', callData.room_name);
-    sessionStorage.setItem('inCall', 'true');
-    sessionStorage.setItem('videochatActive', 'true');
+    localStorage.setItem('roomName', callData.room_name);
+    localStorage.setItem('userName', currentUser?.name || 'Cliente');
+    localStorage.setItem('currentRoom', callData.room_name);
+    localStorage.setItem('inCall', 'true');
+    localStorage.setItem('videochatActive', 'true');
     
     setIsCallActive(false);
     setCurrentCall(null);

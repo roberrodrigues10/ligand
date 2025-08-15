@@ -127,7 +127,7 @@ export default function PreCallLobbyClient() {
   useEffect(() => {
     const sendBrowsingHeartbeat = async () => {
       try {
-        const authToken = sessionStorage.getItem('token');
+        const authToken = localStorage.getItem('token');
         if (!authToken) return;
 
         await fetch(`${API_BASE_URL}/api/heartbeat`, {

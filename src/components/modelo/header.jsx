@@ -1,26 +1,28 @@
 import { useState, useRef, useEffect } from "react";
-import { Home, Star, MessageSquare, LogOut, Settings, Wallet, Menu, X, Bell, Send, Gift } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import logoproncipal from "./imagenes/logoprincipal.png";
+import { Home, Star, MessageSquare, LogOut, Settings, Wallet, Menu, X, Bell, Send, Gift, Lock, User, DollarSign } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import logoproncipal from "../imagenes/logoprincipal.png";
 import { useTranslation } from 'react-i18next';
-import LanguageSelector from "../components/languageSelector";
-import ModelEarnings from './ModelEarnings';
-import MiniChatVideocall, { useVideocallChat } from './MiniChatVideocall';
-import { DollarSign } from 'lucide-react';
+import LanguageSelector from "../languageSelector.jsx";
+import ModelEarnings from './ModelEarnings.jsx';
+import MiniChatVideocall, { useVideocallChat } from './MiniChatVideocall.jsx';
 
 // 🔥 IMPORTAR TU SISTEMA DE TRADUCCIÓN
 import {
   useTranslation as useCustomTranslation,
   TranslatedMessage
-} from '../utils/translationSystem.jsx';
+} from '../../utils/translationSystem.jsx';
 
 export default function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [mobileMenuAbierto, setMobileMenuAbierto] = useState(false);
   const [globalUnreadCount, setGlobalUnreadCount] = useState(0);
   const [lastSeenMessages, setLastSeenMessages] = useState({});
   const [usuario, setUsuario] = useState({ id: null });
+  const [estadoVerificacion, setEstadoVerificacion] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null); // 🔥 ESTADO PARA DATOS COMPLETOS
   const menuRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const pollingInterval = useRef(null);
@@ -41,12 +43,9 @@ export default function Header() {
   // 🔥 SISTEMA DE TRADUCCIÓN
   const { settings: translationSettings } = useCustomTranslation();
 
-  const toggleMenu = () => setMenuAbierto(!menuAbierto);
-  const toggleMobileMenu = () => setMobileMenuAbierto(!mobileMenuAbierto);
-
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TOKEN
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -60,17 +59,192 @@ export default function Header() {
     return headers;
   };
 
-  // 🔥 MANEJAR CLICK EN MENSAJES
+  // 🔥 CARGAR INFORMACIÓN COMPLETA DEL USUARIO (ACTUALIZADA)
+  const cargarInfoUsuario = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/profile/info`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setCurrentUser(data.user);
+          setUsuario(data.user); // Mantener compatibilidad
+          console.log('👤 Usuario cargado en header modelo:', data.user);
+        }
+      } else {
+        console.error('❌ Error en respuesta:', response.status);
+        // Fallback a localStorage
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        if (userData.id) {
+          setUsuario(userData);
+          setCurrentUser(userData);
+        } else {
+          setUsuario({ id: 1, name: "Usuario" });
+          setCurrentUser({ id: 1, name: "Usuario" });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error cargando info del usuario:', error);
+      // Fallback a localStorage
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      if (userData.id) {
+        setUsuario(userData);
+        setCurrentUser(userData);
+      } else {
+        setUsuario({ id: 1, name: "Usuario" });
+        setCurrentUser({ id: 1, name: "Usuario" });
+      }
+    }
+  };
+
+  // 🎨 COMPONENTE PARA EL AVATAR (IGUAL QUE HEADERCLIENTE)
+  const UserAvatar = ({ size = "w-10 h-10", textSize = "text-sm" }) => {
+    if (currentUser?.avatar_url) {
+      return (
+        <img 
+          src={currentUser.avatar_url} 
+          alt="Avatar" 
+          className={`${size} rounded-full object-cover border-2 border-white/20 hover:border-white/40 transition`}
+          onError={(e) => {
+            console.error('Error cargando avatar:', e);
+            e.target.style.display = 'none';
+            e.target.nextSibling.style.display = 'flex';
+          }}
+        />
+      );
+    }
+    
+    // Avatar por defecto con inicial o icono
+    const displayName = currentUser?.display_name || currentUser?.name || 'Usuario';
+    const initial = displayName.charAt(0).toUpperCase();
+    
+    return (
+      <div className={`${size} rounded-full bg-gradient-to-br from-[#ff007a] to-[#cc0062] text-white font-bold ${textSize} hover:scale-105 transition flex items-center justify-center border-2 border-white/20 hover:border-white/40`}>
+        {initial}
+      </div>
+    );
+  };
+
+  // 🔒 VERIFICAR SI ESTÁ EN PROCESO DE VERIFICACIÓN
+  const estaEnVerificacion = () => {
+    const rutasVerificacion = [
+      '/verificacion',
+      '/verificacion-identidad', 
+      '/esperando-verificacion',
+      '/anteveri'
+    ];
+    
+    const rutaActual = location.pathname;
+    const estaEnRutaVerificacion = rutasVerificacion.some(ruta => 
+      rutaActual.includes(ruta) || rutaActual === ruta
+    );
+    
+    // 🔥 SOLO BLOQUEAR SI EL ESTADO ES REALMENTE PROBLEMÁTICO
+    // Si está aprobada, NO bloquear (aunque verificacion_completa sea false)
+    const estadosBloqueo = ['pendiente', 'no_enviada', 'rechazada'];
+    const estadoBloqueado = estadosBloqueo.includes(estadoVerificacion);
+    
+    console.log('🔍 Debug verificación:', {
+      rutaActual,
+      estaEnRutaVerificacion,
+      estadoVerificacion,
+      estadoBloqueado,
+      resultadoFinal: estaEnRutaVerificacion || estadoBloqueado
+    });
+    
+    return estaEnRutaVerificacion || estadoBloqueado;
+  };
+
+  // 🔒 FUNCIÓN PARA MANEJAR NAVEGACIÓN BLOQUEADA
+  const manejarNavegacionBloqueada = (destino, nombreBoton = 'esta función') => {
+    if (estaEnVerificacion()) {
+      // Solo permitir configuración y logout
+      if (destino === '/configuracion' || destino === '/logout') {
+        navigate(destino);
+        return;
+      }
+      
+      // Mostrar mensaje de bloqueo
+      const mensaje = `🔒 ${nombreBoton} está bloqueada durante el proceso de verificación.\n\nSolo puedes acceder a Configuración para cerrar sesión si es necesario.`;
+      
+      // Crear modal de bloqueo temporal
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[9999] p-4';
+      modal.innerHTML = `
+        <div class="bg-[#1a1c20] p-6 rounded-2xl max-w-sm w-full border-2 border-[#ff007a] text-center">
+          <div class="text-[#ff007a] mb-4">
+            <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+          </div>
+          <h3 class="text-white text-lg font-bold mb-3">Función Bloqueada</h3>
+          <p class="text-white/70 text-sm mb-6 leading-relaxed">${mensaje}</p>
+          <button class="bg-[#ff007a] hover:bg-[#e6006e] text-white px-6 py-2 rounded-lg font-semibold transition-all">
+            Entendido
+          </button>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Cerrar modal al hacer click en el botón
+      modal.querySelector('button').onclick = () => {
+        document.body.removeChild(modal);
+      };
+      
+      // Cerrar modal al hacer click fuera
+      modal.onclick = (e) => {
+        if (e.target === modal) {
+          document.body.removeChild(modal);
+        }
+      };
+      
+      return;
+    }
+    
+    // Si no está bloqueada, navegar normalmente
+    navigate(destino);
+  };
+
+  // 🔒 OBTENER ESTADO DE VERIFICACIÓN
+  const obtenerEstadoVerificacion = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/verificacion/estado`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setEstadoVerificacion(data.estado);
+        console.log('🔍 Estado de verificación:', data.estado);
+      } else {
+        console.error('❌ Error obteniendo estado de verificación');
+      }
+    } catch (error) {
+      console.error('❌ Error:', error);
+    }
+  };
+
+  const toggleMenu = () => setMenuAbierto(!menuAbierto);
+  const toggleMobileMenu = () => setMobileMenuAbierto(!mobileMenuAbierto);
+
+  // 🔥 MANEJAR CLICK EN MENSAJES (CON BLOQUEO)
   const handleMessagesClick = () => {
+    if (estaEnVerificacion()) {
+      manejarNavegacionBloqueada('/mensajes', 'Los mensajes');
+      return;
+    }
+    
     if (isInCall) {
-      // Si está en videollamada, abrir modal de chat
       setShowChatModal(true);
-      // Cargar conversaciones si no están cargadas
       if (conversaciones.length === 0) {
         cargarConversaciones();
       }
     } else {
-      // Si no está en videollamada, navegar a mensajes
       navigate("/mensajes");
     }
   };
@@ -91,7 +265,6 @@ export default function Header() {
         setConversaciones(data.conversations || []);
       } else {
         console.error('❌ Error cargando conversaciones:', response.status);
-        // Datos de ejemplo para desarrollo
         const exampleConversations = [
           {
             id: 1,
@@ -104,18 +277,6 @@ export default function Header() {
             last_message_sender_id: 2,
             unread_count: 3,
             avatar: "https://i.pravatar.cc/40?u=2"
-          },
-          {
-            id: 2,
-            other_user_id: 3,
-            other_user_name: "Mia88",
-            other_user_role: "modelo", 
-            room_name: "chat_user_1_3",
-            last_message: "Gracias por la sesión 😘",
-            last_message_time: "2024-01-15T12:15:00Z",
-            last_message_sender_id: 3,
-            unread_count: 1,
-            avatar: "https://i.pravatar.cc/40?u=3"
           }
         ];
         setConversaciones(exampleConversations);
@@ -139,7 +300,6 @@ export default function Header() {
           setMensajes(data.messages);
         }
       } else {
-        // Mensajes de ejemplo
         const exampleMessages = [
           {
             id: 1,
@@ -149,15 +309,6 @@ export default function Header() {
             message: "¡Hola! ¿Cómo estás?",
             type: "text",
             created_at: "2024-01-15T14:25:00Z"
-          },
-          {
-            id: 2,
-            user_id: usuario.id,
-            user_name: usuario.name || "Usuario",
-            user_role: "cliente",
-            message: "¡Hola! Todo bien, ¿y tú?",
-            type: "text",
-            created_at: "2024-01-15T14:26:00Z"
           }
         ];
         setMensajes(exampleMessages);
@@ -192,7 +343,6 @@ export default function Header() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // Agregar mensaje inmediatamente
           const nuevoMensajeObj = {
             id: Date.now(),
             user_id: usuario.id,
@@ -207,7 +357,6 @@ export default function Header() {
         }
       } else {
         console.error('❌ Error enviando mensaje:', response.status);
-        // Para demo, agregar mensaje local
         const nuevoMensajeObj = {
           id: Date.now(),
           user_id: usuario.id,
@@ -250,7 +399,6 @@ export default function Header() {
           </div>
         );
       default:
-        // Con traducción si está habilitada
         if (translationSettings?.enabled && TranslatedMessage && textoMensaje && textoMensaje.trim()) {
           try {
             const tipoMensaje = esUsuarioActual ? 'local' : 'remote';
@@ -319,23 +467,10 @@ export default function Header() {
     return apodos[userId] || originalName;
   };
 
-  // 🔔 CARGAR DATOS DEL USUARIO
+  // 🔔 CARGAR DATOS DEL USUARIO Y ESTADO DE VERIFICACIÓN
   useEffect(() => {
-    const cargarUsuario = async () => {
-      try {
-        const userData = JSON.parse(sessionStorage.getItem('user') || '{}');
-        if (userData.id) {
-          setUsuario(userData);
-        } else {
-          setUsuario({ id: 1, name: "Usuario" });
-        }
-      } catch (error) {
-        console.error('Error cargando usuario:', error);
-        setUsuario({ id: 1, name: "Usuario" });
-      }
-    };
-
-    cargarUsuario();
+    cargarInfoUsuario(); // 🔥 CARGAR INFO COMPLETA
+    obtenerEstadoVerificacion(); // 🔒 OBTENER ESTADO AL CARGAR
   }, []);
 
   // 🔔 CARGAR TIMESTAMPS DE ÚLTIMA VEZ VISTO
@@ -387,7 +522,7 @@ export default function Header() {
         
       } else {
         console.error('❌ Error obteniendo conversaciones:', response.status);
-        setGlobalUnreadCount(6); // Ejemplo
+        setGlobalUnreadCount(6);
       }
     } catch (error) {
       console.error('❌ Error en polling global:', error);
@@ -412,6 +547,17 @@ export default function Header() {
     };
   }, [usuario.id, lastSeenMessages]);
 
+  // 🔒 POLLING DEL ESTADO DE VERIFICACIÓN
+  useEffect(() => {
+    if (!usuario.id) return;
+
+    const verificacionInterval = setInterval(() => {
+      obtenerEstadoVerificacion();
+    }, 30000); // Cada 30 segundos
+
+    return () => clearInterval(verificacionInterval);
+  }, [usuario.id]);
+
   // Cerrar menús al hacer clic fuera
   useEffect(() => {
     const manejarClickFuera = (e) => {
@@ -431,13 +577,35 @@ export default function Header() {
     setMobileMenuAbierto(false);
   }, [navigate]);
 
+  // 🔒 CREAR COMPONENTE DE BOTÓN BLOQUEADO
+  const BotonBloqueado = ({ children, destino, titulo, nombreBoton, className }) => {
+    const bloqueado = estaEnVerificacion() && destino !== '/configuracion' && destino !== '/logout';
+    
+    return (
+      <button
+        className={`${className} ${bloqueado ? 'opacity-50 cursor-not-allowed' : ''} relative`}
+        onClick={() => manejarNavegacionBloqueada(destino, nombreBoton)}
+        title={bloqueado ? '🔒 Bloqueado durante verificación' : titulo}
+        disabled={bloqueado}
+      >
+        {children}
+        {bloqueado && (
+          <Lock 
+            size={12} 
+            className="absolute -top-1 -right-1 text-red-400 bg-[#1a1c20] rounded-full p-0.5"
+          />
+        )}
+      </button>
+    );
+  };
+
   return (
     <>
       <header className="flex justify-between items-center mb-4 px-4 relative">
         {/* Logo + Nombre */}
         <div
           className="flex items-center cursor-pointer"
-          onClick={() => navigate("/homellamadas")}
+          onClick={() => manejarNavegacionBloqueada("/homellamadas", "El inicio")}
         >
           <img src={logoproncipal} alt="Logo" className="w-12 h-12 sm:w-14 sm:h-14" />
           <span className="text-xl sm:text-2xl text-[#ff007a] font-pacifico ml-[-5px]">
@@ -445,32 +613,47 @@ export default function Header() {
           </span>
         </div>
 
-        {/* Navegación Desktop - oculta en móvil */}
+        {/* Navegación Desktop - con bloqueos */}
         <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-lg">
           <LanguageSelector />
           
+          {/* 🔥 BOTÓN DE GANANCIAS - NUEVO */}
           <button
+            onClick={() => {
+              console.log('🔥 Abriendo modal de ganancias...');
+              setShowEarnings(true);
+            }}
             className="hover:scale-110 transition p-2"
-            onClick={() => setShowEarnings(true)}
-            title="Pagos y monedas"
+            title="Mis Ganancias"
+          >
+            <DollarSign className="text-[#ff007a]" size={24} />
+          </button>
+          
+          <BotonBloqueado
+            destino="/pagos"
+            titulo="Pagos y monedas"
+            nombreBoton="Pagos y monedas"
+            className="hover:scale-110 transition p-2"
           >
             <Wallet className="text-[#ff007a]" size={24} />
-          </button>
+          </BotonBloqueado>
           
-          <button
+          <BotonBloqueado
+            destino="/homellamadas"
+            titulo="Inicio"
+            nombreBoton="El inicio"
             className="hover:scale-110 transition p-2"
-            onClick={() => navigate("/homellamadas")}
-            title="Inicio"
           >
             <Home className="text-[#ff007a]" size={24} />
-          </button>
+          </BotonBloqueado>
           
-          {/* 🔔 BOTÓN DE MENSAJES CON LÓGICA DUAL */}
+          {/* 🔔 BOTÓN DE MENSAJES CON BLOQUEO */}
           <div className="relative">
-            <button
+            <BotonBloqueado
+              destino="/mensajes"
+              titulo={isInCall ? "Chat en videollamada" : "Mensajes"}
+              nombreBoton="Los mensajes"
               className="hover:scale-110 transition p-2"
-              onClick={handleMessagesClick}
-              title={isInCall ? "Chat en videollamada" : "Mensajes"}
             >
               <MessageSquare className="text-[#ff007a]" size={24} />
               {globalUnreadCount > 0 && (
@@ -478,37 +661,57 @@ export default function Header() {
                   {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
                 </div>
               )}
-              {/* 🔥 INDICADOR VISUAL SI ESTÁ EN VIDEOLLAMADA */}
               {isInCall && (
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1a1c20] animate-pulse"></div>
               )}
-            </button>
+            </BotonBloqueado>
           </div>
           
-          <button
+          <BotonBloqueado
+            destino="/favorites"
+            titulo="Favoritos"
+            nombreBoton="Los favoritos"
             className="hover:scale-110 transition p-2"
-            onClick={() => navigate("/favorites")}
-            title="Favoritos"
           >
             <Star className="text-[#ff007a]" size={24} />
-          </button>
+          </BotonBloqueado>
 
-          {/* Botón de perfil desktop */}
+          {/* 🔥 BOTÓN DE PERFIL DESKTOP CON AVATAR DINÁMICO IGUAL QUE HEADERCLIENTE */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={toggleMenu}
-              className="w-10 h-10 rounded-full bg-[#ff007a] text-white font-bold text-sm hover:scale-105 transition flex items-center justify-center"
-              title="Menú de cuenta"
+              className="hover:scale-105 transition flex items-center justify-center"
+              title={`Perfil de ${currentUser?.display_name || currentUser?.name || 'Usuario'}`}
             >
-              M
+              <UserAvatar />
             </button>
 
-            {/* Menú desplegable desktop */}
+            {/* Menú desplegable desktop - ACTUALIZADO IGUAL QUE HEADERCLIENTE */}
             {menuAbierto && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#1f2125] rounded-xl shadow-lg border border-[#ff007a]/30 z-50 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-64 bg-[#1f2125] rounded-xl shadow-lg border border-[#ff007a]/30 z-50 overflow-hidden">
+                {/* 🔥 HEADER DEL MENÚ CON INFO DEL USUARIO COMPLETA */}
+                <div className="px-4 py-3 border-b border-[#ff007a]/20 bg-gradient-to-r from-[#ff007a]/10 to-transparent">
+                  <div className="flex items-center gap-3">
+                    <UserAvatar size="w-8 h-8" textSize="text-xs" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-medium text-sm truncate">
+                        {currentUser?.display_name || currentUser?.name || 'Usuario'}
+                      </div>
+                      {currentUser?.nickname && (
+                        <div className="text-white/60 text-xs truncate">
+                          {currentUser.name}
+                        </div>
+                      )}
+                      <div className="text-[#ff007a] text-xs">
+                        {currentUser?.rol === 'modelo' ? 'Modelo' : 'Usuario'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   onClick={() => {
-                    navigate("/configuracion");
+                    manejarNavegacionBloqueada("/configuracion", "La configuración");
                     setMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
@@ -518,7 +721,7 @@ export default function Header() {
                 </button>
                 <button
                   onClick={() => {
-                    navigate("/logout");
+                    manejarNavegacionBloqueada("/logout", "Cerrar sesión");
                     setMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
@@ -531,26 +734,26 @@ export default function Header() {
           </div>
         </nav>
 
-        {/* Botón menú móvil - solo visible en móvil */}
+        {/* Botón menú móvil - con bloqueos */}
         <div className="md:hidden relative" ref={mobileMenuRef}>
           <div className="flex items-center gap-2">
             {/* 🔔 NOTIFICACIÓN GLOBAL MÓVIL */}
             {globalUnreadCount > 0 && (
               <div className="relative">
-                <button
-                  onClick={handleMessagesClick}
+                <BotonBloqueado
+                  destino="/mensajes"
+                  titulo={`${globalUnreadCount} mensajes nuevos`}
+                  nombreBoton="Los mensajes"
                   className="w-10 h-10 rounded-full bg-red-500 text-white hover:scale-105 transition flex items-center justify-center animate-pulse"
-                  title={`${globalUnreadCount} mensajes nuevos`}
                 >
                   <Bell size={18} />
                   <div className="absolute -top-1 -right-1 bg-white text-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                     {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
                   </div>
-                  {/* 🔥 INDICADOR SI ESTÁ EN VIDEOLLAMADA */}
                   {isInCall && (
                     <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                   )}
-                </button>
+                </BotonBloqueado>
               </div>
             )}
             
@@ -563,46 +766,102 @@ export default function Header() {
             </button>
           </div>
 
-          {/* Menú móvil desplegable */}
+          {/* Menú móvil desplegable - ACTUALIZADO IGUAL QUE HEADERCLIENTE */}
           {mobileMenuAbierto && (
-            <div className="absolute right-0 mt-2 w-64 bg-[#1f2125] rounded-xl shadow-xl border border-[#ff007a]/30 z-50 overflow-hidden">
-              {/* Selector de idioma móvil */}
-              <div className="px-4 py-3 border-b border-[#ff007a]/20">
+            <div className="absolute right-0 mt-2 w-72 bg-[#1f2125] rounded-xl shadow-xl border border-[#ff007a]/30 z-50 overflow-hidden">
+              {/* 🔥 HEADER DEL MENÚ MÓVIL CON AVATAR IGUAL QUE HEADERCLIENTE */}
+              <div className="px-4 py-3 border-b border-[#ff007a]/20 bg-gradient-to-r from-[#ff007a]/10 to-transparent">
+                <div className="flex items-center gap-3 mb-3">
+                  <UserAvatar size="w-10 h-10" textSize="text-sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-medium truncate">
+                      {currentUser?.display_name || currentUser?.name || 'Usuario'}
+                    </div>
+                    {currentUser?.nickname && (
+                      <div className="text-white/60 text-xs truncate">
+                        {currentUser.name}
+                      </div>
+                    )}
+                    <div className="text-[#ff007a] text-xs">
+                      {currentUser?.rol === 'modelo' ? 'Modelo' : 'Usuario'}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Selector de idioma móvil */}
                 <div className="text-xs text-gray-400 mb-2">Idioma</div>
                 <LanguageSelector />
               </div>
 
-              {/* Navegación móvil */}
+              {/* 🔒 INDICADOR DE VERIFICACIÓN EN PROCESO */}
+              {estaEnVerificacion() && (
+                <div className="px-4 py-3 bg-red-900/20 border-b border-red-500/30">
+                  <div className="flex items-center gap-2 text-red-400 text-xs">
+                    <Lock size={12} />
+                    <span>Verificación en proceso - Funciones limitadas</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Navegación móvil - con bloqueos */}
               <div className="py-2">
+                {/* 🔥 BOTÓN DE GANANCIAS MÓVIL */}
                 <button
                   onClick={() => {
-                    navigate("/pagos");
+                    console.log('🔥 Abriendo modal de ganancias (móvil)...');
+                    setShowEarnings(true);
                     setMobileMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
-                  <Wallet size={18} className="mr-3 text-[#ff007a]"/>
-                  Pagos y monedas
+                  <DollarSign size={18} className="mr-3 text-[#ff007a]"/>
+                  Mis Ganancias
                 </button>
                 
                 <button
                   onClick={() => {
-                    navigate("/homellamadas");
+                    manejarNavegacionBloqueada("/pagos", "Pagos y monedas");
                     setMobileMenuAbierto(false);
                   }}
-                  className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
+                  className={`flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${
+                    estaEnVerificacion() ? 'opacity-50' : ''
+                  }`}
+                  disabled={estaEnVerificacion()}
                 >
-                  <Home size={18} className="mr-3 text-[#ff007a]"/>
-                  Inicio
+                  <div className="flex items-center">
+                    <Wallet size={18} className="mr-3 text-[#ff007a]"/>
+                    Pagos y monedas
+                  </div>
+                  {estaEnVerificacion() && <Lock size={12} className="text-red-400" />}
                 </button>
                 
-                {/* 🔔 MENSAJES CON LÓGICA DUAL EN MÓVIL */}
                 <button
                   onClick={() => {
-                    handleMessagesClick();
+                    manejarNavegacionBloqueada("/homellamadas", "El inicio");
                     setMobileMenuAbierto(false);
                   }}
-                  className="flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
+                  className={`flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${
+                    estaEnVerificacion() ? 'opacity-50' : ''
+                  }`}
+                  disabled={estaEnVerificacion()}
+                >
+                  <div className="flex items-center">
+                    <Home size={18} className="mr-3 text-[#ff007a]"/>
+                    Inicio
+                  </div>
+                  {estaEnVerificacion() && <Lock size={12} className="text-red-400" />}
+                </button>
+                
+                {/* 🔔 MENSAJES CON BLOQUEO EN MÓVIL */}
+                <button
+                  onClick={() => {
+                    manejarNavegacionBloqueada("/mensajes", "Los mensajes");
+                    setMobileMenuAbierto(false);
+                  }}
+                  className={`flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${
+                    estaEnVerificacion() ? 'opacity-50' : ''
+                  }`}
+                  disabled={estaEnVerificacion()}
                 >
                   <div className="flex items-center">
                     <MessageSquare size={18} className="mr-3 text-[#ff007a]"/>
@@ -617,29 +876,36 @@ export default function Header() {
                     {isInCall && (
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     )}
+                    {estaEnVerificacion() && <Lock size={12} className="text-red-400" />}
                   </div>
                 </button>
                 
                 <button
                   onClick={() => {
-                    navigate("/favorites");
+                    manejarNavegacionBloqueada("/favorites", "Los favoritos");
                     setMobileMenuAbierto(false);
                   }}
-                  className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
+                  className={`flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${
+                    estaEnVerificacion() ? 'opacity-50' : ''
+                  }`}
+                  disabled={estaEnVerificacion()}
                 >
-                  <Star size={18} className="mr-3 text-[#ff007a]"/>
-                  Favoritos
+                  <div className="flex items-center">
+                    <Star size={18} className="mr-3 text-[#ff007a]"/>
+                    Favoritos
+                  </div>
+                  {estaEnVerificacion() && <Lock size={12} className="text-red-400" />}
                 </button>
               </div>
 
               {/* Separador */}
               <div className="border-t border-[#ff007a]/20"></div>
 
-              {/* Opciones de cuenta móvil */}
+              {/* Opciones de cuenta móvil - Solo configuración y logout permitidos */}
               <div className="py-2">
                 <button
                   onClick={() => {
-                    navigate("/configuracion");
+                    manejarNavegacionBloqueada("/configuracion", "La configuración");
                     setMobileMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
@@ -650,7 +916,7 @@ export default function Header() {
                 
                 <button
                   onClick={() => {
-                    navigate("/logout");
+                    manejarNavegacionBloqueada("/logout", "Cerrar sesión");
                     setMobileMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
@@ -663,16 +929,16 @@ export default function Header() {
           )}
         </div>
         
-        {/* Modal de Ganancias */}
+        {/* Modal de Ganancias - SIEMPRE DISPONIBLE */}
         <ModelEarnings 
           isOpen={showEarnings} 
           onClose={() => setShowEarnings(false)} 
         />
       </header>
 
-      {/* 🔥 MODAL DE CHAT PARA VIDEOLLAMADAS */}
+      {/* 🔥 MODAL DE CHAT PARA VIDEOLLAMADAS - Bloqueado durante verificación */}
       <MiniChatVideocall 
-        isOpen={showChatModal}
+        isOpen={showChatModal && !estaEnVerificacion()}
         onClose={() => setShowChatModal(false)}
         conversaciones={conversaciones}
         conversacionActiva={conversacionActiva}

@@ -23,7 +23,8 @@ export function usePageAccess() {
         '/videochatclient',
         '/message',
         '/favoritesboy',
-        '/usersearch' // 🔍 Compartida con modelo
+        '/usersearch', // 🔍 Compartida con modelo
+        '/settings'
       ]
     },
     modelo: {
@@ -144,7 +145,7 @@ export function usePageAccess() {
       }
 
       // Verificar token
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) {
         console.log(`🚨 [usePageAccess] No hay token - redirigiendo a /home`);
         navigate("/home", { replace: true });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lock, LogOut, Trash2, X, Check, AlertCircle, Mail, Shield } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -14,21 +14,36 @@ const SecuritySettings = ({ t }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordCode, setPasswordCode] = useState('');
-  const [passwordStep, setPasswordStep] = useState(1); // 1: form, 2: código
+  const [passwordStep, setPasswordStep] = useState(1); // 1: form, 2: código, 3: éxito
   
   // Estados para logout all
   const [logoutCode, setLogoutCode] = useState('');
-  const [logoutStep, setLogoutStep] = useState(1); // 1: confirmación, 2: código
+  const [logoutStep, setLogoutStep] = useState(1); // 1: confirmación, 2: código, 3: éxito
   
   // Estados para eliminar cuenta
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteCode, setDeleteCode] = useState('');
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [deleteStep, setDeleteStep] = useState(1); // 1: form, 2: código
+  const [deleteStep, setDeleteStep] = useState(1); // 1: form, 2: código, 3: éxito
+
+  // Auto-focus en inputs de código cuando cambian los pasos
+  useEffect(() => {
+    // Pequeño delay para asegurar que el DOM se haya actualizado
+    const timer = setTimeout(() => {
+      const codigoInput = document.querySelector('input[inputMode="numeric"]');
+      if (codigoInput) {
+        codigoInput.focus();
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [passwordStep, logoutStep, deleteStep]);
 
   // Función para obtener headers con autenticación
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
+    console.log('🔑 Token encontrado:', token ? 'Sí (' + token.substring(0, 20) + '...)' : 'No');
+    
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -40,6 +55,20 @@ const SecuritySettings = ({ t }) => {
   const mostrarMensaje = (tipo, texto) => {
     setMensaje({ tipo, texto });
     setTimeout(() => setMensaje({ tipo: '', texto: '' }), 5000);
+  };
+
+  // Función para manejar errores de autenticación
+  const manejarErrorAuth = (response) => {
+    if (response.status === 401) {
+      mostrarMensaje('error', 'Sesión expirada. Redirigiendo al login...');
+      setTimeout(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }, 2000);
+      return true;
+    }
+    return false;
   };
 
   const abrirModal = (tipo) => {
@@ -79,6 +108,13 @@ const SecuritySettings = ({ t }) => {
     setDeleteCode('');
     setDeleteConfirmText('');
     setDeleteStep(1);
+  };
+
+  // Función para cerrar modal con delay (para mostrar mensaje de éxito)
+  const cerrarModalConDelay = () => {
+    setTimeout(() => {
+      cerrarModal();
+    }, 2500); // Dar tiempo para leer el mensaje
   };
 
   // 🔐 FUNCIONES PARA CAMBIO DE CONTRASEÑA
@@ -142,11 +178,14 @@ const SecuritySettings = ({ t }) => {
         })
       });
 
+      if (manejarErrorAuth(response)) return;
+
       const data = await response.json();
 
       if (data.success) {
-        mostrarMensaje('success', 'Contraseña cambiada exitosamente');
-        cerrarModal();
+        setPasswordStep(3);
+        mostrarMensaje('success', '🎉 ¡Contraseña cambiada exitosamente!');
+        cerrarModalConDelay();
       } else {
         mostrarMensaje('error', data.error || 'Error cambiando contraseña');
       }
@@ -201,8 +240,9 @@ const SecuritySettings = ({ t }) => {
       const data = await response.json();
 
       if (data.success) {
-        mostrarMensaje('success', 'Todas las sesiones han sido cerradas');
-        cerrarModal();
+        setLogoutStep(3);
+        mostrarMensaje('success', '🎉 ¡Todas las sesiones han sido cerradas exitosamente!');
+        cerrarModalConDelay();
       } else {
         mostrarMensaje('error', data.error || 'Error cerrando sesiones');
       }
@@ -259,6 +299,11 @@ const SecuritySettings = ({ t }) => {
 
     setLoading(true);
     try {
+      console.log('🗑️ Intentando eliminar cuenta...', {
+        code: deleteCode,
+        confirmation: deleteConfirmText
+      });
+
       const response = await fetch(`${API_BASE_URL}/api/security/delete-account-with-code`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -268,16 +313,36 @@ const SecuritySettings = ({ t }) => {
         })
       });
 
+      console.log('📡 Respuesta del servidor:', response.status, response.statusText);
+
+      // Si es 401, mostrar error específico
+      if (response.status === 401) {
+        mostrarMensaje('error', 'Sesión expirada. Por favor, inicia sesión nuevamente.');
+        // Opcional: redirigir al login
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+        return;
+      }
+
       const data = await response.json();
+      console.log('📋 Datos recibidos:', data);
 
       if (data.success) {
-        alert('Tu cuenta ha sido eliminada permanentemente');
-        // Redirigir al home o login
-        window.location.href = '/';
+        setDeleteStep(3);
+        mostrarMensaje('success', '🗑️ Cuenta eliminada correctamente. Redirigiendo...');
+        // Limpiar localStorage antes de redirigir
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        // Esperar un poco antes de redirigir
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 3000);
       } else {
         mostrarMensaje('error', data.error || 'Error eliminando cuenta');
       }
     } catch (error) {
+      console.error('❌ Error de red:', error);
       mostrarMensaje('error', 'Error de conexión');
     } finally {
       setLoading(false);
@@ -339,18 +404,66 @@ const SecuritySettings = ({ t }) => {
     );
   };
 
-  const CodigoInput = ({ value, onChange, placeholder = "Código de 6 dígitos" }) => (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => {
-        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-        onChange(val);
-      }}
-      maxLength={6}
-      className="w-full px-4 py-3 bg-[#131418] text-white placeholder-white/60 rounded-lg outline-none focus:ring-2 focus:ring-[#ff007a]/50 border border-white/10 text-center text-lg font-mono tracking-widest"
-      placeholder={placeholder}
-    />
+  const CodigoInput = ({ value, onChange, placeholder = "Código de 6 dígitos" }) => {
+    const inputRef = React.useRef(null);
+    
+    // Auto-focus cuando el componente se monta
+    React.useEffect(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, []);
+
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => {
+          const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+          onChange(val);
+        }}
+        onKeyDown={(e) => {
+          // Permitir: backspace, delete, tab, escape, enter
+          if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
+              // Permitir: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+              (e.keyCode === 65 && e.ctrlKey === true) ||
+              (e.keyCode === 67 && e.ctrlKey === true) ||
+              (e.keyCode === 86 && e.ctrlKey === true) ||
+              (e.keyCode === 88 && e.ctrlKey === true)) {
+            return;
+          }
+          // Asegurar que solo sean números
+          if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+            e.preventDefault();
+          }
+        }}
+        onPaste={(e) => {
+          // Permitir pegar y limpiar automáticamente
+          const paste = (e.clipboardData || window.clipboardData).getData('text');
+          const cleanPaste = paste.replace(/\D/g, '').slice(0, 6);
+          onChange(cleanPaste);
+          e.preventDefault();
+        }}
+        maxLength={6}
+        autoComplete="one-time-code"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        className="w-full px-4 py-3 bg-[#131418] text-white placeholder-white/60 rounded-lg outline-none focus:ring-2 focus:ring-[#ff007a]/50 border border-white/10 text-center text-lg font-mono tracking-widest"
+        placeholder={placeholder}
+      />
+    );
+  };
+
+  const PantallaExito = ({ titulo, mensaje, icono }) => (
+    <div className="text-center space-y-4">
+      <div className="text-6xl mb-4">{icono}</div>
+      <h4 className="text-lg font-bold text-white">{titulo}</h4>
+      <p className="text-green-400 text-sm">{mensaje}</p>
+      <div className="text-white/60 text-xs">
+        Este modal se cerrará automáticamente...
+      </div>
+    </div>
   );
 
   return (
@@ -382,9 +495,11 @@ const SecuritySettings = ({ t }) => {
             {/* Header */}
             <div className="p-6 border-b border-[#ff007a]/20 flex justify-between items-center">
               <h3 className="text-lg font-bold text-white">🔐 Cambiar Contraseña</h3>
-              <button onClick={cerrarModal} className="text-white/60 hover:text-white">
-                <X size={20} />
-              </button>
+              {passwordStep !== 3 && (
+                <button onClick={cerrarModal} className="text-white/60 hover:text-white">
+                  <X size={20} />
+                </button>
+              )}
             </div>
 
             {/* Contenido */}
@@ -421,7 +536,7 @@ const SecuritySettings = ({ t }) => {
                     placeholder="Confirmar nueva contraseña"
                   />
                 </div>
-              ) : (
+              ) : passwordStep === 2 ? (
                 <div className="space-y-4">
                   <div className="text-center">
                     <Mail className="mx-auto mb-3 text-[#ff007a]" size={32} />
@@ -444,26 +559,34 @@ const SecuritySettings = ({ t }) => {
                     ¿No recibiste el código? Reenviar
                   </button>
                 </div>
+              ) : (
+                <PantallaExito 
+                  titulo="¡Contraseña cambiada!"
+                  mensaje="Tu contraseña ha sido actualizada exitosamente."
+                  icono="🎉"
+                />
               )}
             </div>
 
-            {/* Botones */}
-            <div className="p-6 border-t border-[#ff007a]/20 flex gap-3">
-              <button
-                onClick={cerrarModal}
-                disabled={loading}
-                className="flex-1 bg-[#131418] hover:bg-[#1c1f25] text-white px-4 py-2 rounded-lg transition-colors border border-white/10"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={passwordStep === 1 ? solicitarCodigoPassword : cambiarPassword}
-                disabled={loading}
-                className="flex-1 bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {loading ? 'Procesando...' : passwordStep === 1 ? 'Enviar código' : 'Cambiar contraseña'}
-              </button>
-            </div>
+            {/* Botones - Solo mostrar si no está en pantalla de éxito */}
+            {passwordStep !== 3 && (
+              <div className="p-6 border-t border-[#ff007a]/20 flex gap-3">
+                <button
+                  onClick={cerrarModal}
+                  disabled={loading}
+                  className="flex-1 bg-[#131418] hover:bg-[#1c1f25] text-white px-4 py-2 rounded-lg transition-colors border border-white/10"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={passwordStep === 1 ? solicitarCodigoPassword : cambiarPassword}
+                  disabled={loading}
+                  className="flex-1 bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Procesando...' : passwordStep === 1 ? 'Enviar código' : 'Cambiar contraseña'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -475,9 +598,11 @@ const SecuritySettings = ({ t }) => {
             {/* Header */}
             <div className="p-6 border-b border-[#ff007a]/20 flex justify-between items-center">
               <h3 className="text-lg font-bold text-white">🚪 Cerrar Todas las Sesiones</h3>
-              <button onClick={cerrarModal} className="text-white/60 hover:text-white">
-                <X size={20} />
-              </button>
+              {logoutStep !== 3 && (
+                <button onClick={cerrarModal} className="text-white/60 hover:text-white">
+                  <X size={20} />
+                </button>
+              )}
             </div>
 
             {/* Contenido */}
@@ -499,7 +624,7 @@ const SecuritySettings = ({ t }) => {
                     Para continuar, te enviaremos un código de verificación a tu correo electrónico.
                   </p>
                 </div>
-              ) : (
+              ) : logoutStep === 2 ? (
                 <div className="space-y-4">
                   <div className="text-center">
                     <Mail className="mx-auto mb-3 text-[#ff007a]" size={32} />
@@ -522,26 +647,34 @@ const SecuritySettings = ({ t }) => {
                     ¿No recibiste el código? Reenviar
                   </button>
                 </div>
+              ) : (
+                <PantallaExito 
+                  titulo="¡Sesiones cerradas!"
+                  mensaje="Todas tus sesiones han sido cerradas exitosamente."
+                  icono="🚪"
+                />
               )}
             </div>
 
             {/* Botones */}
-            <div className="p-6 border-t border-[#ff007a]/20 flex gap-3">
-              <button
-                onClick={cerrarModal}
-                disabled={loading}
-                className="flex-1 bg-[#131418] hover:bg-[#1c1f25] text-white px-4 py-2 rounded-lg transition-colors border border-white/10"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={logoutStep === 1 ? solicitarCodigoLogout : logoutAll}
-                disabled={loading}
-                className="flex-1 bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {loading ? 'Procesando...' : logoutStep === 1 ? 'Enviar código' : 'Cerrar sesiones'}
-              </button>
-            </div>
+            {logoutStep !== 3 && (
+              <div className="p-6 border-t border-[#ff007a]/20 flex gap-3">
+                <button
+                  onClick={cerrarModal}
+                  disabled={loading}
+                  className="flex-1 bg-[#131418] hover:bg-[#1c1f25] text-white px-4 py-2 rounded-lg transition-colors border border-white/10"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={logoutStep === 1 ? solicitarCodigoLogout : logoutAll}
+                  disabled={loading}
+                  className="flex-1 bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Procesando...' : logoutStep === 1 ? 'Enviar código' : 'Cerrar sesiones'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -553,9 +686,11 @@ const SecuritySettings = ({ t }) => {
             {/* Header */}
             <div className="p-6 border-b border-red-500/20 flex justify-between items-center">
               <h3 className="text-lg font-bold text-white">🗑️ Eliminar Cuenta</h3>
-              <button onClick={cerrarModal} className="text-white/60 hover:text-white">
-                <X size={20} />
-              </button>
+              {deleteStep !== 3 && (
+                <button onClick={cerrarModal} className="text-white/60 hover:text-white">
+                  <X size={20} />
+                </button>
+              )}
             </div>
 
             {/* Contenido */}
@@ -586,7 +721,7 @@ const SecuritySettings = ({ t }) => {
                     placeholder="Tu contraseña actual"
                   />
                 </div>
-              ) : (
+              ) : deleteStep === 2 ? (
                 <div className="space-y-4">
                   <div className="text-center">
                     <Mail className="mx-auto mb-3 text-red-400" size={32} />
@@ -622,26 +757,37 @@ const SecuritySettings = ({ t }) => {
                     ¿No recibiste el código? Reenviar
                   </button>
                 </div>
+              ) : (
+                <div className="text-center space-y-4">
+                  <div className="text-6xl mb-4">🗑️</div>
+                  <h4 className="text-lg font-bold text-white">Cuenta eliminada</h4>
+                  <p className="text-red-400 text-sm">Tu cuenta ha sido eliminada permanentemente.</p>
+                  <div className="text-white/60 text-xs">
+                    Redirigiendo al inicio...
+                  </div>
+                </div>
               )}
             </div>
 
             {/* Botones */}
-            <div className="p-6 border-t border-red-500/20 flex gap-3">
-              <button
-                onClick={cerrarModal}
-                disabled={loading}
-                className="flex-1 bg-[#131418] hover:bg-[#1c1f25] text-white px-4 py-2 rounded-lg transition-colors border border-white/10"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={deleteStep === 1 ? solicitarCodigoDelete : eliminarCuenta}
-                disabled={loading}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {loading ? 'Procesando...' : deleteStep === 1 ? 'Enviar código' : 'ELIMINAR CUENTA'}
-              </button>
-            </div>
+            {deleteStep !== 3 && (
+              <div className="p-6 border-t border-red-500/20 flex gap-3">
+                <button
+                  onClick={cerrarModal}
+                  disabled={loading}
+                  className="flex-1 bg-[#131418] hover:bg-[#1c1f25] text-white px-4 py-2 rounded-lg transition-colors border border-white/10"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={deleteStep === 1 ? solicitarCodigoDelete : eliminarCuenta}
+                  disabled={loading}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Procesando...' : deleteStep === 1 ? 'Enviar código' : 'ELIMINAR CUENTA'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

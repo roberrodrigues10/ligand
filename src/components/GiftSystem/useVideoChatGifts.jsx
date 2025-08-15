@@ -16,7 +16,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
 
   // Headers de autenticación
   const getAuthHeaders = useCallback(() => {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',

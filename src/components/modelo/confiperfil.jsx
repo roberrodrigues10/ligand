@@ -16,10 +16,10 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import PaymentManager from "./PaymentManager";
-import MinimumPayoutManager from "./MinimumPayoutManager";
-import ProfileSettings from "./ProfileSettings";
-import SecuritySettings from "./SecuritySettings";
+import PaymentManager from "./payments/PaymentManager";
+import MinimumPayoutManager from "./payments/MinimumPayoutManager";
+import ProfileSettings from "../ProfileSettings";
+import SecuritySettings from "../SecuritySettings";
 
 export default function ModeloConfiguracion() {
   const [modalActivo, setModalActivo] = useState(null);

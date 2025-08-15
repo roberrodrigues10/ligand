@@ -110,7 +110,7 @@ const UserSearch = () => {
     if (!roomName || !isMountedRef.current) return null;
 
     try {
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       if (!authToken) return null;
 
       const response = await fetch(`${API_BASE_URL}/api/chat/room-status/${roomName}`, {
@@ -175,7 +175,7 @@ const UserSearch = () => {
         throw new Error(t("usersearch.sin_conexion", "Sin conexión a internet"));
       }
 
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       if (!authToken) {
         throw new Error(t("usersearch.sin_token", "No hay token de autenticación"));
       }
@@ -388,11 +388,11 @@ const UserSearch = () => {
     // Limpiar estado
     isMountedRef.current = false;
     window.__USERSEARCH_ACTIVE = null;
-    sessionStorage.removeItem('inCall');
-    sessionStorage.removeItem('videochatActive');
-    sessionStorage.removeItem('roomName');
-    sessionStorage.removeItem('userName');
-    sessionStorage.removeItem('currentRoom');
+    localStorage.removeItem('inCall');
+    localStorage.removeItem('videochatActive');
+    localStorage.removeItem('roomName');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('currentRoom');
     
     // 🔥 REDIRECCIONAR A ESPERARCALL SEGÚN ROL
     const esperarRoute = role === 'modelo' ? '/esperandocall' : '/esperandocallcliente';
@@ -408,11 +408,11 @@ const UserSearch = () => {
     // 🔥 FORZAR LIMPIEZA TOTAL
     isMountedRef.current = false;
     window.__USERSEARCH_ACTIVE = null;
-    sessionStorage.removeItem('inCall');
-    sessionStorage.removeItem('videochatActive');
-    sessionStorage.removeItem('roomName');
-    sessionStorage.removeItem('userName');
-    sessionStorage.removeItem('currentRoom');
+    localStorage.removeItem('inCall');
+    localStorage.removeItem('videochatActive');
+    localStorage.removeItem('roomName');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('currentRoom');
     
     // 🚀 REDIRECCIÓN FORZADA A USERSEARCH CON PARÁMETROS
     const searchParams = new URLSearchParams({
@@ -471,7 +471,7 @@ const UserSearch = () => {
         return { total_count: 0 };
       }
       
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       if (!authToken) return { total_count: 0 };
 
       const response = await fetch(`${API_BASE_URL}/api/chat/participants/${roomName}`, {
@@ -512,11 +512,11 @@ const UserSearch = () => {
       clearAllIntervals();
 
       // 🔥 GUARDAR EN SESSIONSTORAGE PARA VIDEOCHAT
-      sessionStorage.setItem('roomName', roomName);
-      sessionStorage.setItem('userName', finalUserName);
-      sessionStorage.setItem('currentRoom', roomName);
-      sessionStorage.setItem('inCall', 'true');
-      sessionStorage.setItem('videochatActive', 'true');
+      localStorage.setItem('roomName', roomName);
+      localStorage.setItem('userName', finalUserName);
+      localStorage.setItem('currentRoom', roomName);
+      localStorage.setItem('inCall', 'true');
+      localStorage.setItem('videochatActive', 'true');
 
       // 🔥 CORREGIDO: chico/chica en lugar de cliente/modelo
       const targetRoute = role === 'modelo' ? '/videochat' : '/videochatclient';
@@ -649,11 +649,11 @@ const UserSearch = () => {
         // 🔥 LIMPIAR TODO Y REGRESAR AL ESPERARCALL (NO AL VIDEOCHAT)
         isMountedRef.current = false;
         window.__USERSEARCH_ACTIVE = null;
-        sessionStorage.removeItem('inCall');
-        sessionStorage.removeItem('videochatActive');
-        sessionStorage.removeItem('roomName');
-        sessionStorage.removeItem('userName');
-        sessionStorage.removeItem('currentRoom');
+        localStorage.removeItem('inCall');
+        localStorage.removeItem('videochatActive');
+        localStorage.removeItem('roomName');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('currentRoom');
         
         setError(t("usersearch.tiempo_agotado", "Tiempo de espera agotado - regresando al inicio"));
         
@@ -697,11 +697,11 @@ const UserSearch = () => {
     window.__USERSEARCH_ACTIVE = null;
     
     // 🔥 LIMPIAR DATOS DE SESIÓN COMPLETAMENTE
-    sessionStorage.removeItem('inCall');
-    sessionStorage.removeItem('videochatActive');
-    sessionStorage.removeItem('roomName');
-    sessionStorage.removeItem('userName');
-    sessionStorage.removeItem('currentRoom');
+    localStorage.removeItem('inCall');
+    localStorage.removeItem('videochatActive');
+    localStorage.removeItem('roomName');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('currentRoom');
     
     // 🔥 CORREGIDO: Siempre ir a esperarcall/esperarcallcliente
     const esperarRoute = role === 'modelo' ? '/esperandocall' : '/esperandocallcliente';
@@ -873,7 +873,7 @@ const UserSearch = () => {
               clearAllIntervals();
               
               // 🔥 LIMPIEZA TOTAL DE DATOS
-              sessionStorage.clear();
+              localStorage.clear();
               localStorage.clear();
               
               // 🏠 REDIRIGIR AL ESPERARCALL (NO AL VIDEOCHAT)

@@ -1,7 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const apiCall = async (endpoint, options = {}) => {
-  const token = sessionStorage.getItem('token');
+  const token = localStorage.getItem('token');
   
   const config = {
     method: 'GET',
@@ -36,7 +36,7 @@ export const notifyPartnerNext = (roomName) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
     },
     body: JSON.stringify({ roomName })
   }).catch(() => {});
@@ -48,7 +48,7 @@ export const notifyPartnerStop = (roomName) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
     },
     body: JSON.stringify({ roomName })
   }).catch(() => {});
@@ -56,7 +56,7 @@ export const notifyPartnerStop = (roomName) => {
 
 export const sendHeartbeat = (activityType, room = null) => {
   // 🔥 FIRE-AND-FORGET
-  const token = sessionStorage.getItem('token');
+  const token = localStorage.getItem('token');
   if (!token) return;
   
   fetch(`${API_BASE_URL}/api/heartbeat`, {

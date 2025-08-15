@@ -21,8 +21,8 @@ export default function RutaEmailVerificado() {
         setCompletoPerfil(!!user.name && !!user.rol);
 
         // 🔁 Si venimos de un cambio de nombre/rol, recarga una vez
-        if (sessionStorage.getItem("perfil_actualizado") === "1") {
-          sessionStorage.removeItem("perfil_actualizado");
+        if (localStorage.getItem("perfil_actualizado") === "1") {
+          localStorage.removeItem("perfil_actualizado");
           window.location.reload();
         }
       } catch {

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./header";
 import { useTranslation } from "react-i18next";
-import { useSearching } from '../contexts/SearchingContext.jsx';
+import { useSearching } from '../../contexts/SearchingContext.jsx';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 

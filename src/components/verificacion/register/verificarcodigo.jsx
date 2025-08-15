@@ -23,12 +23,12 @@ export default function EmailVerification() {
       // 🔴 Llama al backend para borrar el usuario si no está verificado
       await axios.delete("/api/eliminar-no-verificado", {
         headers: {
-          Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
 
       // 🔐 Limpia el token y redirige
-      sessionStorage.removeItem("token");
+      localStorage.removeItem("token");
       navigate("/home");
     } catch (error) {
       console.error("❌ Error al salir:", error);
@@ -83,7 +83,7 @@ export default function EmailVerification() {
       await verificarCodigo(email, fullCode);
       
       // 🏃‍♂️ BANDERA TEMPORAL para evitar que el hook intercepte
-      sessionStorage.setItem('email_just_verified', 'true');
+      localStorage.setItem('email_just_verified', 'true');
             
       // 🚀 FORZAR NAVEGACIÓN COMPLETA - EVITAR QUE EL HOOK LA INTERCEPTE
       setTimeout(() => {

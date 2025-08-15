@@ -15,10 +15,10 @@ export const useVideocallChat = () => {
   useEffect(() => {
     const checkCallStatus = () => {
       try {
-        const inCall = sessionStorage.getItem('inCall');
-        const videochatActive = sessionStorage.getItem('videochatActive');
-        const roomName = sessionStorage.getItem('roomName');
-        const userName = sessionStorage.getItem('userName');
+        const inCall = localStorage.getItem('inCall');
+        const videochatActive = localStorage.getItem('videochatActive');
+        const roomName = localStorage.getItem('roomName');
+        const userName = localStorage.getItem('userName');
         
         console.log('🔍 Checking videocall status:', { inCall, videochatActive, roomName });
         
@@ -195,7 +195,7 @@ const MiniChatVideocall = ({
                   </div>
                 ) : (
                   mensajes.map((mensaje) => {
-                    const esUsuarioActual = mensaje.user_id === JSON.parse(sessionStorage.getItem('user') || '{}').id;
+                    const esUsuarioActual = mensaje.user_id === JSON.parse(localStorage.getItem('user') || '{}').id;
                     
                     return (
                       <div key={mensaje.id} className={`flex ${esUsuarioActual ? "justify-end" : "justify-start"}`}>

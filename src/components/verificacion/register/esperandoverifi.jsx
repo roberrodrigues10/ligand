@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Lock, CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import Header from "../../header";
+import { useTranslation } from "react-i18next";
+import Header from "../../modelo/header";
 import api from "../../../api/axios";
-import { ProtectedPage } from '../../hooks/usePageAccess'; // Asegúrate de que esta ruta sea correcta
-
+import { ProtectedPage } from '../../hooks/usePageAccess';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -17,9 +17,10 @@ export default function EsperandoVerificacion() {
   const navigate = useNavigate();
   const intervalRef = useRef(null);
   const isCheckingRef = useRef(false);
+  
+  const { t } = useTranslation();
 
   const verificarEstado = async () => {
-    // Evitar múltiples verificaciones simultáneas
     if (isCheckingRef.current || redirigiendo || rateLimited) return;
     
     isCheckingRef.current = true;
@@ -28,42 +29,37 @@ export default function EsperandoVerificacion() {
       const response = await api.get(`${API_BASE_URL}/api/verificacion/estado`);
       const { estado, mensaje: mensajeApi } = response.data;
       
-      console.log("Estado recibido:", estado); // Debug
+      console.log("Estado recibido:", estado);
       
       setEstadoVerificacion(estado);
       setMensaje(mensajeApi || "");
       setRateLimited(false);
 
-      // Redirigir según el estado
       if (estado === "aprobada") {
-        console.log("Verificación aprobada, iniciando redirección..."); // Debug
+        console.log("Verificación aprobada, iniciando redirección...");
         setRedirigiendo(true);
         
-        // Limpiar interval inmediatamente
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
         
-        // AQUÍ ESTABA EL PROBLEMA - FALTABA LA REDIRECCIÓN
         setTimeout(() => {
-          console.log("Redirigiendo al dashboard..."); // Debug
-          navigate("/dashboard"); // O la ruta que corresponda para usuarios verificados
+          console.log("Redirigiendo al dashboard...");
+          navigate("/dashboard");
         }, 2000);
         
       } else if (estado === "rechazada") {
-        console.log("Verificación rechazada, iniciando redirección..."); // Debug
+        console.log("Verificación rechazada, iniciando redirección...");
         setRedirigiendo(true);
         
-        // Limpiar interval inmediatamente
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
         
-        // Redirigir después de un momento
         setTimeout(() => {
-          console.log("Redirigiendo a verificación..."); // Debug
+          console.log("Redirigiendo a verificación...");
           navigate("/verificacion-identidad");
         }, 3000);
       }
@@ -79,9 +75,8 @@ export default function EsperandoVerificacion() {
           setRateLimited(false);
         }, 120000);
       } else {
-        // Manejar otros errores
         console.error("Error de verificación:", error.message);
-        setMensaje("Error al verificar el estado. Reintentando...");
+        setMensaje(t('anteveri.common.error_message'));
       }
     } finally {
       isCheckingRef.current = false;
@@ -91,23 +86,20 @@ export default function EsperandoVerificacion() {
   useEffect(() => {
     let mounted = true;
 
-    // Función para inicializar verificaciones
     const inicializar = async () => {
       if (!mounted) return;
       
-      console.log("Inicializando verificación..."); // Debug
+      console.log("Inicializando verificación...");
       
-      // Primera verificación después de 1 segundo
       setTimeout(() => {
         if (mounted && !redirigiendo) {
           verificarEstado();
         }
       }, 1000);
 
-      // Configurar polling cada 10 segundos (cambiado de 30s)
       intervalRef.current = setInterval(() => {
         if (mounted && !redirigiendo && !rateLimited) {
-          console.log("Verificando estado automáticamente..."); // Debug
+          console.log("Verificando estado automáticamente...");
           verificarEstado();
         }
       }, 10000);
@@ -115,56 +107,55 @@ export default function EsperandoVerificacion() {
 
     inicializar();
 
-    // Cleanup function
     return () => {
-      console.log("Limpiando componente..."); // Debug
+      console.log("Limpiando componente...");
       mounted = false;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     };
-  }, []); // Solo se ejecuta una vez
+  }, []);
 
-  // Limpiar interval cuando se inicia redirección
   useEffect(() => {
     if (redirigiendo && intervalRef.current) {
-      console.log("Limpiando interval por redirección..."); // Debug
+      console.log("Limpiando interval por redirección...");
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
   }, [redirigiendo]);
 
   const getIconoEstado = () => {
+    const iconSize = window.innerWidth < 768 ? 40 : 48;
     switch (estadoVerificacion) {
       case "aprobada":
-        return <CheckCircle size={48} color="#10b981" strokeWidth={2.2} />;
+        return <CheckCircle size={iconSize} color="#10b981" strokeWidth={2.2} />;
       case "rechazada":
-        return <XCircle size={48} color="#ef4444" strokeWidth={2.2} />;
+        return <XCircle size={iconSize} color="#ef4444" strokeWidth={2.2} />;
       default:
-        return <Lock size={48} color="#ffffff" strokeWidth={2.2} />;
+        return <Lock size={iconSize} color="#ffffff" strokeWidth={2.2} />;
     }
   };
 
   const getTituloEstado = () => {
     switch (estadoVerificacion) {
       case "aprobada":
-        return "¡Verificación aprobada!";
+        return t('anteveri.approved.title');
       case "rechazada":
-        return "Verificación rechazada";
+        return t('anteveri.rejected.title');
       default:
-        return "Esperando verificación";
+        return t('anteveri.waiting.title');
     }
   };
 
   const getMensajeEstado = () => {
     switch (estadoVerificacion) {
       case "aprobada":
-        return mensaje || "Tu cuenta ha sido verificada exitosamente. Serás redirigido en unos segundos...";
+        return mensaje || t('anteveri.approved.default_message');
       case "rechazada":
-        return mensaje || "Tu verificación fue rechazada. Por favor, intenta nuevamente con documentos más claros.";
+        return mensaje || t('anteveri.rejected.default_message');
       default:
-        return "Gracias por registrarte.\nTe notificaremos cuando ya estés verificada.";
+        return t('anteveri.waiting.message');
     }
   };
 
@@ -193,20 +184,19 @@ export default function EsperandoVerificacion() {
   const getTextoBoton = () => {
     switch (estadoVerificacion) {
       case "aprobada":
-        return redirigiendo ? "Accediendo..." : "Verificación completada";
+        return redirigiendo ? t('anteveri.approved.button_redirecting') : t('anteveri.approved.button');
       case "rechazada":
-        return redirigiendo ? "Redirigiendo..." : "Intentar nuevamente";
+        return redirigiendo ? t('anteveri.rejected.button_redirecting') : t('anteveri.rejected.button');
       default:
-        return "En proceso de verificación";
+        return t('anteveri.waiting.button');
     }
   };
 
   const handleBotonClick = () => {
     if (estadoVerificacion === "rechazada" && !redirigiendo) {
-      console.log("Redirección manual iniciada..."); // Debug
+      console.log("Redirección manual iniciada...");
       setRedirigiendo(true);
       
-      // Limpiar interval
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -216,7 +206,6 @@ export default function EsperandoVerificacion() {
     }
   };
 
-  // Función para debugging - puedes llamarla desde la consola del navegador
   window.debugVerificacion = () => {
     console.log({
       estadoVerificacion,
@@ -228,86 +217,136 @@ export default function EsperandoVerificacion() {
   };
 
   return (
-    <ProtectedPage requiredConditions={{
-      emailVerified: true,           // Email verificado
-      profileComplete: true,         // Perfil completo
-      role: "modelo",               // Solo modelos
-      verificationStatus: "pendiente", // Solo modelos con verificación pendiente
-      blockIfInCall: true           // Bloquear si está en videollamada
-    }}>
-    <div className="min-h-screen bg-ligand-mix-dark flex flex-col">
-      
-      {/* Header fijo arriba */}
-      <Header />
+    <>
+      {/* Estilos CSS responsive */}
+      <style jsx>{`
+        .titulo-responsive {
+          font-size: clamp(3.5rem, 10vw, 6rem);
+          line-height: 1.1;
+        }
+        
+        .subtitulo-responsive {
+          font-size: clamp(2rem, 6vw, 3rem);
+          line-height: 1.2;
+        }
+        
+        .mensaje-responsive {
+          font-size: clamp(1rem, 3.5vw, 1.125rem);
+          line-height: 1.5;
+        }
+        
+        .boton-responsive {
+          font-size: clamp(1rem, 3.5vw, 1.125rem);
+          padding: clamp(0.75rem, 2.5vw, 1rem) clamp(1.5rem, 5vw, 2rem);
+        }
+        
+        @media (max-width: 640px) {
+          .contenedor-principal {
+            padding: 1rem 0.75rem;
+            transform: translateY(-10%); /* FUERZA ADICIONAL */
+          }
+        }
+        
+        @media (min-width: 641px) {
+          .contenedor-principal {
+            transform: translateY(-8%); /* FUERZA ADICIONAL DESKTOP */
+          }
+        }
+        
+        .icono-container {
+          padding: clamp(0.5rem, 2vw, 1rem);
+        }
+      `}</style>
 
-      {/* Contenido centrado */}
-      <div className="flex flex-col items-center justify-center flex-1 px-4 py-10 text-center">
-        {/* Título estilizado Ligand */}
-        <h1 className="font-pacifico text-fucsia text-9xl bg-backgroundDark rounded-lg">
-          Ligand
-        </h1>
-
-        {/* Subtítulo dinámico */}
-        <h2 className={`text-5xl font-semibold mb-5 mt-4 ${getColorTitulo()}`}>
-          {getTituloEstado()}
-        </h2>
-
-        {/* Mensaje dinámico */}
-        <p className="text-white/70 text-base mb-8 leading-relaxed whitespace-pre-line">
-          {getMensajeEstado()}
-        </p>
-
-        {/* Icono dinámico */}
-        <div className="p-4 rounded-full mb-10">
-          {getIconoEstado()}
+      <ProtectedPage requiredConditions={{
+        emailVerified: true,
+        profileComplete: true,
+        role: "modelo",
+        verificationStatus: "pendiente",
+        blockIfInCall: true
+      }}>
+        <div className="min-h-screen bg-ligand-mix-dark flex flex-col">
+          
+          {/* Header fijo arriba */}
+        <div className="relative z-[9999]">
+          <Header />
         </div>
 
-        {/* Indicador de estado en tiempo real */}
-        {!redirigiendo && (
-          <div className="mb-4">
-            <div className="flex items-center justify-center gap-2 text-white/50 text-sm">
-              <div className={`w-2 h-2 rounded-full ${rateLimited ? 'bg-yellow-500' : 'bg-[#ff007a] animate-pulse'}`}></div>
-              {rateLimited ? 'Esperando para verificar...' : 'Verificando estado...'}
+          {/* Contenido centrado - FORZADO A SUBIR */}
+          <div className="flex flex-col items-center justify-center flex-1 contenedor-principal text-center mt-[2%]">
+            
+            {/* Título Ligand - un poco más pequeño */}
+            <div className="mb-4 sm:mb-6">
+              <h1 className="font-pacifico text-fucsia titulo-responsive bg-backgroundDark rounded-lg px-3 py-2">
+                {t('anteveri.title')}
+              </h1>
             </div>
+
+            {/* Subtítulo dinámico */}
+            <h2 className={`subtitulo-responsive font-semibold mb-4 sm:mb-5 ${getColorTitulo()}`}>
+              {getTituloEstado()}
+            </h2>
+
+            {/* Icono dinámico */}
+            <div className="icono-container rounded-full mb-5 sm:mb-7">
+              {getIconoEstado()}
+            </div>
+
+            {/* Mensaje dinámico */}
+            <div className="max-w-md sm:max-w-lg md:max-w-xl mb-5 sm:mb-7">
+              <p className="text-white/70 mensaje-responsive leading-relaxed whitespace-pre-line px-3">
+                {getMensajeEstado()}
+              </p>
+            </div>
+
+            {/* Indicador de estado en tiempo real */}
+            {!redirigiendo && (
+              <div className="mb-4 sm:mb-5">
+                <div className="flex items-center justify-center gap-2 text-white/50 text-sm">
+                  <div className={`w-2 h-2 rounded-full ${rateLimited ? 'bg-yellow-500' : 'bg-[#ff007a] animate-pulse'}`}></div>
+                  <span className="text-center">
+                    {rateLimited ? t('anteveri.waiting.waiting_to_check') : t('anteveri.waiting.checking')}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Botón dinámico - responsive */}
+            <button
+              onClick={handleBotonClick}
+              disabled={estadoVerificacion === "pendiente" || estadoVerificacion === "aprobada" || redirigiendo}
+              className={`${getColorBoton()} text-white font-semibold boton-responsive rounded-full ${
+                estadoVerificacion === "pendiente" || estadoVerificacion === "aprobada" || redirigiendo
+                  ? "opacity-95 cursor-not-allowed" 
+                  : "hover:opacity-90 cursor-pointer transform hover:scale-105"
+              } transition-all duration-300 mb-2 sm:mb-3`}
+            >
+              {getTextoBoton()}
+            </button>
+
+            {/* Mensajes adicionales - más compactos */}
+            {estadoVerificacion === "rechazada" && !redirigiendo && (
+              <p className="text-red-400 text-xs sm:text-sm max-w-xs sm:max-w-sm text-center px-2">
+                {t('anteveri.rejected.redirect_message')}
+              </p>
+            )}
+
+            {estadoVerificacion === "aprobada" && !redirigiendo && (
+              <p className="text-green-400 text-xs sm:text-sm max-w-xs sm:max-w-sm text-center px-2">
+                {t('anteveri.approved.redirect_message')}
+              </p>
+            )}
+
+            {/* Indicador de redirección - compacto */}
+            {redirigiendo && (
+              <p className="text-blue-400 text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                {t('anteveri.common.redirecting')}
+              </p>
+            )}
           </div>
-        )}
-
-        {/* Botón dinámico */}
-        <button
-          onClick={handleBotonClick}
-          disabled={estadoVerificacion === "pendiente" || estadoVerificacion === "aprobada" || redirigiendo}
-          className={`${getColorBoton()} text-white text-base font-semibold py-3 px-6 rounded-full ${
-            estadoVerificacion === "pendiente" || estadoVerificacion === "aprobada" || redirigiendo
-              ? "opacity-95 cursor-not-allowed" 
-              : "hover:opacity-90 cursor-pointer"
-          } transition-all duration-300`}
-        >
-          {getTextoBoton()}
-        </button>
-
-        {/* Mensaje adicional para rechazada */}
-        {estadoVerificacion === "rechazada" && !redirigiendo && (
-          <p className="text-red-400 text-sm mt-4">
-            Serás redirigido al proceso de verificación en 3 segundos...
-          </p>
-        )}
-
-        {/* Mensaje adicional para aprobada */}
-        {estadoVerificacion === "aprobada" && !redirigiendo && (
-          <p className="text-green-400 text-sm mt-4">
-            Redirigiendo a tu dashboard en 2 segundos...
-          </p>
-        )}
-
-        {/* Indicador de redirección */}
-        {redirigiendo && (
-          <p className="text-blue-400 text-sm mt-4 flex items-center gap-2">
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-            Redirigiendo...
-          </p>
-        )}
-      </div>
-    </div>
-    </ProtectedPage>
+        </div>
+      </ProtectedPage>
+    </>
   );
 }

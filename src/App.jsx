@@ -16,16 +16,17 @@ import Verificacion from "./components/verificacion/register/verificacion";
 import Anteveri from "./components/verificacion/register/anteveri";
 import Esperando from "./components/verificacion/register/esperandoverifi";
 
-import HomeLlamadas from "./components/homellamadas";
-import Mensajes from "./components/mensajes";
-import Favoritos from "./components/favorites";
-import HistorySub from "./components/historysu";
-import EsperancoCall from "./components/esperacall";
+import HomeLlamadas from "./components/modelo/homellamadas.jsx";
+import Mensajes from "./components/modelo/mensajes.jsx";
+import Favoritos from "./components/modelo/favorites.jsx";
+import HistorySub from "./components/modelo/historysu.jsx";
+import EsperancoCall from "./components/modelo/esperacall.jsx";
 import EsperandoCallCliente from "./components/client/esperacallclient";
 import Videochat from "./components/modelo/videochat.jsx";
 import VideochatClient from "./components/client/videochatclient";
-import ConfiPerfil from "./components/confiperfil";
-import MessageClient from "./components/client/TestMessage.jsx"
+import ConfiPerfil from "./components/modelo/confiperfil.jsx";
+import ConfiClient from "./components/client/configclient.jsx";
+import MessageClient from "./components/client/message.jsx"
 import Favoritesboy from "./components/client/favoritesclient.jsx"
 import ResetPasswordPage from './components/verificacion/login/ResetPasswordPage.jsx';
 
@@ -34,7 +35,7 @@ import VerificacionesAdmin from "./components/admin/adminverification";
 import Homecliente from "./components/client/homecliente";
 import { RateLimitProvider } from './contexts/RateLimitContext.jsx';
 import UserSearch from "./components/search.jsx";
-import VideoRecorderUpload from "./components/VideoRecorderUpload";
+import VideoRecorderUpload from "./components//modelo/VideoRecorderUpload";
 
 import { ToastContainer } from "react-toastify";
 
@@ -177,6 +178,14 @@ function App() {
                       element={
                         <ProtectedPage>
                           <Favoritesboy />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/settings" 
+                      element={
+                        <ProtectedPage>
+                          <ConfiClient />
                         </ProtectedPage>
                       } 
                     />

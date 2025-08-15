@@ -51,7 +51,7 @@ const VerificarSesionActiva = () => {
         console.log("✅ Usuario eligió continuar aquí");
         
         // Marcar INMEDIATAMENTE que estamos reclamando
-        sessionStorage.setItem("reclamando_sesion", "true");
+        localStorage.setItem("reclamando_sesion", "true");
         
         await manejarReclamacionSesion();
       } else {
@@ -68,10 +68,10 @@ const VerificarSesionActiva = () => {
   const manejarReclamacionSesion = async () => {
     try {
       // Marcar que estamos reclamando ANTES de cualquier llamada
-      sessionStorage.setItem("reclamando_sesion", "true");
+      localStorage.setItem("reclamando_sesion", "true");
       
       console.log("🔄 Iniciando reclamación de sesión...");
-      console.log("🔍 Token antes de reclamar:", sessionStorage.getItem("token") ? "SÍ" : "NO");
+      console.log("🔍 Token antes de reclamar:", localStorage.getItem("token") ? "SÍ" : "NO");
       
       const nuevoToken = await reclamarSesion();
       
@@ -86,7 +86,7 @@ const VerificarSesionActiva = () => {
         console.log("✅ Token verificado - Sesión reclamada exitosamente");
         
         // Limpiar todo y resetear
-        sessionStorage.removeItem("reclamando_sesion");
+        localStorage.removeItem("reclamando_sesion");
         resetearEstado();
         
         // Reiniciar verificación con delay
@@ -105,8 +105,8 @@ const VerificarSesionActiva = () => {
 
   // Función para cerrar sesión completa
   const cerrarSesionCompleta = () => {
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("reclamando_sesion");
+    localStorage.removeItem("token");
+    localStorage.removeItem("reclamando_sesion");
     resetearEstado();
     navigate("/home?auth=login", { replace: true });
   };
@@ -128,7 +128,7 @@ const VerificarSesionActiva = () => {
       return;
     }
 
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     if (!token) {
       console.log("🔍 No hay token - Usuario no autenticado");
       return;
@@ -169,7 +169,7 @@ const VerificarSesionActiva = () => {
     const pathname = window.location.pathname;
     const searchParams = new URLSearchParams(window.location.search);
     const isAuthLogin = pathname === "/home" && searchParams.get("auth") === "login";
-    const estamosReclamando = sessionStorage.getItem("reclamando_sesion") === "true";
+    const estamosReclamando = localStorage.getItem("reclamando_sesion") === "true";
     const popupYaMostrado = popupAbierto.current || yaPreguntado.current;
 
     if (isAuthLogin) {
@@ -214,8 +214,8 @@ const VerificarSesionActiva = () => {
         intervaloRef.current = null;
       }
       // Limpiar bandera solo si no estamos reclamando
-      if (sessionStorage.getItem("reclamando_sesion") !== "true") {
-        sessionStorage.removeItem("reclamando_sesion");
+      if (localStorage.getItem("reclamando_sesion") !== "true") {
+        localStorage.removeItem("reclamando_sesion");
       }
     };
   }, [navigate]);

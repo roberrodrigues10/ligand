@@ -15,9 +15,9 @@ export const useBalanceMonitor = () => {
     console.log('🛑 [BALANCE] Finalizando por saldo agotado...');
     
     try {
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      const roomName = sessionStorage.getItem('roomName');
+      const roomName = localStorage.getItem('roomName');
       
       // 🔥 NOTIFICAR AL SERVIDOR
       if (roomName && authToken) {
@@ -81,7 +81,7 @@ export const useBalanceMonitor = () => {
         'roomName', 'userName', 'currentRoom', 'inCall', 
         'callToken', 'videochatActive'
       ];
-      itemsToRemove.forEach(item => sessionStorage.removeItem(item));
+      itemsToRemove.forEach(item => localStorage.removeItem(item));
 
       // 🔥 NAVEGAR A HOME
       console.log('🏠 [BALANCE] Navegando a home por saldo agotado...');
@@ -97,10 +97,10 @@ export const useBalanceMonitor = () => {
       console.error('❌ [BALANCE] Error finalizando por saldo:', error);
       
       // 🔥 FALLBACK
-      sessionStorage.removeItem('roomName');
-      sessionStorage.removeItem('userName');
-      sessionStorage.removeItem('inCall');
-      sessionStorage.removeItem('videochatActive');
+      localStorage.removeItem('roomName');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('inCall');
+      localStorage.removeItem('videochatActive');
       navigate('/homecliente', { replace: true });
     }
   }, [navigate]);
@@ -111,9 +111,9 @@ export const useBalanceMonitor = () => {
     setIsCheckingBalance(true);
 
     try {
-      const authToken = sessionStorage.getItem('token');
+      const authToken = localStorage.getItem('token');
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      const roomName = sessionStorage.getItem('roomName');
+      const roomName = localStorage.getItem('roomName');
       
       if (!authToken || !roomName || !API_BASE_URL) {
         console.warn('⚠️ [BALANCE] Faltan datos para verificar saldo');
@@ -123,7 +123,7 @@ export const useBalanceMonitor = () => {
       // 🔥 OBTENER USER ID
       let clientUserId = null;
       try {
-        const userString = sessionStorage.getItem('user');
+        const userString = localStorage.getItem('user');
         if (userString) {
           const userData = JSON.parse(userString);
           clientUserId = userData.id;
@@ -214,9 +214,9 @@ export const useBalanceMonitor = () => {
     
     // Verificar cada 10 segundos
     const interval = setInterval(async () => {
-      const roomName = sessionStorage.getItem('roomName');
-      const inCall = sessionStorage.getItem('inCall') === 'true';
-      const videochatActive = sessionStorage.getItem('videochatActive') === 'true';
+      const roomName = localStorage.getItem('roomName');
+      const inCall = localStorage.getItem('inCall') === 'true';
+      const videochatActive = localStorage.getItem('videochatActive') === 'true';
       
       if ((inCall || videochatActive) && roomName) {
         console.log('🔄 [BALANCE] Verificación automática de saldo...');

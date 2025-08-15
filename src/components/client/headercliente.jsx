@@ -9,19 +9,18 @@ import {
   Menu, 
   X, 
   Coins,
-  Search, // ICONO DE BÚSQUEDA DE USUARIOS
-  Play    // ICONO DE HISTORIAS
+  Search, 
+  Play,
+  User    // Para el icono de usuario por defecto
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
 import logoproncipal from "../imagenes/logoprincipal.png";
 import LanguageSelector from "../../components/languageSelector";
 import { getUser } from "../../utils/auth";
-import StripeBuyCoins from '../payments/CoinbaseCommerceBuyCoins';
-import StoriesModal from './StoriesModal'; // 👈 IMPORTAR EL MODAL
-import { useAppNotifications } from '../../contexts/NotificationContext'; // 👈 IMPORTAR NOTIFICACIONES
-
-
+import UnifiedPaymentModal from '../../components/payments/UnifiedPaymentModal';
+import StoriesModal from './StoriesModal';
+import { useAppNotifications } from '../../contexts/NotificationContext';
 
 export default function HeaderCliente() {
   const navigate = useNavigate();
@@ -32,17 +31,17 @@ export default function HeaderCliente() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   
-  // 👈 NUEVOS ESTADOS PARA MODALES
   const [showStoriesModal, setShowStoriesModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [showBuyMinutes, setShowBuyMinutes] = useState(false);
   
   const menuRef = useRef(null);
   const comprasRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const { t, i18n } = useTranslation();
-  const notifications = useAppNotifications(); // 👈 HOOK DE NOTIFICACIONES
+  const notifications = useAppNotifications();
 
-  // 👈 CARGAR USUARIO AL INICIALIZAR
+  // 🔥 CARGAR USUARIO AL INICIALIZAR
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -57,19 +56,44 @@ export default function HeaderCliente() {
     loadUser();
   }, []);
 
-  // 👈 FUNCIÓN PARA ABRIR MODAL DE HISTORIAS
+  // 🎨 COMPONENTE PARA EL AVATAR
+  const UserAvatar = ({ size = "w-10 h-10", textSize = "text-sm" }) => {
+    if (currentUser?.avatar_url) {
+      return (
+        <img 
+          src={currentUser.avatar_url} 
+          alt="Avatar" 
+          className={`${size} rounded-full object-cover border-2 border-white/20 hover:border-white/40 transition`}
+          onError={(e) => {
+            console.error('Error cargando avatar:', e);
+            e.target.style.display = 'none';
+            e.target.nextSibling.style.display = 'flex';
+          }}
+        />
+      );
+    }
+    
+    // Avatar por defecto con inicial o icono
+    const displayName = currentUser?.display_name || currentUser?.name || 'Usuario';
+    const initial = displayName.charAt(0).toUpperCase();
+    
+    return (
+      <div className={`${size} rounded-full bg-gradient-to-br from-[#ff007a] to-[#cc0062] text-white font-bold ${textSize} hover:scale-105 transition flex items-center justify-center border-2 border-white/20 hover:border-white/40`}>
+        {initial}
+      </div>
+    );
+  };
+
   const handleOpenStories = () => {
     console.log('🎬 Abriendo modal de historias...');
     setShowStoriesModal(true);
   };
 
-  // 👈 FUNCIÓN PARA CERRAR MODAL DE HISTORIAS
   const handleCloseStories = () => {
     console.log('🚪 Cerrando modal de historias...');
     setShowStoriesModal(false);
   };
 
-  // 👈 FUNCIÓN PARA ABRIR BÚSQUEDA DE USUARIOS (FUTURO)
   const handleOpenSearch = () => {
     console.log('🔍 Búsqueda de usuarios...');
     notifications.info('Funcionalidad de búsqueda próximamente');
@@ -81,6 +105,14 @@ export default function HeaderCliente() {
 
   const cerrarModalCompraMonedas = () => {
     setShowBuyCoins(false);
+  };
+
+  const abrirModalCompraMinutos = () => {
+    setShowBuyMinutes(true);
+  };
+  
+  const cerrarModalCompraMinutos = () => {
+    setShowBuyMinutes(false);
   };
 
   const toggleMenu = () => setMenuAbierto(!menuAbierto);
@@ -127,7 +159,6 @@ export default function HeaderCliente() {
         <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-lg">
           <LanguageSelector />
           
-          {/* 👈 ICONO DE BÚSQUEDA DE USUARIOS */}
           <button
             onClick={handleOpenSearch}
             className="hover:scale-110 transition p-2"
@@ -136,7 +167,6 @@ export default function HeaderCliente() {
             <Search size={24} className="text-[#ff007a]" />
           </button>
 
-          {/* 👈 ICONO DE HISTORIAS - ABRE EL MODAL */}
           <button
             onClick={handleOpenStories}
             className="hover:scale-110 transition p-2"
@@ -236,7 +266,6 @@ export default function HeaderCliente() {
             <Home className="text-[#ff007a]" size={24} />
           </button>
           
-          {/* 🔧 CORREGIDO: Ruta correcta */}
           <button
             className="hover:scale-110 transition p-2"
             onClick={() => navigate("/message")}
@@ -253,22 +282,39 @@ export default function HeaderCliente() {
             <Star className="text-[#ff007a]" size={24} />
           </button>
 
-          {/* Botón de perfil desktop */}
+          {/* 🔥 BOTÓN DE PERFIL DESKTOP CON AVATAR DINÁMICO */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={toggleMenu}
-              className="w-10 h-10 rounded-full bg-[#ff007a] text-white font-bold text-sm hover:scale-105 transition flex items-center justify-center"
-              title="Menú de cuenta"
+              className="hover:scale-105 transition flex items-center justify-center"
+              title={`Perfil de ${currentUser?.display_name || currentUser?.name || 'Usuario'}`}
             >
-              C
+              <UserAvatar />
             </button>
 
             {/* Menú desplegable desktop */}
             {menuAbierto && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#1f2125] rounded-xl shadow-lg border border-[#ff007a]/30 z-50 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-64 bg-[#1f2125] rounded-xl shadow-lg border border-[#ff007a]/30 z-50 overflow-hidden">
+                {/* 🔥 HEADER DEL MENÚ CON INFO DEL USUARIO */}
+                <div className="px-4 py-3 border-b border-[#ff007a]/20 bg-gradient-to-r from-[#ff007a]/10 to-transparent">
+                  <div className="flex items-center gap-3">
+                    <UserAvatar size="w-8 h-8" textSize="text-xs" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-medium text-sm truncate">
+                        {currentUser?.display_name || currentUser?.name || 'Usuario'}
+                      </div>
+                      {currentUser?.nickname && (
+                        <div className="text-white/60 text-xs truncate">
+                          {currentUser.name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   onClick={() => {
-                    navigate("/configuracion");
+                    navigate("/settings");
                     setMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
@@ -293,7 +339,6 @@ export default function HeaderCliente() {
 
         {/* Botón menú móvil - solo visible en móvil */}
         <div className="md:hidden flex items-center gap-2">
-        
           <div className="relative" ref={mobileMenuRef}>
             <button
               onClick={toggleMobileMenu}
@@ -306,13 +351,28 @@ export default function HeaderCliente() {
             {/* Menú móvil desplegable */}
             {mobileMenuAbierto && (
               <div className="absolute right-0 mt-2 w-72 bg-[#1f2125] rounded-xl shadow-xl border border-[#ff007a]/30 z-50 overflow-hidden">
-                {/* Selector de idioma móvil */}
-                <div className="px-4 py-3 border-b border-[#ff007a]/20">
+                {/* 🔥 HEADER DEL MENÚ MÓVIL CON AVATAR */}
+                <div className="px-4 py-3 border-b border-[#ff007a]/20 bg-gradient-to-r from-[#ff007a]/10 to-transparent">
+                  <div className="flex items-center gap-3 mb-3">
+                    <UserAvatar size="w-10 h-10" textSize="text-sm" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-medium truncate">
+                        {currentUser?.display_name || currentUser?.name || 'Usuario'}
+                      </div>
+                      {currentUser?.nickname && (
+                        <div className="text-white/60 text-xs truncate">
+                          {currentUser.name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Selector de idioma móvil */}
                   <div className="text-xs text-gray-400 mb-2">Idioma</div>
                   <LanguageSelector />
                 </div>
 
-                {/* 👈 OPCIONES MÓVILES PARA HISTORIAS Y BÚSQUEDA */}
+                {/* Opciones móviles para historias y búsqueda */}
                 <div className="py-2 border-b border-[#ff007a]/20">
                   <button
                     onClick={() => {
@@ -409,7 +469,6 @@ export default function HeaderCliente() {
                     Inicio
                   </button>
                   
-                  {/* 🔧 CORREGIDO: Ruta correcta para móvil */}
                   <button
                     onClick={() => {
                       navigate("/message");
@@ -463,12 +522,16 @@ export default function HeaderCliente() {
         </div>
       </header>
 
-      {/* 👈 MODAL DE HISTORIAS INTEGRADO */}
+      {/* Modal de historias integrado */}
       <StoriesModal 
         isOpen={showStoriesModal}
         onClose={handleCloseStories}
         currentUser={currentUser}
       />
+      
+      {showBuyMinutes && (
+        <UnifiedPaymentModal onClose={cerrarModalCompraMinutos} />
+      )}
 
       {/* Modal de confirmación */}
       {showConfirmModal && confirmAction && (
