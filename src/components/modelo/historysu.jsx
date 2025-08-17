@@ -61,10 +61,172 @@ export default function SubirHistoria() {
     return `${minutes}:${seconds}`;
   };
 
+  // 🔥 SOLUCIÓN DEFINITIVA BASADA EN TU BACKEND
+
+  // 1. FUNCIÓN PARA CREAR ARCHIVO CON EXTENSIÓN Y TIPO MIME EXACTOS
+  const createPerfectFile = (originalFile, targetExtension = null) => {
+    console.log('🔧 === CREANDO ARCHIVO PERFECTO ===');
+    console.log('Original:', {
+      name: originalFile.name,
+      type: originalFile.type,
+      size: originalFile.size
+    });
+
+    let finalName = originalFile.name;
+    let finalType = originalFile.type;
+
+    // Si es un Blob sin nombre (grabación)
+    if (!finalName || finalName === '') {
+      finalName = `recording_${Date.now()}.webm`;
+      finalType = 'video/webm';
+    }
+
+    // Obtener extensión actual
+    const currentExtension = finalName.split('.').pop().toLowerCase();
+    
+    // Mapeo exacto que acepta tu backend
+    const validMimeTypes = {
+      'jpeg': 'image/jpeg',
+      'jpg': 'image/jpeg',
+      'png': 'image/png',
+      'mp4': 'video/mp4',
+      'webm': 'video/webm'
+    };
+
+    // Forzar el tipo MIME correcto basado en la extensión
+    if (validMimeTypes[currentExtension]) {
+      finalType = validMimeTypes[currentExtension];
+    } else {
+      // Si la extensión no es válida, usar el target o default
+      if (targetExtension && validMimeTypes[targetExtension]) {
+        const newExtension = targetExtension;
+        finalName = finalName.replace(/\.[^/.]+$/, `.${newExtension}`);
+        finalType = validMimeTypes[newExtension];
+      } else {
+        // Fallback: determinar por contenido
+        if (originalFile.type.startsWith('image/')) {
+          finalName = finalName.replace(/\.[^/.]+$/, '.jpg');
+          finalType = 'image/jpeg';
+        } else {
+          finalName = finalName.replace(/\.[^/.]+$/, '.webm');
+          finalType = 'video/webm';
+        }
+      }
+    }
+
+    // Crear el archivo perfecto
+    const perfectFile = new File([originalFile], finalName, {
+      type: finalType,
+      lastModified: Date.now()
+    });
+
+    console.log('✅ Archivo perfecto creado:', {
+      name: perfectFile.name,
+      type: perfectFile.type,
+      size: perfectFile.size
+    });
+    console.log('=====================================');
+
+    return perfectFile;
+  };
+
+  const validateFileForBackend = (file) => {
+    const allowedExtensions = ['jpeg', 'jpg', 'png', 'mp4', 'webm'];
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png', 
+      'video/mp4',
+      'video/webm'
+    ];
+
+    const extension = file.name.split('.').pop().toLowerCase();
+    
+    console.log('🔍 Validando archivo:', {
+      name: file.name,
+      type: file.type,
+      extension: extension,
+      size: file.size
+    });
+
+    // Verificar extensión
+    if (!allowedExtensions.includes(extension)) {
+      return {
+        valid: false,
+        error: `Extensión no válida: ${extension}. Permitidas: ${allowedExtensions.join(', ')}`
+      };
+    }
+
+    // Verificar tipo MIME
+    if (!allowedMimeTypes.includes(file.type)) {
+      console.warn('⚠️ Tipo MIME no ideal:', file.type);
+      // No fallar aquí, el createPerfectFile lo corregirá
+    }
+
+    // Verificar tamaño (50MB = 52,428,800 bytes)
+    if (file.size > 52428800) {
+      return {
+        valid: false,
+        error: 'Archivo muy grande. Máximo 50MB permitido.'
+      };
+    }
+
+    return { valid: true };
+  };
+
+  const validateFileType = (file) => {
+    console.log('🔍 Validando archivo:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
+
+    // Lista de tipos MIME permitidos que coincidan con el backend
+    const allowedImageTypes = [
+      'image/jpeg',
+      'image/jpg', 
+      'image/png'
+    ];
+    
+    const allowedVideoTypes = [
+      'video/mp4',
+      'video/webm',
+      'video/quicktime', // .mov files
+      'video/x-msvideo', // .avi files
+      'video/mpeg' // .mpeg files
+    ];
+
+    const allAllowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+
+    // Verificar por tipo MIME
+    if (allAllowedTypes.includes(file.type)) {
+      return { valid: true, mediaType: file.type.startsWith('image/') ? 'image' : 'video' };
+    }
+
+    // Verificar por extensión como fallback
+    const fileName = file.name.toLowerCase();
+    const imageExtensions = ['.jpg', '.jpeg', '.png'];
+    const videoExtensions = ['.mp4', '.webm', '.mov', '.avi'];
+
+    const hasValidImageExt = imageExtensions.some(ext => fileName.endsWith(ext));
+    const hasValidVideoExt = videoExtensions.some(ext => fileName.endsWith(ext));
+
+    if (hasValidImageExt) {
+      console.log('⚠️ Archivo de imagen detectado por extensión, tipo MIME:', file.type);
+      return { valid: true, mediaType: 'image' };
+    }
+
+    if (hasValidVideoExt) {
+      console.log('⚠️ Archivo de video detectado por extensión, tipo MIME:', file.type);
+      return { valid: true, mediaType: 'video' };
+    }
+
+    return { valid: false, mediaType: null };
+  };
+
   // 🆕 Verificar si puede subir historia
   const checkCanUpload = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       
       if (!token || token === 'null' || token === 'undefined') {
         console.warn('❌ Token inválido o no encontrado');
@@ -140,7 +302,7 @@ export default function SubirHistoria() {
     try {
       setLoadingStory(true);
       
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       
       if (!token || token === 'null' || token === 'undefined') {
         console.warn('❌ Token inválido o no encontrado');
@@ -244,6 +406,91 @@ export default function SubirHistoria() {
     }
   };
 
+  const createValidFile = (originalFile, forceType = null) => {
+    console.log('🔧 Creando archivo válido desde:', {
+      name: originalFile.name,
+      type: originalFile.type,
+      size: originalFile.size,
+      forceType: forceType
+    });
+
+    let finalMimeType = forceType || originalFile.type;
+    let finalName = originalFile.name;
+
+    // Si no tiene nombre (es un Blob de grabación)
+    if (!finalName) {
+      finalName = `recording_${Date.now()}.webm`;
+      finalMimeType = 'video/webm';
+    }
+
+    // Mapear extensiones a tipos MIME específicos que acepta el backend
+    const extension = finalName.split('.').pop().toLowerCase();
+    const mimeTypeMap = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg', 
+      'png': 'image/png',
+      'mp4': 'video/mp4',
+      'webm': 'video/webm'
+    };
+
+    // Forzar el tipo MIME correcto basado en la extensión
+    if (mimeTypeMap[extension]) {
+      finalMimeType = mimeTypeMap[extension];
+    }
+
+    // Crear nuevo File con tipo MIME explícito
+    const validFile = new File([originalFile], finalName, {
+      type: finalMimeType,
+      lastModified: Date.now()
+    });
+
+    console.log('✅ Archivo válido creado:', {
+      name: validFile.name,
+      type: validFile.type,
+      size: validFile.size
+    });
+
+    return validFile;
+  };
+
+  const diagnoseFile = async (file) => {
+    console.log('🔍 === DIAGNÓSTICO COMPLETO DEL ARCHIVO ===');
+    
+    // Información básica
+    console.log('📄 Información básica:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified,
+      constructor: file.constructor.name
+    });
+
+    // Leer los primeros bytes para detectar el tipo real
+    const arrayBuffer = await file.slice(0, 16).arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const hex = Array.from(uint8Array).map(b => b.toString(16).padStart(2, '0')).join(' ');
+    console.log('🔬 Primeros bytes (hex):', hex);
+
+    // Detectar tipo por magic numbers
+    const magicNumbers = {
+      'FFD8FF': 'image/jpeg',
+      '89504E47': 'image/png', 
+      '1A45DFA3': 'video/webm',
+      '00000018': 'video/mp4',
+      '00000020': 'video/mp4'
+    };
+
+    const hexStart = hex.replace(/\s/g, '').toUpperCase().substring(0, 8);
+    for (const [magic, detectedType] of Object.entries(magicNumbers)) {
+      if (hexStart.startsWith(magic)) {
+        console.log('🎯 Tipo detectado por magic number:', detectedType);
+        break;
+      }
+    }
+
+    console.log('===========================================');
+  };
+
   const stopCamera = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -294,36 +541,105 @@ export default function SubirHistoria() {
     }
 
     const chunks = [];
-    const recorder = new MediaRecorder(streamRef.current, {
-      mimeType: "video/webm; codecs=vp9",
-    });
+    
+    // Usar configuración más estable
+    const options = {
+      mimeType: 'video/webm'
+    };
+
+    // Verificar soporte del navegador
+    if (!MediaRecorder.isTypeSupported('video/webm')) {
+      if (MediaRecorder.isTypeSupported('video/mp4')) {
+        options.mimeType = 'video/mp4';
+      } else {
+        delete options.mimeType; // Usar default del navegador
+      }
+    }
+    
+    console.log('🎥 Iniciando grabación con opciones:', options);
+
+    const recorder = new MediaRecorder(streamRef.current, options);
 
     recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
+      if (e.data.size > 0) {
+        chunks.push(e.data);
+      }
     };
 
     recorder.onstop = () => {
+      console.log('🛑 === PROCESANDO GRABACIÓN ===');
+      
       if (chunks.length === 0) {
         notifications.warning("No se grabó ningún contenido");
         return;
       }
 
-      const blob = new Blob(chunks, { type: "video/webm" });
-      setVideoBlob(blob);
-      const url = URL.createObjectURL(blob);
+      // Crear blob inicial
+      const originalBlob = new Blob(chunks, { 
+        type: options.mimeType || 'video/webm' 
+      });
 
-      setFile(blob);
+      // Crear archivo perfecto para el backend
+      const recordingFile = createPerfectFile(originalBlob);
+
+      setVideoBlob(recordingFile);
+      const url = URL.createObjectURL(recordingFile);
+
+      setFile(recordingFile);
       setPreviewUrl(url);
       setRecording(false);
       setShowCamera(false);
       
       mediaRecorderRef.current = null;
       notifications.recordingStopped();
+      
+      console.log('=====================================');
     };
 
-    recorder.start();
+    recorder.onerror = (e) => {
+      console.error('❌ Error en MediaRecorder:', e);
+      notifications.error('Error durante la grabación');
+    };
+
+    recorder.start(1000);
     mediaRecorderRef.current = recorder;
     setRecording(true);
+  };
+
+  const testFileBeforeSend = async (file) => {
+    console.log('🧪 === PRUEBA FINAL ANTES DEL ENVÍO ===');
+    
+    // Información del archivo
+    console.log('📋 Archivo a enviar:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      constructor: file.constructor.name
+    });
+
+    // Crear FormData de prueba
+    const testFormData = new FormData();
+    testFormData.append("file", file);
+    
+    // Verificar lo que realmente se está enviando
+    console.log('📦 FormData entries:');
+    for (let [key, value] of testFormData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}:`, {
+          name: value.name,
+          type: value.type,
+          size: value.size
+        });
+      } else {
+        console.log(`${key}:`, value);
+      }
+    }
+
+    // Leer primeros bytes para confirmar
+    await diagnoseFile(file);
+    
+    console.log('=====================================');
+    return true;
   };
 
   const stopRecording = () => {
@@ -345,47 +661,98 @@ export default function SubirHistoria() {
     setSelectedDeviceId(devices[nextIndex].deviceId);
   };
 
-  const handleVideoUpload = (e) => {
+  const handleVideoUpload = async (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
 
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (selectedFile.size > maxSize) {
-      notifications.fileSizeLimit();
+    console.log('📁 === PROCESANDO ARCHIVO SUBIDO ===');
+
+    // Validar archivo
+    const validation = validateFileForBackend(selectedFile);
+    if (!validation.valid) {
+      notifications.error(validation.error);
       return;
     }
 
-    const isImage = selectedFile.type.startsWith("image/");
-    const isVideo = selectedFile.type.startsWith("video/");
+    // Crear archivo perfecto para el backend
+    const perfectFile = createPerfectFile(selectedFile);
 
-    if (!isImage && !isVideo) {
-      notifications.invalidFile();
-      return;
-    }
+    // Determinar si es video para validar duración
+    const isVideo = perfectFile.type.startsWith('video/') || 
+                    perfectFile.name.toLowerCase().endsWith('.mp4') || 
+                    perfectFile.name.toLowerCase().endsWith('.webm');
 
     if (isVideo) {
+      // Validar duración del video
       const video = document.createElement("video");
       video.preload = "metadata";
+      
       video.onloadedmetadata = () => {
         URL.revokeObjectURL(video.src);
+        console.log('🎥 Duración del video:', video.duration, 'segundos');
+        
         if (video.duration > 15) {
           notifications.videoDuration();
           return;
         }
-        setFile(selectedFile);
-        setPreviewUrl(URL.createObjectURL(selectedFile));
-        setShowCamera(false);
         
+        setFile(perfectFile);
+        setPreviewUrl(URL.createObjectURL(perfectFile));
+        setShowCamera(false);
         notifications.fileLoaded('video');
       };
-      video.src = URL.createObjectURL(selectedFile);
-    } else {
-      setFile(selectedFile);
-      setPreviewUrl(URL.createObjectURL(selectedFile));
-      setShowCamera(false);
       
+      video.onerror = () => {
+        console.error('❌ Error cargando video para validación');
+        notifications.error('Error al procesar el video. Intenta con otro archivo.');
+        URL.revokeObjectURL(video.src);
+      };
+      
+      video.src = URL.createObjectURL(perfectFile);
+    } else {
+      // Es una imagen
+      setFile(perfectFile);
+      setPreviewUrl(URL.createObjectURL(perfectFile));
+      setShowCamera(false);
       notifications.fileLoaded('image');
     }
+
+    console.log('========================================');
+  };
+
+  const createCompatibleBlob = (originalBlob, fileName) => {
+    let mimeType = originalBlob.type;
+    
+    // Si el blob no tiene tipo MIME o tiene uno genérico, inferirlo del nombre
+    if (!mimeType || mimeType === 'application/octet-stream') {
+      const extension = fileName.split('.').pop().toLowerCase();
+      
+      switch (extension) {
+        case 'mp4':
+          mimeType = 'video/mp4';
+          break;
+        case 'webm':
+          mimeType = 'video/webm';
+          break;
+        case 'jpg':
+        case 'jpeg':
+          mimeType = 'image/jpeg';
+          break;
+        case 'png':
+          mimeType = 'image/png';
+          break;
+        default:
+          mimeType = originalBlob.type || 'video/webm'; // Default para grabaciones
+      }
+    }
+    
+    console.log('🔄 Creando blob compatible:', {
+      originalType: originalBlob.type,
+      newType: mimeType,
+      size: originalBlob.size
+    });
+    
+    return new Blob([originalBlob], { type: mimeType });
   };
 
   const handleCameraClick = () => {
@@ -432,7 +799,10 @@ export default function SubirHistoria() {
   };
 
   const handleSubmit = async () => {
-    if (!file) return;
+    if (!file) {
+      notifications.error('No hay archivo seleccionado');
+      return;
+    }
     
     if (!canUpload) {
       if (uploadRestriction?.reason === 'pending_story') {
@@ -443,32 +813,84 @@ export default function SubirHistoria() {
       return;
     }
 
+    console.log('🚀 === ENVIANDO AL BACKEND ===');
+    console.log('Archivo final a enviar:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      constructor: file.constructor.name
+    });
+
+    // Validación final
+    const finalValidation = validateFileForBackend(file);
+    if (!finalValidation.valid) {
+      notifications.error(`Error final: ${finalValidation.error}`);
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("source_type", file instanceof Blob ? "record" : "upload");
+    formData.append("source_type", file.name.includes('recording_') ? "record" : "upload");
+
+    // Debug del FormData
+    console.log('📦 FormData entries:');
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}:`, {
+          name: value.name,
+          type: value.type,
+          size: value.size
+        });
+      } else {
+        console.log(`${key}:`, value);
+      }
+    }
 
     try {
       setLoading(true);
       
-      const res = await axios.post("api/stories", formData, {
+      const config = {
         headers: {
           "Content-Type": "multipart/form-data",
         },
         withCredentials: false,
-      });
-
+        timeout: 60000,
+      };
+      
+      console.log('📡 Enviando request...');
+      // En handleSubmit(), cambiar:
+      const res = await axios.post("api/stories", formData, config);
+      
+      console.log('✅ SUCCESS! Historia subida:', res.data);
       notifications.storyUploaded();
+      
       await checkExistingStory();
       await checkCanUpload();
+      
       setFile(null);
       setPreviewUrl(null);
+      setVideoBlob(null);
+      
     } catch (error) {
-      console.error('Error uploading story:', error);
+      console.error('❌ === ERROR DETALLADO ===');
+      console.error('Status:', error.response?.status);
+      console.error('Data:', error.response?.data);
+      console.error('Headers:', error.response?.headers);
       
       if (error.response?.status === 422) {
         const errorData = error.response.data;
         
-        if (errorData.error_type === 'pending_story') {
+        if (errorData.errors?.file) {
+          const fileError = errorData.errors.file[0];
+          console.error('❌ Error específico del archivo:', fileError);
+          
+          // Mostrar error específico y sugerencias
+          notifications.error(`Error del servidor: ${fileError}`);
+          
+          setTimeout(() => {
+            notifications.error('Sugerencia: Intenta convertir tu archivo usando un convertidor online a MP4 o WEBM');
+          }, 2000);
+        } else if (errorData.error_type === 'pending_story') {
           notifications.storyPending();
         } else if (errorData.error_type === 'active_story') {
           notifications.warning(errorData.message);
@@ -480,8 +902,18 @@ export default function SubirHistoria() {
       } else {
         notifications.uploadError();
       }
+      
+      console.log('==============================');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const testCurrentFile = async () => {
+    if (file) {
+      await testFileBeforeSend(file);
+    } else {
+      console.log('❌ No hay archivo seleccionado para probar');
     }
   };
 
@@ -649,17 +1081,35 @@ export default function SubirHistoria() {
             {/* Vista previa de la historia */}
             {existingStory?.file_url && (
               <div className="bg-[#2b2d31] rounded-2xl overflow-hidden mb-6">
-                {existingStory.file_url.includes('.mp4') || existingStory.file_url.includes('.webm') ? (
+                {(existingStory.file_url.includes('.mp4') || 
+                  existingStory.file_url.includes('.webm') ||
+                  existingStory.mime_type?.startsWith('video/')) ? (
                   <video 
-                    src={`${import.meta.env.VITE_API_BASE_URL}${existingStory.file_url}`}
+                    src={
+                      existingStory.file_url.startsWith('http') 
+                        ? existingStory.file_url 
+                        : `${import.meta.env.VITE_API_BASE_URL}${existingStory.file_url}`
+                    }
                     className="w-full h-[300px] object-cover"
                     controls={isApproved}
+                    onError={(e) => {
+                      console.error('❌ Error cargando video:', e);
+                      console.log('URL intentada:', e.target.src);
+                    }}
                   />
                 ) : (
                   <img 
-                    src={existingStory.file_url} 
+                    src={
+                      existingStory.file_url.startsWith('http') 
+                        ? existingStory.file_url 
+                        : `${import.meta.env.VITE_API_BASE_URL}${existingStory.file_url}`
+                    }
                     alt="Historia" 
                     className="w-full object-cover"
+                    onError={(e) => {
+                      console.error('❌ Error cargando imagen:', e);
+                      console.log('URL intentada:', e.target.src);
+                    }}
                   />
                 )}
               </div>
@@ -714,6 +1164,17 @@ export default function SubirHistoria() {
         
         {/* Contenedor principal único */}
         <div className="bg-[#1f2125] rounded-2xl p-8 shadow-xl max-w-xl w-full mx-auto">
+          {file && process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <p className="text-blue-400 text-sm mb-2">🧪 Debug Info:</p>
+              <div className="text-xs text-white/70 space-y-1">
+                <p>Nombre: {file.name}</p>
+                <p>Tipo: {file.type}</p>
+                <p>Tamaño: {(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <p>Extensión: {file.name.split('.').pop()}</p>
+              </div>
+            </div>
+          )}
           {/* Título */}
           <div className="flex items-center gap-3 justify-center mb-8">
             <Sparkles className="w-8 h-8 text-[#ff007a]" />
@@ -876,7 +1337,7 @@ export default function SubirHistoria() {
                 <input
                   type="file"
                   ref={fileInputRef}
-                  accept="image/*,video/*"
+                  accept=".jpg,.jpeg,.png,.mp4,.webm"
                   className="hidden"
                   onChange={handleVideoUpload}
                 />

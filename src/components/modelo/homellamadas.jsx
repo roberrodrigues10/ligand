@@ -49,7 +49,7 @@ export default function InterfazCliente() {
 
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TOKEN
   const getAuthHeaders = () => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     
     if (!token || token === 'null' || token === 'undefined') {
       console.error('❌ TOKEN INVÁLIDO - Redirigiendo a login');
@@ -67,7 +67,7 @@ export default function InterfazCliente() {
   // 🆕 VERIFICAR SI PUEDE SUBIR HISTORIA
   const checkCanUpload = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       
       if (!token || token === 'null' || token === 'undefined') {
         return;
@@ -242,8 +242,8 @@ export default function InterfazCliente() {
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         if (response.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
         }
         
         if (initialLoad) {
@@ -278,8 +278,8 @@ export default function InterfazCliente() {
         }
       } else {
         if (response.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
         }
         
         if (initialLoad) {
@@ -394,7 +394,7 @@ export default function InterfazCliente() {
     try {
       setLoadingStory(true);
       
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       
       if (!token || token === 'null' || token === 'undefined') {
         console.warn('❌ Token inválido o no encontrado');
@@ -447,14 +447,14 @@ export default function InterfazCliente() {
       if (!canUpload) {
         if (uploadRestriction?.reason === 'pending_story') {
           return {
-            text: "Historia Pendiente de Aprobación",
+            text: t("client.restrictions.pendingApproval"),
             icon: <Clock size={20} className="text-yellow-500" />,
             disabled: false,
             className: "w-full bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 px-8 py-4 rounded-full text-lg font-semibold shadow-md hover:bg-yellow-500/30 transition"
           };
         } else if (uploadRestriction?.reason === 'active_story') {
           return {
-            text: timeRemaining ? `Espera ${timeRemaining.hours}h ${timeRemaining.minutes}m` : "Historia Activa - En Espera",
+            text: timeRemaining ? t("client.restrictions.waitTime", { hours: timeRemaining.hours, minutes: timeRemaining.minutes }) : t("client.restrictions.activeStory"),
             icon: <AlertTriangle size={20} className="text-orange-400" />,
             disabled: false,
             className: "w-full bg-orange-500/20 border border-orange-500/50 text-orange-300 px-8 py-4 rounded-full text-lg font-semibold shadow-md hover:bg-orange-500/30 transition"
@@ -572,9 +572,9 @@ const iniciarLlamadaReal = async (usuario) => {
     if (yoLoBloquee) {
       setConfirmAction({
         type: 'blocked',
-        title: 'No disponible',
-        message: `Has bloqueado a ${otherUserName}. Debes desbloquearlo para poder llamarle.`,
-        confirmText: 'Entendido',
+        title: t("client.errors.notAvailable"),
+        message: t("client.errors.userBlocked", { name: otherUserName }),
+        confirmText: t("client.errors.understood"),
         action: () => setShowConfirmModal(false)
       });
       setShowConfirmModal(true);
@@ -595,9 +595,9 @@ const iniciarLlamadaReal = async (usuario) => {
       if (blockData.success && blockData.is_blocked_by_them) {
         setConfirmAction({
           type: 'blocked',
-          title: 'No disponible',
-          message: `${otherUserName} te ha bloqueado. No puedes realizar llamadas a este usuario.`,
-          confirmText: 'Entendido',
+          title: t("client.errors.notAvailable"),
+          message: t("client.errors.blockedByUser", { name: otherUserName }),
+          confirmText: t("client.errors.understood"),
           action: () => setShowConfirmModal(false)
         });
         setShowConfirmModal(true);
@@ -612,7 +612,7 @@ const iniciarLlamadaReal = async (usuario) => {
     });
     setIsCallActive(true);
     
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/calls/start`, {
       method: 'POST',
       headers: {
@@ -648,7 +648,7 @@ const iniciarLlamadaReal = async (usuario) => {
     console.error('❌ Error:', error);
     setIsCallActive(false);
     setCurrentCall(null);
-    notifications.error('Error al iniciar llamada');
+    notifications.warning(t("client.errors.callRejected"));
   }
 };
 
@@ -658,7 +658,7 @@ const iniciarPollingLlamada = (callId) => {
   
   const interval = setInterval(async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/calls/status`, {
         method: 'POST',
         headers: {
@@ -688,7 +688,7 @@ const iniciarPollingLlamada = (callId) => {
           setCallPollingInterval(null);
           setIsCallActive(false);
           setCurrentCall(null);
-          notifications.warning('La llamada fue rechazada');
+          notifications.warning(t("client.errors.callRejected"));
           
         } else if (callStatus === 'cancelled') {
           // Llamada cancelada por timeout
@@ -697,7 +697,7 @@ const iniciarPollingLlamada = (callId) => {
           setCallPollingInterval(null);
           setIsCallActive(false);
           setCurrentCall(null);
-          notifications.warning('La llamada expiró sin respuesta');
+          notifications.warning(t("client.errors.callExpired"));
         }
       }
       
@@ -716,7 +716,7 @@ const iniciarPollingLlamada = (callId) => {
       if (isCallActive) {
         setIsCallActive(false);
         setCurrentCall(null);
-        notifications.warning('Tiempo de espera agotado');      }
+        notifications.warning(t("client.errors.timeoutExpired"));      }
     }
   }, 35000);
 };
@@ -727,7 +727,7 @@ const cancelarLlamada = async () => {
     console.log('🛑 Cancelando llamada...');
     
     if (currentCall?.callId) {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       await fetch(`${API_BASE_URL}/api/calls/cancel`, {
         method: 'POST',
         headers: {
@@ -757,7 +757,7 @@ const cancelarLlamada = async () => {
 // 🔥 FUNCIÓN: POLLING PARA LLAMADAS ENTRANTES
 const verificarLlamadasEntrantes = async () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {
       method: 'GET',
       headers: {
@@ -806,7 +806,7 @@ const responderLlamada = async (accion) => {
     
     stopIncomingCallSound();
     
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
       method: 'POST',
       headers: {
@@ -849,11 +849,11 @@ const redirigirAVideochat = (callData) => {
   console.log('🚀 Redirigiendo a videochat modelo:', callData);
   
   // Guardar datos de la llamada
-  localStorage.setItem('roomName', callData.room_name);
-  localStorage.setItem('userName', user?.name || 'Modelo');
-  localStorage.setItem('currentRoom', callData.room_name);
-  localStorage.setItem('inCall', 'true');
-  localStorage.setItem('videochatActive', 'true');
+  sessionStorage.setItem('roomName', callData.room_name);
+  sessionStorage.setItem('userName', user?.name || 'Modelo');
+  sessionStorage.setItem('currentRoom', callData.room_name);
+  sessionStorage.setItem('inCall', 'true');
+  sessionStorage.setItem('videochatActive', 'true');
   
   // Limpiar estados de llamada
   setIsCallActive(false);
@@ -959,7 +959,7 @@ React.useEffect(() => {
               {t("client.greeting", { name: user?.name || t("client.defaultUser") || "Usuario" })}
             </h2>
             <p className="text-center text-white/70 mb-8 max-w-md">
-              {t("client.instructions") || "Gestiona tu perfil, conecta con clientes y ofrece tus servicios de manera profesional."}
+              {t("client.instructions")}
             </p>
 
             <div className="flex flex-col items-center gap-4 w-full max-w-xs">
@@ -967,7 +967,7 @@ React.useEffect(() => {
                 className="w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-8 py-4 rounded-full text-lg font-semibold shadow-md transition-all duration-200 transform hover:scale-105"
                 onClick={() => navigate("/esperandocall")}
               >
-                {t("client.startCall") || "Iniciar Llamada"}
+                {t("client.startCall")}
               </button>
 
               {/* 👈 BOTÓN ACTUALIZADO CON NUEVA LÓGICA */}
@@ -986,12 +986,15 @@ React.useEffect(() => {
               {!canUpload && uploadRestriction && (
                 <div className="w-full bg-[#2b2d31] border border-orange-400/30 rounded-xl p-3 text-center">
                   <p className="text-orange-300 text-xs font-semibold mb-1">
-                    ⏰ Restricción Activa
+                    ⏰ {t("client.restrictions.activeRestriction")}
                   </p>
                   <p className="text-white/60 text-xs">
                     {uploadRestriction.reason === 'active_story' 
-                      ? `Tiempo restante: ${timeRemaining ? `${timeRemaining.hours}h ${timeRemaining.minutes}m` : 'Calculando...'}`
-                      : 'Historia pendiente de aprobación'
+                      ? t("client.restrictions.timeRemaining", { 
+                          hours: timeRemaining?.hours || 0, 
+                          minutes: timeRemaining?.minutes || 0 
+                        })
+                      : t("client.restrictions.pendingApprovalDesc")
                     }
                   </p>
                 </div>
@@ -999,10 +1002,10 @@ React.useEffect(() => {
 
               <div className="w-full bg-[#2b2d31] border border-[#ff007a]/30 rounded-xl p-4 text-center mt-2">
                 <p className="text-white text-sm mb-1 font-semibold">
-                  🌟 {t("client.tipTitle") || "Consejo Profesional"}
+                  🌟 {t("client.restrictions.professionalTip")}
                 </p>
                 <p className="text-white/70 text-sm italic">
-                  {t("client.tipText") || "Mantén tu perfil actualizado y responde rápidamente a los mensajes para aumentar tus oportunidades."}
+                  {t("client.restrictions.professionalTipText")}
                 </p>
               </div>
             </div>
@@ -1013,7 +1016,7 @@ React.useEffect(() => {
             <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg h-1/2">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-[#ff007a]">
-                  {t("client.activeUsers") || "Usuarios Activos"}
+                  {t("client.activeUsers")}
                 </h3>
                 {usuariosActivos.length > 0 && (
                   <span className="text-xs text-white/50 bg-[#ff007a]/20 px-2 py-1 rounded-full">
@@ -1026,7 +1029,7 @@ React.useEffect(() => {
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#ff007a] border-t-transparent"></div>
                   <span className="ml-3 text-sm text-white/60">
-                    {t("client.loadingUsers") || "Cargando usuarios..."}
+                    {t("client.loadingUsers")}
                   </span>
                 </div>
               ) : (
@@ -1054,10 +1057,10 @@ React.useEffect(() => {
                     <div className="flex flex-col items-center justify-center h-full text-center py-8">
                       <Users size={32} className="text-white/20 mb-3" />
                       <p className="text-sm text-white/60 font-medium">
-                        {t("client.noActiveUsers") || "No hay usuarios activos"}
+                        {t("client.noActiveUsers")}
                       </p>
                       <p className="text-xs text-white/40 mt-1">
-                        {t("client.contactsWillAppear") || "Tus contactos aparecerán aquí cuando estén en línea"}
+                        {t("client.contactsWillAppear")}
                       </p>
                     </div>
                   ) : (
@@ -1080,7 +1083,7 @@ React.useEffect(() => {
                                 {usuario.name || usuario.alias}
                               </div>
                               <div className="text-xs text-green-400">
-                                {t("client.status.home.online") || "En línea"}
+                                {t("client.status.home.online")}
                               </div>
                             </div>
                           </div>
@@ -1095,8 +1098,8 @@ React.useEffect(() => {
                               }`}
                               title={
                                 isCallActive || isReceivingCall 
-                                  ? "Llamada en curso" 
-                                  : "Llamar a este usuario"
+                                  ? t("client.errors.callError")
+                                  : t("client.call")
                               }
                             >
                               <Phone 
@@ -1111,7 +1114,7 @@ React.useEffect(() => {
                             <button
                               onClick={() => abrirChatConUsuario(usuario)}
                               className="p-2 rounded-full hover:bg-gray-500/20 transition-colors duration-200"
-                              title={t("client.message") || "Mensaje"}
+                              title={t("client.message")}
                             >
                               <MessageSquare size={16} className="text-gray-400 hover:text-white transition-colors" />
                             </button>
@@ -1127,7 +1130,7 @@ React.useEffect(() => {
             {/* Historial */}
             <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg h-1/2">
               <h3 className="text-lg font-bold text-[#ff007a] mb-4 text-center">
-                {t("client.yourHistory") || "Tu Historial"}
+                {t("client.yourHistory")}
               </h3>
               <div className="space-y-3 h-[calc(100%-4rem)] overflow-y-auto pr-2">
                 {historial.map((item, index) => (

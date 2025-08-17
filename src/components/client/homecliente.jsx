@@ -20,12 +20,124 @@ export default function InterfazCliente() {
   const [loadingUsers, setLoadingUsers] = React.useState(true);
   const [initialLoad, setInitialLoad] = React.useState(true);
   const [showBuyMinutes, setShowBuyMinutes] = useState(false);
+  const [userBalance, setUserBalance] = useState(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+  const [showNoBalanceModal, setShowNoBalanceModal] = useState(false);
+  const [balanceDetails, setBalanceDetails] = useState(null); // ✅ ESTADO FALTANTE
   
   const abrirModalCompraMinutos = () => {
     setShowBuyMinutes(true);
   };
   const cerrarModalCompraMinutos = () => {
     setShowBuyMinutes(false);
+  };
+
+  const consultarSaldoUsuario = async () => {
+    try {
+      setLoadingBalance(true);
+      console.log('💰 Consultando saldo del usuario...');
+      
+      const response = await fetch(`${API_BASE_URL}/api/videochat/coins/balance`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Saldo obtenido:', data);
+        
+        if (data.success) {
+          setUserBalance(data.balance);
+          // ✅ GUARDAMOS LOS DATOS COMPLETOS PARA EL MODAL
+          setBalanceDetails(data);
+          return data;
+        } else {
+          console.error('❌ Error en respuesta:', data.error);
+          return null;
+        }
+      } else {
+        console.error('❌ Error HTTP consultando saldo:', response.status);
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Error consultando saldo:', error);
+      return null;
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
+
+  const validarSaldoYRedireccionar = async () => {
+    try {
+      console.log('🔍 Validando saldo antes de iniciar videollamada...');
+      
+      const response = await fetch(`${API_BASE_URL}/api/videochat/coins/balance`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Resultado validación:', data);
+        
+        if (data.success && data.can_start_call) {
+          // ✅ TIENE SALDO - REDIRIGIR DIRECTAMENTE SIN MODAL
+          console.log('✅ Saldo suficiente, redirigiendo directamente...');
+          navigate("/esperandocallcliente");
+          
+        } else {
+          // ❌ No puede iniciar - mostrar modal de recarga
+          console.log('❌ Saldo insuficiente:', data);
+          setBalanceDetails(data);
+          setShowNoBalanceModal(true);
+        }
+      } else {
+        console.error('❌ Error HTTP:', response.status);
+        setShowNoBalanceModal(true);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error validando saldo:', error);
+      setShowNoBalanceModal(true);
+    }
+  };
+
+   const validarSaldoYRedireccionarConLoading = async () => {
+    try {
+      setLoadingBalance(true); // ✅ Mostrar loading en el botón
+      console.log('🔍 Validando saldo antes de iniciar videollamada...');
+      
+      const response = await fetch(`${API_BASE_URL}/api/videochat/coins/balance`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Resultado validación:', data);
+        
+        if (data.success && data.can_start_call) {
+          // ✅ TIENE SALDO - REDIRIGIR DIRECTAMENTE
+          console.log('✅ Saldo suficiente, redirigiendo directamente...');
+          navigate("/esperandocallcliente");
+          
+        } else {
+          // ❌ No puede iniciar - mostrar modal de recarga
+          console.log('❌ Saldo insuficiente:', data);
+          setBalanceDetails(data);
+          setShowNoBalanceModal(true);
+        }
+      } else {
+        console.error('❌ Error HTTP:', response.status);
+        setShowNoBalanceModal(true);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error validando saldo:', error);
+      setShowNoBalanceModal(true);
+    } finally {
+      setLoadingBalance(false); // ✅ Quitar loading del botón
+    }
   };
 
   // 🔥 ESTADOS DE LLAMADAS
@@ -654,7 +766,135 @@ export default function InterfazCliente() {
   React.useEffect(() => {
     if (!user?.id) return;
     cargarUsuariosBloqueados();
+    consultarSaldoUsuario();
   }, [user?.id]);
+
+  const ModalSinSaldo = ({ isVisible, onClose, onGoToRecharge }) => {
+    if (!isVisible) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div className="bg-[#2b2d31] rounded-xl p-6 max-w-md mx-4 shadow-xl border border-[#ff007a]/20">
+          <div className="text-center">
+            {/* Icono animado */}
+            <div className="w-16 h-16 bg-[#ff007a]/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <svg className="w-8 h-8 text-[#ff007a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            </div>
+            
+            {/* Título */}
+            <h3 className="text-xl font-bold text-white mb-3">
+              Saldo Insuficiente
+            </h3>
+            
+            {/* Mensaje */}
+            <div className="text-white/70 mb-6 leading-relaxed">
+              <p className="mb-3">
+                Necesitas al menos 30 monedas (3 minutos) para iniciar una videollamada.
+              </p>
+              
+              {/* ✅ MOSTRAR DETALLES DEL SALDO SI ESTÁN DISPONIBLES */}
+              {balanceDetails && balanceDetails.balance && (
+                <div className="bg-[#1f2125] rounded-lg p-3 text-sm">
+                  <p className="text-white/50 mb-2">Estado actual:</p>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span>Total monedas:</span>
+                      <span className="text-[#ff007a]">
+                        {balanceDetails.balance.total_coins || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Minutos:</span>
+                      <span className="text-[#ff007a]">
+                        {balanceDetails.balance.minutes_available || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-white/10 pt-2 mt-2">
+                      <span>Mínimo requerido:</span>
+                      <span className="text-yellow-400">
+                        {balanceDetails.balance.minimum_required || 30}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Botones */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={onGoToRecharge}
+                className="w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Recargar Ahora
+              </button>
+              
+              <button
+                onClick={onClose}
+                className="w-full bg-transparent border border-white/20 hover:border-white/40 text-white/70 hover:text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const SaldoWidget = () => {
+    if (!userBalance) return null;
+    
+    return (
+      <div className="bg-[#2b2d31] rounded-xl p-4 border border-[#ff007a]/20 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-white/60">Tu Saldo</span>
+          <button 
+            onClick={consultarSaldoUsuario}
+            className="text-[#ff007a] hover:text-[#e6006e] text-xs"
+            disabled={loadingBalance}
+          >
+            {loadingBalance ? '⟳' : '🔄'}
+          </button>
+        </div>
+        
+        <div className="space-y-1">
+          <div className="flex justify-between text-sm">
+            <span className="text-white/70">Total:</span>
+            <span className="text-[#ff007a] font-semibold">
+              {userBalance.total_coins || userBalance.total_available || 0}
+            </span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-white/50">Minutos:</span>
+            <span className="text-white/70">{userBalance.minutes_available || 0}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-white/50">Estado:</span>
+            <span className={
+              (userBalance.total_coins || userBalance.total_available || 0) <= 29
+                ? "text-red-400"
+                : (userBalance.total_coins || userBalance.total_available || 0) <= 39
+                  ? "text-yellow-400"
+                  : "text-green-400"
+            }>
+              {(userBalance.total_coins || userBalance.total_available || 0) <= 29
+                ? "❌ Insuficiente"
+                : (userBalance.total_coins || userBalance.total_available || 0) <= 39
+                  ? "⚠️ Mínimo"
+                  : "✅ Estable"
+              }
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // 🔥 CONFIGURAR SISTEMA DE AUDIO
   React.useEffect(() => {
@@ -721,10 +961,23 @@ export default function InterfazCliente() {
             {/* Botones verticales */}
             <div className="flex flex-col items-center gap-4 w-full max-w-xs">
               <button
-                className="w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-8 py-4 rounded-full text-lg font-semibold shadow-md transition-all duration-200 transform hover:scale-105"
-                onClick={() => navigate("/esperandocallcliente")}
+                className="w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-8 py-4 rounded-full text-lg font-semibold shadow-md transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                onClick={validarSaldoYRedireccionarConLoading} // ✅ Usar la función con loading
+                disabled={loadingBalance}
               >
-                Iniciar Videollamada
+                {loadingBalance ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>Verificando saldo...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Iniciar llamada
+                  </div>
+                )}
               </button>
 
               <button
@@ -746,6 +999,7 @@ export default function InterfazCliente() {
 
           {/* Panel lateral derecho */}
           <aside className="flex flex-col gap-2 h-[82vh] overflow-y-auto">
+            <SaldoWidget />
             {/* Chicas activas */}
             <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg h-1/2">
               <div className="flex items-center justify-between mb-4">

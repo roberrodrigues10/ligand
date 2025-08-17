@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./header";
 import { getUser } from "../../utils/auth.js";
+import { useTranslation } from 'react-i18next'; // 👈 AGREGAR ESTA LÍNEA
 
 import {
   useTranslation as useCustomTranslation,
@@ -36,6 +37,7 @@ export default function ChatPrivado() {
   const { settings: translationSettings, setSettings: setTranslationSettings, languages } = useCustomTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // 🔥 ESTADOS PRINCIPALES OPTIMIZADOS
   const [usuario, setUsuario] = useState({ id: null, name: "Usuario", rol: "cliente" });
@@ -82,10 +84,9 @@ export default function ChatPrivado() {
   const globalPollingInterval = useRef(null);
   const openChatWith = location.state?.openChatWith;
   const hasOpenedSpecificChat = useRef(false);
-
   // 🔥 FUNCIONES MEMOIZADAS (DEFINIR PRIMERO)
   const getAuthHeaders = useCallback(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -112,6 +113,24 @@ export default function ChatPrivado() {
   const getDisplayName = useCallback((userId, originalName) => {
     return apodos[userId] || originalName;
   }, [apodos]);
+
+  const getBlockStatus = useCallback((userId) => {
+    if (!userId) return 'normal';
+    
+    const yoBloqueado = bloqueados.has(userId);
+    const meBloquearon = bloqueadoPor.has(userId);
+    
+    if (yoBloqueado && meBloquearon) {
+      return 'mutuo'; // Bloqueo mutuo
+    } else if (yoBloqueado) {
+      return 'yo_bloquee'; // Yo bloqueé al usuario
+    } else if (meBloquearon) {
+      return 'me_bloquearon'; // El usuario me bloqueó
+    } else {
+      return 'normal'; // Sin bloqueos
+    }
+  }, [bloqueados, bloqueadoPor]);
+
   const playGiftReceivedSound = useCallback(async () => {
   try {
     console.log('🎁🔊 Reproduciendo sonido de regalo recibido...');
@@ -699,17 +718,6 @@ const cargarMensajes = useCallback(async (roomName) => {
   }, [loadingActions, bloqueados, getAuthHeaders]);
 
   // FUNCIÓN PARA VERIFICAR ESTADO DE BLOQUEO
-  const getBlockStatus = useCallback((userId) => {
-    const yoBloquee = bloqueados.has(userId);
-    const meBloquearon = bloqueadoPor.has(userId);
-    
-    if (yoBloquee && meBloquearon) return 'mutuo';
-    if (yoBloquee) return 'yo_bloquee';
-    if (meBloquearon) return 'me_bloquearon';
-    return null;
-  }, [bloqueados, bloqueadoPor]);
-
-
 
   const abrirConversacion = useCallback(async (conversacion) => {
     console.log(`📂 Abriendo conversación: ${conversacion.other_user_name}`);
@@ -949,7 +957,7 @@ const cargarMensajes = useCallback(async (roomName) => {
       security_level: 'high',
       
       // Información de sesión adicional
-      session_id: localStorage.getItem('app_session_id'),
+      session_id: sessionStorage.getItem('app_session_id'),
       browser_info: {
         language: navigator.language,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -1099,7 +1107,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             <div className="bg-gradient-to-r from-[#ff007a] to-[#cc0062] rounded-full p-2">
               <Gift size={16} className="text-white" />
             </div>
-            <span className="text-pink-100 text-sm font-semibold">Solicitud de Regalo</span>
+            <span className="text-pink-100 text-sm font-semibold">{t('chat.gifts.giftRequest')}</span>
           </div>
           
           {imageUrl && (
@@ -1130,7 +1138,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             {finalGiftData.gift_price && (
               <div className="bg-gradient-to-r from-amber-500/20 to-yellow-500/20 rounded-lg px-3 py-1 border border-amber-300/30">
                 <span className="text-amber-200 font-bold text-sm">
-                  ✨ {finalGiftData.gift_price} monedas
+                  ✨ {finalGiftData.gift_price} {t('chat.gifts.coins')}
                 </span>
               </div>
             )}
@@ -1186,7 +1194,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-full p-2">
               <Gift size={16} className="text-white" />
             </div>
-            <span className="text-green-100 text-sm font-semibold">¡Regalo Recibido!</span>
+            <span className="text-green-100 text-sm font-semibold">{t('chat.gifts.giftReceived')}</span>
           </div>
           
           {receivedImageUrl && (
@@ -1216,7 +1224,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             
             <div className="bg-black/20 rounded-lg p-2 mt-3 border-l-4 border-green-400">
               <p className="text-green-100 text-xs font-medium">
-                💰 ¡{finalReceivedGiftData.client_name || 'El cliente'} te envió este regalo!
+                💰 ¡{finalReceivedGiftData.client_name || 'El cliente'} {t('chat.gifts.sentBy')}
               </p>
             </div>
           </div>
@@ -1263,7 +1271,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full p-2">
               <Gift size={16} className="text-white" />
             </div>
-            <span className="text-blue-100 text-sm font-semibold">Regalo Enviado</span>
+            <span className="text-blue-100 text-sm font-semibold">{t('chat.gifts.giftSent')}</span>
           </div>
           
           {sentImageUrl && (
@@ -1271,7 +1279,7 @@ const cargarMensajes = useCallback(async (roomName) => {
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-xl flex items-center justify-center overflow-hidden border-2 border-blue-300/30">
                 <img 
                   src={sentImageUrl} 
-                  alt={finalSentGiftData.gift_name || 'Regalo'}
+                  alt={finalSentGiftData.gift_name || t('chat.gifts.specialGift')}
                   className="w-12 h-12 object-contain"
                   onError={(e) => {
                     e.target.style.display = 'none';
@@ -1288,13 +1296,13 @@ const cargarMensajes = useCallback(async (roomName) => {
           
           <div className="text-center space-y-2">
             <p className="text-white font-bold text-base">
-              {finalSentGiftData.gift_name || 'Regalo Especial'}
+              {finalSentGiftData.gift_name || t('chat.gifts.specialGift')}
             </p>
             
             {finalSentGiftData.gift_price && (
               <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-lg px-3 py-1 border border-blue-300/30">
                 <span className="text-blue-200 font-bold text-sm">
-                  -{finalSentGiftData.gift_price} monedas
+                  -{finalSentGiftData.gift_price} {t('chat.gifts.coins')}
                 </span>
               </div>
             )}
@@ -1472,10 +1480,9 @@ const cargarMensajes = useCallback(async (roomName) => {
             if (newSentGiftMessages.length > 0) {
               console.log('💸 Regalo(s) enviado(s) detectado(s)!', newSentGiftMessages);
               
-              // Notificación silenciosa para regalo enviado
               if (Notification.permission === 'granted') {
-                new Notification('🎁 Regalo Enviado', {
-                  body: 'Tu regalo ha sido enviado exitosamente',
+                new Notification(t('chat.notifications.giftSent'), {
+                  body: t('chat.notifications.giftSentDesc'),
                   icon: '/favicon.ico'
                 });
               }
@@ -1658,7 +1665,7 @@ const cargarMensajes = useCallback(async (roomName) => {
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/50" />
               <input
                 type="text"
-                placeholder="Buscar conversaciones..."
+                placeholder={t('chat.searchPlaceholder')}
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-[#1a1c20] text-white placeholder-white/60 outline-none focus:ring-2 focus:ring-[#ff007a]/50"
                 value={busquedaConversacion}
                 onChange={(e) => setBusquedaConversacion(e.target.value)}
@@ -1670,12 +1677,12 @@ const cargarMensajes = useCallback(async (roomName) => {
               {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#ff007a] mx-auto mb-2"></div>
-                  <p className="text-xs text-white/60">Cargando...</p>
+                  <p className="text-xs text-white/60">{t('chat.loading')}</p>
                 </div>
               ) : conversacionesFiltradas.length === 0 ? (
                 <div className="text-center py-8">
                   <MessageSquare size={32} className="text-white/30 mx-auto mb-2" />
-                  <p className="text-sm text-white/60">No hay conversaciones</p>
+                  <p className="text-sm text-white/60">{t('chat.noConversations')}</p>
                 </div>
               ) : (
                 conversacionesFiltradas.map((conv) => {
@@ -1727,7 +1734,7 @@ const cargarMensajes = useCallback(async (roomName) => {
                           </p>
                           <div className="text-xs text-white/60 truncate">
                             {conv.last_message_sender_id === usuario.id ? (
-                              <span><span className="text-white/40">Tú:</span> {conv.last_message}</span>
+                              <span><span className="text-white/40">{t('chat.you')}</span> {conv.last_message}</span>
                             ) : (
                               conv.last_message
                             )}
@@ -1759,8 +1766,8 @@ const cargarMensajes = useCallback(async (roomName) => {
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
                     <MessageSquare size={48} className="text-white/30 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold mb-2">Selecciona una conversación</h3>
-                    <p className="text-white/60">Elige una conversación para ver los mensajes</p>
+                    <h3 className="text-xl font-semibold mb-2">{t('chat.selectConversation')}</h3>
+                    <p className="text-white/60">{t('chat.selectConversationDesc')}</p>
                   </div>
                 </div>
               )
@@ -1800,21 +1807,21 @@ const cargarMensajes = useCallback(async (roomName) => {
                           return (
                             <span className="text-xs text-red-400">
                               <Ban size={12} className="inline mr-1" />
-                              Bloqueado por ti
+                              {t('chat.status.blockedByYou')}
                             </span>
                           );
                         } else if (blockStatus === 'me_bloquearon') {
                           return (
                             <span className="text-xs text-orange-400">
                               <Ban size={12} className="inline mr-1" />
-                              Te bloqueó
+                              {t('chat.status.blockedYou')}
                             </span>
                           );
                         } else if (blockStatus === 'mutuo') {
                           return (
                             <span className="text-xs text-red-600">
                               <Ban size={12} className="inline mr-1" />
-                              Bloqueo mutuo
+                              {t('chat.status.mutualBlock')}
                             </span>
                           );
                         }
@@ -1888,7 +1895,7 @@ const cargarMensajes = useCallback(async (roomName) => {
                           >
                             <Globe className="text-[#ff007a]" size={20} />
                             <div className="flex-1">
-                              <span className="text-white text-sm font-medium">Traducción</span>
+                              <span className="text-white text-sm font-medium">{t('chat.menu.translation')}</span>
                               <div className="text-xs text-gray-400">
                                 {translationSettings?.enabled ? 'Activa' : 'Inactiva'}
                               </div>
@@ -1934,7 +1941,7 @@ const cargarMensajes = useCallback(async (roomName) => {
                             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#2b2d31] text-sm text-white transition-colors"
                           >
                             <Pencil size={16} />
-                            Cambiar apodo
+                            {t('chat.menu.changeNickname')}
                           </button>
 
                           <button
@@ -1981,14 +1988,15 @@ const cargarMensajes = useCallback(async (roomName) => {
                       <div className="flex items-center gap-3">
                         <Ban size={20} className="text-red-400" />
                         <div className="flex-1">
-                          <p className="text-red-300 font-semibold">🚫 Usuario Bloqueado</p>
+                          <p className="text-red-300 font-semibold">🚫 {t('chat.status.userBlocked')}</p>
                           <p className="text-red-200 text-sm mb-3">
-                            Has bloqueado a <span className="font-bold">{getDisplayName(conversacionSeleccionada.other_user_id, conversacionSeleccionada.other_user_name)}</span>.
-                            No pueden enviarte mensajes ni llamarte.
+                            {t('chat.status.userBlockedDesc', { 
+                              name: getDisplayName(conversacionSeleccionada.other_user_id, conversacionSeleccionada.other_user_name) 
+                            })}
                           </p>
                           <button
                             onClick={() => {
-                              if (confirm(`¿Desbloquear a ${conversacionSeleccionada.other_user_name}?`)) {
+                              if (confirm(t('chat.status.confirmUnblock', { name: conversacionSeleccionada.other_user_name }))) {
                                 toggleBloquear(conversacionSeleccionada.other_user_id, conversacionSeleccionada.other_user_name);
                               }
                             }}
@@ -1998,14 +2006,14 @@ const cargarMensajes = useCallback(async (roomName) => {
                             {loadingActions ? (
                               <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                Desbloqueando...
+                                {t('chat.status.unblocking')}
                               </>
                             ) : (
                               <>
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
                                 </svg>
-                                Desbloquear Usuario
+                                {t('chat.status.unblockUser')}
                               </>
                             )}
                           </button>
@@ -2026,7 +2034,7 @@ const cargarMensajes = useCallback(async (roomName) => {
 
                   {mensajes.length === 0 ? (
                     <div className="flex-1 flex items-center justify-center">
-                      <p className="text-white/60">No hay mensajes aún</p>
+                      <p className="text-white/60">{t('chat.noMessages')}</p>
                     </div>
                   ) : (
                     mensajes.map((mensaje) => {
@@ -2074,8 +2082,8 @@ const cargarMensajes = useCallback(async (roomName) => {
                       <p className="text-red-400 text-sm">
                         <Ban size={16} className="inline mr-2" />
                         {bloqueados.has(conversacionSeleccionada?.other_user_id) 
-                          ? "Usuario bloqueado - No puedes enviar regalos ni emojis"
-                          : "Este usuario te bloqueó - No puedes enviar regalos ni emojis"
+                          ? t('chat.status.cannotSendGiftsBlocked')
+                          : t('chat.status.userBlockedYouGifts')
                         }
                       </p>
                     </div>
@@ -2096,9 +2104,9 @@ const cargarMensajes = useCallback(async (roomName) => {
                     placeholder={
                       isChatBlocked()
                         ? bloqueados.has(conversacionSeleccionada?.other_user_id)
-                          ? "Usuario bloqueado - no puedes enviar mensajes"
-                          : "Este usuario te ha bloqueado"
-                        : "Escribe un mensaje..."
+                          ? t('chat.status.cannotSendBlocked')
+                          : t('chat.status.userBlockedYou')
+                        : t('chat.messagePlaceholder')
                     }
                     className={`flex-1 px-4 py-2 rounded-full outline-none placeholder-white/60 ${
                       isChatBlocked()
@@ -2129,9 +2137,9 @@ const cargarMensajes = useCallback(async (roomName) => {
                     {!isMobile && (
                       isChatBlocked() 
                         ? bloqueados.has(conversacionSeleccionada?.other_user_id) 
-                          ? 'Bloqueado' 
-                          : 'Te bloqueó'
-                        : 'Enviar'
+                          ? t('chat.blocked') 
+                          : t('chat.status.blockedYou')
+                        : t('chat.send')
                     )}
                   </button>
                 </div>
@@ -2147,7 +2155,7 @@ const cargarMensajes = useCallback(async (roomName) => {
           <div className="bg-[#1f2125] border border-[#ff007a]/30 rounded-xl shadow-2xl w-full max-w-md">
             <div className="p-6 border-b border-[#ff007a]/20">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white">Cambiar Apodo</h3>
+                <h3 className="text-lg font-bold text-white">{t('chat.nickname.title')}</h3>
                 <button
                   onClick={() => {
                     setShowNicknameModal(false);
@@ -2160,26 +2168,25 @@ const cargarMensajes = useCallback(async (roomName) => {
                 </button>
               </div>
               <p className="text-white/70 text-sm mt-2">
-                Personaliza cómo quieres ver a <span className="font-semibold text-[#ff007a]">
-                  {nicknameTarget?.userName}
-                </span>
+                {t('chat.nickname.description', { name: nicknameTarget?.userName })}
               </p>
             </div>
 
             <div className="p-6">
               <div className="mb-4">
                 <label className="block text-white text-sm font-medium mb-2">
-                  Apodo personalizado
+                  {t('chat.nickname.label')}
                 </label>
                 <input
                   type="text"
                   value={nicknameValue}
                   onChange={(e) => setNicknameValue(e.target.value)}
                   maxLength={20}
+                  placeholder={t('chat.nickname.placeholder')}
                   className="w-full px-4 py-3 bg-[#1a1c20] text-white placeholder-white/60 rounded-lg outline-none focus:ring-2 focus:ring-[#ff007a]/50 border border-[#3a3d44]"
                 />
                 <p className="text-xs text-white/50 mt-1">
-                  {nicknameValue.length}/20 caracteres
+                  {t('chat.nickname.charactersCount', { current: nicknameValue.length, max: 20 })}
                 </p>
               </div>
             </div>
@@ -2193,14 +2200,14 @@ const cargarMensajes = useCallback(async (roomName) => {
                 }}
                 className="flex-1 bg-[#3a3d44] hover:bg-[#4a4d54] text-white px-4 py-2 rounded-lg transition-colors"
               >
-                Cancelar
+                {t('chat.nickname.cancel')}
               </button>
               <button
                 onClick={guardarApodo}
                 disabled={!nicknameValue.trim()}
                 className="flex-1 bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Guardar
+                {t('chat.nickname.save')}
               </button>
             </div>
           </div>

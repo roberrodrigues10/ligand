@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Home, Star, MessageSquare, LogOut, Settings, Wallet, Menu, X, Bell, Send, Gift, Lock, User, DollarSign } from "lucide-react";
+import { Home, Star, MessageSquare, LogOut, Settings, Wallet, Menu, X, Bell, Send, Search, Play, Gift, Lock, User, DollarSign } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import logoproncipal from "../imagenes/logoprincipal.png";
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from "../languageSelector.jsx";
 import ModelEarnings from './ModelEarnings.jsx';
 import MiniChatVideocall, { useVideocallChat } from './MiniChatVideocall.jsx';
+import SearchClientsModal from './SearchClientsModal.jsx'; // 👈 IMPORTAR EL MODAL DE BÚSQUEDA
 
 // 🔥 IMPORTAR TU SISTEMA DE TRADUCCIÓN
 import {
@@ -15,18 +16,19 @@ import {
 
 export default function Header() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [mobileMenuAbierto, setMobileMenuAbierto] = useState(false);
   const [globalUnreadCount, setGlobalUnreadCount] = useState(0);
   const [lastSeenMessages, setLastSeenMessages] = useState({});
   const [usuario, setUsuario] = useState({ id: null });
-  const [estadoVerificacion, setEstadoVerificacion] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null); // 🔥 ESTADO PARA DATOS COMPLETOS
   const menuRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const pollingInterval = useRef(null);
-  const { t, i18n } = useTranslation();
+  
+  // 🌍 HOOKS DE TRADUCCIÓN
+  const { t } = useTranslation();
+  const { settings: translationSettings } = useCustomTranslation();
+  
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const [showEarnings, setShowEarnings] = useState(false);
 
@@ -39,9 +41,169 @@ export default function Header() {
   const [nuevoMensaje, setNuevoMensaje] = useState("");
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [apodos, setApodos] = useState({});
-  
-  // 🔥 SISTEMA DE TRADUCCIÓN
-  const { settings: translationSettings } = useCustomTranslation();
+
+  // 👈 NUEVOS ESTADOS PARA BÚSQUEDA DE CLIENTES Y HISTORIAS
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showStoriesModal, setShowStoriesModal] = useState(false);
+
+  const toggleMenu = () => setMenuAbierto(!menuAbierto);
+  const toggleMobileMenu = () => setMobileMenuAbierto(!mobileMenuAbierto);
+
+  // 👈 FUNCIÓN PARA ABRIR MODAL DE BÚSQUEDA
+  const handleOpenSearch = () => {
+    console.log('🔍 Abriendo modal de búsqueda de clientes...');
+    setShowSearchModal(true);
+  };
+
+  // 👈 FUNCIÓN PARA CERRAR MODAL DE BÚSQUEDA
+  const handleCloseSearch = () => {
+    console.log('🚪 Cerrando modal de búsqueda...');
+  };
+
+  // 👈 FUNCIÓN PARA ABRIR MODAL DE HISTORIAS
+  const handleOpenStories = () => {
+    console.log('🎬 Abriendo modal de historias...');
+    setShowStoriesModal(true);
+  };
+
+  // 👈 FUNCIÓN PARA CERRAR MODAL DE HISTORIAS
+  const handleCloseStories = () => {
+    console.log('🚪 Cerrando modal de historias...');
+    setShowStoriesModal(false);
+  };
+
+  // 👈 FUNCIÓN PARA MANEJAR MENSAJES DESDE LA BÚSQUEDA
+  const handleMessageFromSearch = async (clientId, clientName) => {
+    console.log('🚀 [DEBUG] Iniciando handleMessageFromSearch');
+    console.log('📩 [DEBUG] Datos recibidos:', { clientId, clientName });
+    
+    try {
+      // 🔥 STEP 1: Verificar token
+      const token = localStorage.getItem('token');
+      console.log('🔑 [DEBUG] Token:', token ? 'ENCONTRADO' : 'NO ENCONTRADO');
+      
+      if (!token) {
+        console.error('❌ [DEBUG] No hay token de autenticación');
+        alert('Error de autenticación');
+        return;
+      }
+
+      // 🔥 STEP 2: Preparar datos del request
+      const API_URL = 'http://localhost:8000/api/chat/start-conversation';
+      const payload = { other_user_id: parseInt(clientId) }; // Asegurar que sea número
+      
+      console.log('🔧 [DEBUG] Configuración del request:', {
+        url: API_URL,
+        method: 'POST',
+        payload,
+        headers: {
+          'Authorization': `Bearer ${token.substring(0, 10)}...`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      // 🔥 STEP 3: Hacer el request
+      console.log('📡 [DEBUG] Enviando request...');
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      console.log('📡 [DEBUG] Respuesta del servidor:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      // 🔥 STEP 4: Procesar respuesta
+      let data;
+      try {
+        data = await response.json();
+        console.log('📥 [DEBUG] Data recibida completa:', JSON.stringify(data, null, 2));
+      } catch (parseError) {
+        console.error('❌ [DEBUG] Error parseando JSON:', parseError);
+        const textResponse = await response.text();
+        console.error('❌ [DEBUG] Respuesta como texto:', textResponse);
+        throw new Error(`Error parseando respuesta: ${parseError.message}`);
+      }
+
+      // 🔥 STEP 5: Verificar éxito
+      if (data.success) {
+        console.log('✅ [DEBUG] Conversación iniciada exitosamente');
+        console.log('✅ [DEBUG] Datos de conversación:', data.conversation);
+
+        setShowSearchModal(false);
+        
+        // 🔥 STEP 6: Preparar navegación
+        const navigationState = { 
+          openChatWith: {
+            id: data.conversation.id,
+            room_name: data.conversation.room_name,
+            other_user_id: parseInt(clientId),
+            other_user_name: clientName,
+            other_user_role: data.conversation.other_user_role,
+            session_id: data.session_id
+          }
+        };
+        
+        console.log('🧭 [DEBUG] State para navegación:', JSON.stringify(navigationState, null, 2));
+        
+        // 🔥 STEP 7: Cerrar modal ANTES de navegar
+        console.log('🚪 [DEBUG] Cerrando modal de búsqueda...');
+        setShowSearchModal(false);
+        
+        // 🔥 STEP 8: Navegar
+        console.log('🧭 [DEBUG] Navegando a /mensajes...');
+        navigate('/mensajes', { state: navigationState });
+        
+        // 🔥 STEP 9: Mostrar confirmación
+        console.log('✅ [DEBUG] Navegación completada');
+        // alert(`Abriendo chat con ${clientName}`); // Comentar para evitar interrupciones
+        
+      } else {
+        console.error('❌ [DEBUG] Error del servidor:', data.error);
+        console.error('❌ [DEBUG] Mensaje del servidor:', data.message);
+        
+        // 🔥 MANEJAR ERRORES ESPECÍFICOS
+        if (data.error === 'blocked_by_you') {
+          alert('Has bloqueado a este usuario');
+        } else if (data.error === 'blocked_by_them') {
+          alert('Este usuario te ha bloqueado');
+        } else {
+          alert(data.message || 'Error iniciando conversación');
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ [DEBUG] Error completo en handleMessageFromSearch:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // 🔥 MOSTRAR ERROR DETALLADO AL USUARIO
+      if (error.message.includes('Failed to fetch')) {
+        alert('Error de conexión. Verifica que el servidor esté ejecutándose en localhost:8000');
+      } else if (error.message.includes('NetworkError')) {
+        alert('Error de red. Verifica tu conexión a internet.');
+      } else {
+        alert(`Error de conexión: ${error.message}`);
+      }
+    }
+  };
+
+  // 👈 FUNCIÓN PARA MANEJAR LLAMADAS DESDE LA BÚSQUEDA
+  const handleCallFromSearch = (clientId, clientName) => {
+    console.log('📞 Iniciando llamada con cliente:', { clientId, clientName });
+    alert(`Iniciando llamada con ${clientName}...`);
+  };
 
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TOKEN
   const getAuthHeaders = () => {
@@ -59,192 +221,17 @@ export default function Header() {
     return headers;
   };
 
-  // 🔥 CARGAR INFORMACIÓN COMPLETA DEL USUARIO (ACTUALIZADA)
-  const cargarInfoUsuario = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/profile/info`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setCurrentUser(data.user);
-          setUsuario(data.user); // Mantener compatibilidad
-          console.log('👤 Usuario cargado en header modelo:', data.user);
-        }
-      } else {
-        console.error('❌ Error en respuesta:', response.status);
-        // Fallback a localStorage
-        const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        if (userData.id) {
-          setUsuario(userData);
-          setCurrentUser(userData);
-        } else {
-          setUsuario({ id: 1, name: "Usuario" });
-          setCurrentUser({ id: 1, name: "Usuario" });
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error cargando info del usuario:', error);
-      // Fallback a localStorage
-      const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      if (userData.id) {
-        setUsuario(userData);
-        setCurrentUser(userData);
-      } else {
-        setUsuario({ id: 1, name: "Usuario" });
-        setCurrentUser({ id: 1, name: "Usuario" });
-      }
-    }
-  };
-
-  // 🎨 COMPONENTE PARA EL AVATAR (IGUAL QUE HEADERCLIENTE)
-  const UserAvatar = ({ size = "w-10 h-10", textSize = "text-sm" }) => {
-    if (currentUser?.avatar_url) {
-      return (
-        <img 
-          src={currentUser.avatar_url} 
-          alt="Avatar" 
-          className={`${size} rounded-full object-cover border-2 border-white/20 hover:border-white/40 transition`}
-          onError={(e) => {
-            console.error('Error cargando avatar:', e);
-            e.target.style.display = 'none';
-            e.target.nextSibling.style.display = 'flex';
-          }}
-        />
-      );
-    }
-    
-    // Avatar por defecto con inicial o icono
-    const displayName = currentUser?.display_name || currentUser?.name || 'Usuario';
-    const initial = displayName.charAt(0).toUpperCase();
-    
-    return (
-      <div className={`${size} rounded-full bg-gradient-to-br from-[#ff007a] to-[#cc0062] text-white font-bold ${textSize} hover:scale-105 transition flex items-center justify-center border-2 border-white/20 hover:border-white/40`}>
-        {initial}
-      </div>
-    );
-  };
-
-  // 🔒 VERIFICAR SI ESTÁ EN PROCESO DE VERIFICACIÓN
-  const estaEnVerificacion = () => {
-    const rutasVerificacion = [
-      '/verificacion',
-      '/verificacion-identidad', 
-      '/esperando-verificacion',
-      '/anteveri'
-    ];
-    
-    const rutaActual = location.pathname;
-    const estaEnRutaVerificacion = rutasVerificacion.some(ruta => 
-      rutaActual.includes(ruta) || rutaActual === ruta
-    );
-    
-    // 🔥 SOLO BLOQUEAR SI EL ESTADO ES REALMENTE PROBLEMÁTICO
-    // Si está aprobada, NO bloquear (aunque verificacion_completa sea false)
-    const estadosBloqueo = ['pendiente', 'no_enviada', 'rechazada'];
-    const estadoBloqueado = estadosBloqueo.includes(estadoVerificacion);
-    
-    console.log('🔍 Debug verificación:', {
-      rutaActual,
-      estaEnRutaVerificacion,
-      estadoVerificacion,
-      estadoBloqueado,
-      resultadoFinal: estaEnRutaVerificacion || estadoBloqueado
-    });
-    
-    return estaEnRutaVerificacion || estadoBloqueado;
-  };
-
-  // 🔒 FUNCIÓN PARA MANEJAR NAVEGACIÓN BLOQUEADA
-  const manejarNavegacionBloqueada = (destino, nombreBoton = 'esta función') => {
-    if (estaEnVerificacion()) {
-      // Solo permitir configuración y logout
-      if (destino === '/configuracion' || destino === '/logout') {
-        navigate(destino);
-        return;
-      }
-      
-      // Mostrar mensaje de bloqueo
-      const mensaje = `🔒 ${nombreBoton} está bloqueada durante el proceso de verificación.\n\nSolo puedes acceder a Configuración para cerrar sesión si es necesario.`;
-      
-      // Crear modal de bloqueo temporal
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[9999] p-4';
-      modal.innerHTML = `
-        <div class="bg-[#1a1c20] p-6 rounded-2xl max-w-sm w-full border-2 border-[#ff007a] text-center">
-          <div class="text-[#ff007a] mb-4">
-            <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-            </svg>
-          </div>
-          <h3 class="text-white text-lg font-bold mb-3">Función Bloqueada</h3>
-          <p class="text-white/70 text-sm mb-6 leading-relaxed">${mensaje}</p>
-          <button class="bg-[#ff007a] hover:bg-[#e6006e] text-white px-6 py-2 rounded-lg font-semibold transition-all">
-            Entendido
-          </button>
-        </div>
-      `;
-      
-      document.body.appendChild(modal);
-      
-      // Cerrar modal al hacer click en el botón
-      modal.querySelector('button').onclick = () => {
-        document.body.removeChild(modal);
-      };
-      
-      // Cerrar modal al hacer click fuera
-      modal.onclick = (e) => {
-        if (e.target === modal) {
-          document.body.removeChild(modal);
-        }
-      };
-      
-      return;
-    }
-    
-    // Si no está bloqueada, navegar normalmente
-    navigate(destino);
-  };
-
-  // 🔒 OBTENER ESTADO DE VERIFICACIÓN
-  const obtenerEstadoVerificacion = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/verificacion/estado`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setEstadoVerificacion(data.estado);
-        console.log('🔍 Estado de verificación:', data.estado);
-      } else {
-        console.error('❌ Error obteniendo estado de verificación');
-      }
-    } catch (error) {
-      console.error('❌ Error:', error);
-    }
-  };
-
-  const toggleMenu = () => setMenuAbierto(!menuAbierto);
-  const toggleMobileMenu = () => setMobileMenuAbierto(!mobileMenuAbierto);
-
-  // 🔥 MANEJAR CLICK EN MENSAJES (CON BLOQUEO)
+  // 🔥 MANEJAR CLICK EN MENSAJES
   const handleMessagesClick = () => {
-    if (estaEnVerificacion()) {
-      manejarNavegacionBloqueada('/mensajes', 'Los mensajes');
-      return;
-    }
-    
     if (isInCall) {
+      // Si está en videollamada, abrir modal de chat
       setShowChatModal(true);
+      // Cargar conversaciones si no están cargadas
       if (conversaciones.length === 0) {
         cargarConversaciones();
       }
     } else {
+      // Si no está en videollamada, navegar a mensajes
       navigate("/mensajes");
     }
   };
@@ -265,6 +252,7 @@ export default function Header() {
         setConversaciones(data.conversations || []);
       } else {
         console.error('❌ Error cargando conversaciones:', response.status);
+        // Datos de ejemplo para desarrollo
         const exampleConversations = [
           {
             id: 1,
@@ -272,11 +260,23 @@ export default function Header() {
             other_user_name: "SofiSweet",
             other_user_role: "modelo",
             room_name: "chat_user_1_2",
-            last_message: "¡Hola! ¿Cómo estás?",
+            last_message: t('chat.example_message_1', "¡Hola! ¿Cómo estás?"),
             last_message_time: "2024-01-15T14:30:00Z",
             last_message_sender_id: 2,
             unread_count: 3,
             avatar: "https://i.pravatar.cc/40?u=2"
+          },
+          {
+            id: 2,
+            other_user_id: 3,
+            other_user_name: "Mia88",
+            other_user_role: "modelo", 
+            room_name: "chat_user_1_3",
+            last_message: t('chat.example_message_2', "Gracias por la sesión 😘"),
+            last_message_time: "2024-01-15T12:15:00Z",
+            last_message_sender_id: 3,
+            unread_count: 1,
+            avatar: "https://i.pravatar.cc/40?u=3"
           }
         ];
         setConversaciones(exampleConversations);
@@ -300,15 +300,25 @@ export default function Header() {
           setMensajes(data.messages);
         }
       } else {
+        // Mensajes de ejemplo con traducción
         const exampleMessages = [
           {
             id: 1,
             user_id: 2,
             user_name: "SofiSweet",
             user_role: "modelo",
-            message: "¡Hola! ¿Cómo estás?",
+            message: t('chat.example_message_1', "¡Hola! ¿Cómo estás?"),
             type: "text",
             created_at: "2024-01-15T14:25:00Z"
+          },
+          {
+            id: 2,
+            user_id: usuario.id,
+            user_name: usuario.name || t('common.user', "Usuario"),
+            user_role: "cliente",
+            message: t('chat.example_response', "¡Hola! Todo bien, ¿y tú?"),
+            type: "text",
+            created_at: "2024-01-15T14:26:00Z"
           }
         ];
         setMensajes(exampleMessages);
@@ -343,10 +353,11 @@ export default function Header() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
+          // Agregar mensaje inmediatamente
           const nuevoMensajeObj = {
             id: Date.now(),
             user_id: usuario.id,
-            user_name: usuario.name || "Usuario",
+            user_name: usuario.name || t('common.user', "Usuario"),
             user_role: usuario.rol || "cliente",
             message: mensaje,
             type: tipo,
@@ -357,10 +368,11 @@ export default function Header() {
         }
       } else {
         console.error('❌ Error enviando mensaje:', response.status);
+        // Para demo, agregar mensaje local
         const nuevoMensajeObj = {
           id: Date.now(),
           user_id: usuario.id,
-          user_name: usuario.name || "Usuario",
+          user_name: usuario.name || t('common.user', "Usuario"),
           user_role: usuario.rol || "cliente",
           message: mensaje,
           type: tipo,
@@ -381,7 +393,7 @@ export default function Header() {
 
   // 🔥 RENDERIZAR MENSAJE CON TRADUCCIÓN
   const renderMensaje = (mensaje) => {
-    const textoMensaje = mensaje.message || mensaje.text || 'Mensaje sin contenido';
+    const textoMensaje = mensaje.message || mensaje.text || t('chat.no_content', 'Mensaje sin contenido');
     const esUsuarioActual = mensaje.user_id === usuario.id;
     
     switch (mensaje.type) {
@@ -389,7 +401,7 @@ export default function Header() {
         return (
           <div className="flex items-center gap-2 text-yellow-400">
             <Gift size={16} />
-            <span>Envió: {textoMensaje}</span>
+            <span>{t('chat.sent_gift', 'Envió')}: {textoMensaje}</span>
           </div>
         );
       case 'emoji':
@@ -399,6 +411,7 @@ export default function Header() {
           </div>
         );
       default:
+        // Con traducción si está habilitada
         if (translationSettings?.enabled && TranslatedMessage && textoMensaje && textoMensaje.trim()) {
           try {
             const tipoMensaje = esUsuarioActual ? 'local' : 'remote';
@@ -440,17 +453,17 @@ export default function Header() {
     const diffHoras = diffMs / (1000 * 60 * 60);
     
     if (diffHoras < 1) {
-      return fecha.toLocaleTimeString('es-ES', { 
+      return fecha.toLocaleTimeString(t('common.locale', 'es-ES'), { 
         hour: '2-digit', 
         minute: '2-digit' 
       });
     } else if (diffHoras < 24) {
-      return fecha.toLocaleTimeString('es-ES', { 
+      return fecha.toLocaleTimeString(t('common.locale', 'es-ES'), { 
         hour: '2-digit', 
         minute: '2-digit' 
       });
     } else {
-      return fecha.toLocaleDateString('es-ES', { 
+      return fecha.toLocaleDateString(t('common.locale', 'es-ES'), { 
         day: '2-digit',
         month: '2-digit'
       });
@@ -467,11 +480,39 @@ export default function Header() {
     return apodos[userId] || originalName;
   };
 
-  // 🔔 CARGAR DATOS DEL USUARIO Y ESTADO DE VERIFICACIÓN
   useEffect(() => {
-    cargarInfoUsuario(); // 🔥 CARGAR INFO COMPLETA
-    obtenerEstadoVerificacion(); // 🔒 OBTENER ESTADO AL CARGAR
-  }, []);
+    console.log('🔧 [DEBUG] Variables del Header inicializadas:', {
+      API_BASE_URL,
+      usuario,
+      showSearchModal,
+      navigate: typeof navigate
+    });
+  }, [API_BASE_URL, usuario, showSearchModal]);
+
+  console.log('🔧 [DEBUG] Props del SearchClientsModal:', {
+    isOpen: showSearchModal,
+    onMessage: typeof handleMessageFromSearch,
+    onCall: typeof handleCallFromSearch
+  });
+
+  // 🔔 CARGAR DATOS DEL USUARIO
+  useEffect(() => {
+    const cargarUsuario = async () => {
+      try {
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        if (userData.id) {
+          setUsuario(userData);
+        } else {
+          setUsuario({ id: 1, name: t('common.user', "Usuario") });
+        }
+      } catch (error) {
+        console.error('Error cargando usuario:', error);
+        setUsuario({ id: 1, name: t('common.user', "Usuario") });
+      }
+    };
+
+    cargarUsuario();
+  }, [t]);
 
   // 🔔 CARGAR TIMESTAMPS DE ÚLTIMA VEZ VISTO
   useEffect(() => {
@@ -522,7 +563,7 @@ export default function Header() {
         
       } else {
         console.error('❌ Error obteniendo conversaciones:', response.status);
-        setGlobalUnreadCount(6);
+        setGlobalUnreadCount(6); // Ejemplo
       }
     } catch (error) {
       console.error('❌ Error en polling global:', error);
@@ -547,17 +588,6 @@ export default function Header() {
     };
   }, [usuario.id, lastSeenMessages]);
 
-  // 🔒 POLLING DEL ESTADO DE VERIFICACIÓN
-  useEffect(() => {
-    if (!usuario.id) return;
-
-    const verificacionInterval = setInterval(() => {
-      obtenerEstadoVerificacion();
-    }, 30000); // Cada 30 segundos
-
-    return () => clearInterval(verificacionInterval);
-  }, [usuario.id]);
-
   // Cerrar menús al hacer clic fuera
   useEffect(() => {
     const manejarClickFuera = (e) => {
@@ -577,35 +607,13 @@ export default function Header() {
     setMobileMenuAbierto(false);
   }, [navigate]);
 
-  // 🔒 CREAR COMPONENTE DE BOTÓN BLOQUEADO
-  const BotonBloqueado = ({ children, destino, titulo, nombreBoton, className }) => {
-    const bloqueado = estaEnVerificacion() && destino !== '/configuracion' && destino !== '/logout';
-    
-    return (
-      <button
-        className={`${className} ${bloqueado ? 'opacity-50 cursor-not-allowed' : ''} relative`}
-        onClick={() => manejarNavegacionBloqueada(destino, nombreBoton)}
-        title={bloqueado ? '🔒 Bloqueado durante verificación' : titulo}
-        disabled={bloqueado}
-      >
-        {children}
-        {bloqueado && (
-          <Lock 
-            size={12} 
-            className="absolute -top-1 -right-1 text-red-400 bg-[#1a1c20] rounded-full p-0.5"
-          />
-        )}
-      </button>
-    );
-  };
-
   return (
     <>
       <header className="flex justify-between items-center mb-4 px-4 relative">
         {/* Logo + Nombre */}
         <div
           className="flex items-center cursor-pointer"
-          onClick={() => manejarNavegacionBloqueada("/homellamadas", "El inicio")}
+          onClick={() => navigate("/homellamadas")}
         >
           <img src={logoproncipal} alt="Logo" className="w-12 h-12 sm:w-14 sm:h-14" />
           <span className="text-xl sm:text-2xl text-[#ff007a] font-pacifico ml-[-5px]">
@@ -613,47 +621,50 @@ export default function Header() {
           </span>
         </div>
 
-        {/* Navegación Desktop - con bloqueos */}
+        {/* Navegación Desktop - oculta en móvil */}
         <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-lg">
           <LanguageSelector />
           
-          {/* 🔥 BOTÓN DE GANANCIAS - NUEVO */}
+          {/* 👈 ICONO DE BÚSQUEDA DE CLIENTES */}
           <button
-            onClick={() => {
-              console.log('🔥 Abriendo modal de ganancias...');
-              setShowEarnings(true);
-            }}
+            onClick={handleOpenSearch}
             className="hover:scale-110 transition p-2"
-            title="Mis Ganancias"
+            title={t('searchClients') || 'Buscar Clientes'}
           >
-            <DollarSign className="text-[#ff007a]" size={24} />
+            <Search size={24} className="text-[#ff007a]" />
+          </button>
+
+          {/* 👈 ICONO DE HISTORIAS */}
+          <button
+            onClick={handleOpenStories}
+            className="hover:scale-110 transition p-2"
+            title={t('viewStories') || 'Ver Historias'}
+          >
+            <Play size={24} className="text-[#ff007a]" />
           </button>
           
-          <BotonBloqueado
-            destino="/pagos"
-            titulo="Pagos y monedas"
-            nombreBoton="Pagos y monedas"
+          <button
             className="hover:scale-110 transition p-2"
+            onClick={() => setShowEarnings(true)}
+            title={t('header.payments_and_coins', 'Pagos y monedas')}
           >
             <Wallet className="text-[#ff007a]" size={24} />
-          </BotonBloqueado>
+          </button>
           
-          <BotonBloqueado
-            destino="/homellamadas"
-            titulo="Inicio"
-            nombreBoton="El inicio"
+          <button
             className="hover:scale-110 transition p-2"
+            onClick={() => navigate("/homellamadas")}
+            title={t('header.home', 'Inicio')}
           >
             <Home className="text-[#ff007a]" size={24} />
-          </BotonBloqueado>
+          </button>
           
-          {/* 🔔 BOTÓN DE MENSAJES CON BLOQUEO */}
+          {/* 🔔 BOTÓN DE MENSAJES CON LÓGICA DUAL */}
           <div className="relative">
-            <BotonBloqueado
-              destino="/mensajes"
-              titulo={isInCall ? "Chat en videollamada" : "Mensajes"}
-              nombreBoton="Los mensajes"
+            <button
               className="hover:scale-110 transition p-2"
+              onClick={handleMessagesClick}
+              title={isInCall ? t('header.videocall_chat', 'Chat en videollamada') : t('header.messages', 'Mensajes')}
             >
               <MessageSquare className="text-[#ff007a]" size={24} />
               {globalUnreadCount > 0 && (
@@ -661,211 +672,160 @@ export default function Header() {
                   {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
                 </div>
               )}
+              {/* 🔥 INDICADOR VISUAL SI ESTÁ EN VIDEOLLAMADA */}
               {isInCall && (
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1a1c20] animate-pulse"></div>
               )}
-            </BotonBloqueado>
+            </button>
           </div>
           
-          <BotonBloqueado
-            destino="/favorites"
-            titulo="Favoritos"
-            nombreBoton="Los favoritos"
+          <button
             className="hover:scale-110 transition p-2"
+            onClick={() => navigate("/favorites")}
+            title={t('header.favorites', 'Favoritos')}
           >
             <Star className="text-[#ff007a]" size={24} />
-          </BotonBloqueado>
+          </button>
 
-          {/* 🔥 BOTÓN DE PERFIL DESKTOP CON AVATAR DINÁMICO IGUAL QUE HEADERCLIENTE */}
+          {/* Botón de perfil desktop */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={toggleMenu}
-              className="hover:scale-105 transition flex items-center justify-center"
-              title={`Perfil de ${currentUser?.display_name || currentUser?.name || 'Usuario'}`}
+              className="w-10 h-10 rounded-full bg-[#ff007a] text-white font-bold text-sm hover:scale-105 transition flex items-center justify-center"
+              title={t('header.account_menu', 'Menú de cuenta')}
             >
-              <UserAvatar />
+              M
             </button>
 
-            {/* Menú desplegable desktop - ACTUALIZADO IGUAL QUE HEADERCLIENTE */}
+            {/* Menú desplegable desktop */}
             {menuAbierto && (
-              <div className="absolute right-0 mt-2 w-64 bg-[#1f2125] rounded-xl shadow-lg border border-[#ff007a]/30 z-50 overflow-hidden">
-                {/* 🔥 HEADER DEL MENÚ CON INFO DEL USUARIO COMPLETA */}
-                <div className="px-4 py-3 border-b border-[#ff007a]/20 bg-gradient-to-r from-[#ff007a]/10 to-transparent">
-                  <div className="flex items-center gap-3">
-                    <UserAvatar size="w-8 h-8" textSize="text-xs" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white font-medium text-sm truncate">
-                        {currentUser?.display_name || currentUser?.name || 'Usuario'}
-                      </div>
-                      {currentUser?.nickname && (
-                        <div className="text-white/60 text-xs truncate">
-                          {currentUser.name}
-                        </div>
-                      )}
-                      <div className="text-[#ff007a] text-xs">
-                        {currentUser?.rol === 'modelo' ? 'Modelo' : 'Usuario'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
+              <div className="absolute right-0 mt-2 w-48 bg-[#1f2125] rounded-xl shadow-lg border border-[#ff007a]/30 z-50 overflow-hidden">
                 <button
                   onClick={() => {
-                    manejarNavegacionBloqueada("/configuracion", "La configuración");
+                    navigate("/configuracion");
                     setMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
                   <Settings size={16} className="mr-3 text-[#ff007a]"/>
-                  Configuración
+                  {t('header.settings', 'Configuración')}
                 </button>
                 <button
                   onClick={() => {
-                    manejarNavegacionBloqueada("/logout", "Cerrar sesión");
+                    navigate("/logout");
                     setMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
                   <LogOut size={16} className="mr-3 text-[#ff007a]" />
-                  Cerrar sesión
+                  {t('header.logout', 'Cerrar sesión')}
                 </button>
               </div>
             )}
           </div>
         </nav>
 
-        {/* Botón menú móvil - con bloqueos */}
+        {/* Botón menú móvil - solo visible en móvil */}
         <div className="md:hidden relative" ref={mobileMenuRef}>
           <div className="flex items-center gap-2">
             {/* 🔔 NOTIFICACIÓN GLOBAL MÓVIL */}
             {globalUnreadCount > 0 && (
               <div className="relative">
-                <BotonBloqueado
-                  destino="/mensajes"
-                  titulo={`${globalUnreadCount} mensajes nuevos`}
-                  nombreBoton="Los mensajes"
+                <button
+                  onClick={handleMessagesClick}
                   className="w-10 h-10 rounded-full bg-red-500 text-white hover:scale-105 transition flex items-center justify-center animate-pulse"
+                  title={t('header.new_messages_count', `{{count}} mensajes nuevos`, { count: globalUnreadCount })}
                 >
                   <Bell size={18} />
                   <div className="absolute -top-1 -right-1 bg-white text-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                     {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
                   </div>
+                  {/* 🔥 INDICADOR SI ESTÁ EN VIDEOLLAMADA */}
                   {isInCall && (
                     <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                   )}
-                </BotonBloqueado>
+                </button>
               </div>
             )}
             
             <button
               onClick={toggleMobileMenu}
               className="w-10 h-10 rounded-full bg-[#ff007a] text-white hover:scale-105 transition flex items-center justify-center"
-              title="Menú"
+              title={t('header.menu', 'Menú')}
             >
               {mobileMenuAbierto ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
 
-          {/* Menú móvil desplegable - ACTUALIZADO IGUAL QUE HEADERCLIENTE */}
+          {/* Menú móvil desplegable */}
           {mobileMenuAbierto && (
-            <div className="absolute right-0 mt-2 w-72 bg-[#1f2125] rounded-xl shadow-xl border border-[#ff007a]/30 z-50 overflow-hidden">
-              {/* 🔥 HEADER DEL MENÚ MÓVIL CON AVATAR IGUAL QUE HEADERCLIENTE */}
-              <div className="px-4 py-3 border-b border-[#ff007a]/20 bg-gradient-to-r from-[#ff007a]/10 to-transparent">
-                <div className="flex items-center gap-3 mb-3">
-                  <UserAvatar size="w-10 h-10" textSize="text-sm" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white font-medium truncate">
-                      {currentUser?.display_name || currentUser?.name || 'Usuario'}
-                    </div>
-                    {currentUser?.nickname && (
-                      <div className="text-white/60 text-xs truncate">
-                        {currentUser.name}
-                      </div>
-                    )}
-                    <div className="text-[#ff007a] text-xs">
-                      {currentUser?.rol === 'modelo' ? 'Modelo' : 'Usuario'}
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Selector de idioma móvil */}
-                <div className="text-xs text-gray-400 mb-2">Idioma</div>
+            <div className="absolute right-0 mt-2 w-64 bg-[#1f2125] rounded-xl shadow-xl border border-[#ff007a]/30 z-50 overflow-hidden">
+              {/* Selector de idioma móvil */}
+              <div className="px-4 py-3 border-b border-[#ff007a]/20">
+                <div className="text-xs text-gray-400 mb-2">{t('header.language', 'Idioma')}</div>
                 <LanguageSelector />
               </div>
 
-              {/* 🔒 INDICADOR DE VERIFICACIÓN EN PROCESO */}
-              {estaEnVerificacion() && (
-                <div className="px-4 py-3 bg-red-900/20 border-b border-red-500/30">
-                  <div className="flex items-center gap-2 text-red-400 text-xs">
-                    <Lock size={12} />
-                    <span>Verificación en proceso - Funciones limitadas</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Navegación móvil - con bloqueos */}
-              <div className="py-2">
-                {/* 🔥 BOTÓN DE GANANCIAS MÓVIL */}
+              {/* 👈 OPCIONES MÓVILES PARA HISTORIAS Y BÚSQUEDA */}
+              <div className="py-2 border-b border-[#ff007a]/20">
                 <button
                   onClick={() => {
-                    console.log('🔥 Abriendo modal de ganancias (móvil)...');
+                    handleOpenSearch();
+                    setMobileMenuAbierto(false);
+                  }}
+                  className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
+                >
+                  <Search size={18} className="mr-3 text-[#ff007a]"/>
+                  {t('searchClients') || 'Buscar Clientes'}
+                </button>
+                
+                <button
+                  onClick={() => {
+                    handleOpenStories();
+                    setMobileMenuAbierto(false);
+                  }}
+                  className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
+                >
+                  <Play size={18} className="mr-3 text-[#ff007a]"/>
+                  {t('viewStories') || 'Ver Historias'}
+                </button>
+              </div>
+
+              {/* Navegación móvil */}
+              <div className="py-2">
+                <button
+                  onClick={() => {
                     setShowEarnings(true);
                     setMobileMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
-                  <DollarSign size={18} className="mr-3 text-[#ff007a]"/>
-                  Mis Ganancias
+                  <Wallet size={18} className="mr-3 text-[#ff007a]"/>
+                  {t('header.payments_and_coins', 'Pagos y monedas')}
                 </button>
                 
                 <button
                   onClick={() => {
-                    manejarNavegacionBloqueada("/pagos", "Pagos y monedas");
+                    navigate("/homellamadas");
                     setMobileMenuAbierto(false);
                   }}
-                  className={`flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${
-                    estaEnVerificacion() ? 'opacity-50' : ''
-                  }`}
-                  disabled={estaEnVerificacion()}
+                  className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
-                  <div className="flex items-center">
-                    <Wallet size={18} className="mr-3 text-[#ff007a]"/>
-                    Pagos y monedas
-                  </div>
-                  {estaEnVerificacion() && <Lock size={12} className="text-red-400" />}
+                  <Home size={18} className="mr-3 text-[#ff007a]"/>
+                  {t('header.home', 'Inicio')}
                 </button>
                 
+                {/* 🔔 MENSAJES CON LÓGICA DUAL EN MÓVIL */}
                 <button
                   onClick={() => {
-                    manejarNavegacionBloqueada("/homellamadas", "El inicio");
+                    handleMessagesClick();
                     setMobileMenuAbierto(false);
                   }}
-                  className={`flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${
-                    estaEnVerificacion() ? 'opacity-50' : ''
-                  }`}
-                  disabled={estaEnVerificacion()}
-                >
-                  <div className="flex items-center">
-                    <Home size={18} className="mr-3 text-[#ff007a]"/>
-                    Inicio
-                  </div>
-                  {estaEnVerificacion() && <Lock size={12} className="text-red-400" />}
-                </button>
-                
-                {/* 🔔 MENSAJES CON BLOQUEO EN MÓVIL */}
-                <button
-                  onClick={() => {
-                    manejarNavegacionBloqueada("/mensajes", "Los mensajes");
-                    setMobileMenuAbierto(false);
-                  }}
-                  className={`flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${
-                    estaEnVerificacion() ? 'opacity-50' : ''
-                  }`}
-                  disabled={estaEnVerificacion()}
+                  className="flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
                   <div className="flex items-center">
                     <MessageSquare size={18} className="mr-3 text-[#ff007a]"/>
-                    {isInCall ? "Chat Videollamada" : "Mensajes"}
+                    {isInCall ? t('header.videocall_chat', 'Chat Videollamada') : t('header.messages', 'Mensajes')}
                   </div>
                   <div className="flex items-center gap-1">
                     {globalUnreadCount > 0 && (
@@ -876,69 +836,62 @@ export default function Header() {
                     {isInCall && (
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     )}
-                    {estaEnVerificacion() && <Lock size={12} className="text-red-400" />}
                   </div>
                 </button>
                 
                 <button
                   onClick={() => {
-                    manejarNavegacionBloqueada("/favorites", "Los favoritos");
+                    navigate("/favorites");
                     setMobileMenuAbierto(false);
                   }}
-                  className={`flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${
-                    estaEnVerificacion() ? 'opacity-50' : ''
-                  }`}
-                  disabled={estaEnVerificacion()}
+                  className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
-                  <div className="flex items-center">
-                    <Star size={18} className="mr-3 text-[#ff007a]"/>
-                    Favoritos
-                  </div>
-                  {estaEnVerificacion() && <Lock size={12} className="text-red-400" />}
+                  <Star size={18} className="mr-3 text-[#ff007a]"/>
+                  {t('header.favorites', 'Favoritos')}
                 </button>
               </div>
 
               {/* Separador */}
               <div className="border-t border-[#ff007a]/20"></div>
 
-              {/* Opciones de cuenta móvil - Solo configuración y logout permitidos */}
+              {/* Opciones de cuenta móvil */}
               <div className="py-2">
                 <button
                   onClick={() => {
-                    manejarNavegacionBloqueada("/configuracion", "La configuración");
+                    navigate("/configuracion");
                     setMobileMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
                   <Settings size={18} className="mr-3 text-[#ff007a]"/>
-                  Configuración
+                  {t('header.settings', 'Configuración')}
                 </button>
                 
                 <button
                   onClick={() => {
-                    manejarNavegacionBloqueada("/logout", "Cerrar sesión");
+                    navigate("/logout");
                     setMobileMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
                   <LogOut size={18} className="mr-3 text-[#ff007a]"/>
-                  Cerrar sesión
+                  {t('header.logout', 'Cerrar sesión')}
                 </button>
               </div>
             </div>
           )}
         </div>
         
-        {/* Modal de Ganancias - SIEMPRE DISPONIBLE */}
+        {/* Modal de Ganancias */}
         <ModelEarnings 
           isOpen={showEarnings} 
           onClose={() => setShowEarnings(false)} 
         />
       </header>
 
-      {/* 🔥 MODAL DE CHAT PARA VIDEOLLAMADAS - Bloqueado durante verificación */}
+      {/* 🔥 MODAL DE CHAT PARA VIDEOLLAMADAS */}
       <MiniChatVideocall 
-        isOpen={showChatModal && !estaEnVerificacion()}
+        isOpen={showChatModal}
         onClose={() => setShowChatModal(false)}
         conversaciones={conversaciones}
         conversacionActiva={conversacionActiva}
@@ -956,6 +909,49 @@ export default function Header() {
         getInitial={getInitial}
         translationSettings={translationSettings}
       />
+
+      {/* 👈 MODAL DE BÚSQUEDA DE CLIENTES */}
+      {showSearchModal && (
+        <SearchClientsModal
+          isOpen={showSearchModal}
+          onClose={handleCloseSearch}
+          onMessage={handleMessageFromSearch}
+          onCall={handleCallFromSearch}
+        />
+      )}
+
+      {/* 👈 MODAL DE HISTORIAS (PLACEHOLDER) */}
+      {showStoriesModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1f2125] rounded-xl border border-[#ff007a]/30 p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Play className="text-[#ff007a]" size={20} />
+                {t('viewStories') || 'Ver Historias'}
+              </h3>
+              <button
+                onClick={handleCloseStories}
+                className="text-gray-400 hover:text-white transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="text-center py-8">
+              <Play className="text-[#ff007a] mx-auto mb-4" size={48} />
+              <p className="text-gray-400 mb-4">
+                {t('storiesComingSoon') || 'Las historias estarán disponibles pronto'}
+              </p>
+              <button
+                onClick={handleCloseStories}
+                className="px-4 py-2 bg-[#ff007a] text-white rounded-lg hover:bg-[#e6006d] transition"
+              >
+                {t('common.close') || 'Cerrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
