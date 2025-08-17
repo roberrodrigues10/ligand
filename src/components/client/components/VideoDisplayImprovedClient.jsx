@@ -303,6 +303,20 @@ const VideoDisplayImprovedClient = ({
         </div>
       
       </div>
+      <style jsx>
+        {
+        `
+        .video-main-container {
+          height: clamp(120px, 70vh, 500px);
+          /* 
+          Mínimo: 120px (móviles)
+          Ideal: 40% de la pantalla
+          Máximo: 400px (pantallas grandes)
+          */
+        }
+        `
+        }
+      </style>
     </>
   );
 };

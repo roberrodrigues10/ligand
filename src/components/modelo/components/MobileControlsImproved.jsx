@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, Heart, Mic, MicOff, Video, VideoOff, PhoneOff, SkipForward, 
   SwitchCamera, MoreVertical, Star, UserX, Gift, Settings, Volume2, VolumeX,
-  RefreshCw, Camera, Headphones, X
+  RefreshCw, Camera, Headphones, X 
 } from 'lucide-react';
 
 const MobileControlsImproved = ({
@@ -50,6 +50,7 @@ const MobileControlsImproved = ({
   
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showMainSettings, setShowMainSettings] = useState(false);
+  const [showThreeDotsMenu, setShowThreeDotsMenu] = useState(false);
 
   // Estados locales para controlar los dropdowns
   const [localSelectedCamera, setLocalSelectedCamera] = useState('');
@@ -57,6 +58,7 @@ const MobileControlsImproved = ({
 
   const isUserChangingCamera = useRef(false);
   const isUserChangingMicrophone = useRef(false);
+  
   useEffect(() => {
     if (!isUserChangingCamera.current) {
       console.log('🔄 [SYNC] Actualizando cámara local:', currentCameraId || selectedCamera);
@@ -70,6 +72,7 @@ const MobileControlsImproved = ({
       setLocalSelectedMicrophone(currentMicrophoneId || selectedMicrophone);
     }
   }, [currentMicrophoneId, selectedMicrophone]);
+  
   const handleCameraChangeInternal = (deviceId) => {
     console.log('🎥 [MÓVIL] Cambiando cámara a:', deviceId);
     
@@ -112,9 +115,7 @@ const MobileControlsImproved = ({
   };
 
   const handleGiftClick = () => {
-    if (otherUser && (!isModelView ? userBalance > 0 : true)) {
-      setShowGiftsModal(true);
-    }
+    setShowGiftsModal(true); // ← DIRECTO, sin condiciones
   };
 
   const handleEmojiClick = () => {
@@ -179,6 +180,12 @@ const MobileControlsImproved = ({
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [showMainSettings, showMoreMenu]);
+
+  // Función para truncar el nombre de usuario a máximo 8 caracteres
+  const truncateUserName = (name) => {
+    if (!name) return '';
+    return name.length > 8 ? name.substring(0, 8) : name;
+  };
 
   return (
     <>
@@ -332,27 +339,6 @@ const MobileControlsImproved = ({
                         <span>Bloquear modelo</span>
                       </button>
 
-                      {/* 🎁 REGALO */}
-                      <button
-                        onClick={() => handleMenuAction(handleGiftClick)}
-                        disabled={!otherUser || !userBalance || userBalance <= 0}
-                        className={`
-                          w-full text-left px-3 py-2 rounded-lg transition-all duration-200 text-sm flex items-center gap-3
-                          ${otherUser && userBalance > 0
-                            ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10' 
-                            : 'text-gray-500 opacity-40 cursor-not-allowed'
-                          }
-                        `}
-                      >
-                        <Gift size={14} />
-                        <span>Enviar regalo</span>
-                        {userBalance > 0 && (
-                          <span className="ml-auto text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
-                            {userBalance}
-                          </span>
-                        )}
-                      </button>
-
                       {/* 💖 EMOJI */}
                       <button
                         onClick={() => handleMenuAction(handleEmojiClick)}
@@ -367,80 +353,126 @@ const MobileControlsImproved = ({
               </div>
             )}
 
-            {/* CONTROLES ADICIONALES PARA MODELOS (fuera del modal) */}
             {isModelView && (
-              <>
-                {/* ⭐ FAVORITO */}
+              <div className="relative">
+                {/* Botón de tres puntos */}
                 <button
-                  onClick={toggleFavorite}
-                  disabled={isAddingFavorite || !otherUser}
-                  className={`
-                    relative p-3 rounded-xl transition-all duration-300
-                    ${isFavorite 
-                      ? 'bg-[#ff007a]/20 text-[#ff007a] border border-[#ff007a]/40' 
-                      : 'bg-gray-800/50 text-gray-400 hover:text-[#ff007a] hover:bg-[#ff007a]/10'
-                    }
-                    ${isAddingFavorite ? 'animate-pulse' : ''}
-                    ${!otherUser ? 'opacity-40 cursor-not-allowed' : 'hover:scale-105'}
-                  `}
-                  title={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+                  onClick={() => setShowThreeDotsMenu(!showThreeDotsMenu)}
+                  className="p-3 rounded-xl transition-all duration-300 hover:scale-105 bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700/50"
+                  title="Más opciones"
                 >
-                  <Star size={16} fill={isFavorite ? 'currentColor' : 'none'} />
-                  {isAddingFavorite && (
-                    <div className="absolute inset-0 rounded-xl border border-[#ff007a] animate-ping"></div>
-                  )}
+                  <MoreVertical size={16} />
                 </button>
 
-                {/* 🚫 BLOQUEAR */}
-                <button
-                  onClick={blockCurrentUser}
-                  disabled={isBlocking || !otherUser}
-                  className={`
-                    relative p-3 rounded-xl transition-all duration-300
-                    bg-gray-800/50 text-gray-400 hover:text-red-400 hover:bg-red-400/10
-                    ${isBlocking ? 'animate-pulse' : ''}
-                    ${!otherUser ? 'opacity-40 cursor-not-allowed' : 'hover:scale-105'}
-                  `}
-                  title="Bloquear usuario"
-                >
-                  <UserX size={16} />
-                  {isBlocking && (
-                    <div className="absolute inset-0 rounded-xl border border-red-400 animate-ping"></div>
-                  )}
-                </button>
+                {/* Menú desplegable FIXED */}
+                {showThreeDotsMenu && (
+                  <div className="fixed bottom-20 right-4 w-48 bg-gray-900/95 backdrop-blur-lg rounded-xl border border-gray-700/50 shadow-2xl z-[9999]">
+                    
+                    {/* Header con X para cerrar */}
+                    <div className="flex items-center justify-between p-3 border-b border-gray-700/50">
+                      <span className="text-white text-sm font-medium">Opciones</span>
+                      <button
+                        onClick={() => setShowThreeDotsMenu(false)}
+                        className="text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg p-1 transition-all duration-200"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
 
-                {/* 🎁 PEDIR (REGALO) */}
-                <button
-                  onClick={handleGiftClick}
-                  disabled={!otherUser}
-                  className={`
-                    p-3 rounded-xl transition-all duration-300
-                    ${otherUser 
-                      ? 'bg-[#ff007a]/20 text-[#ff007a] hover:bg-[#ff007a]/30 border border-[#ff007a]/30 hover:scale-105' 
-                      : 'bg-gray-800/50 text-gray-400 opacity-40 cursor-not-allowed'
-                    }
-                  `}
-                  title="Pedir regalo"
-                >
-                  <Gift size={16} />
-                </button>
+                    {/* Contenido del menú */}
+                    <div className="p-2 space-y-1">
+                      
+                      {/* ⭐ FAVORITO */}
+                      <button
+                        onClick={() => {
+                          toggleFavorite();
+                          setShowThreeDotsMenu(false);
+                        }}
+                        disabled={isAddingFavorite || !otherUser}
+                        className={`
+                          w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 text-left
+                          ${isFavorite 
+                            ? 'bg-[#ff007a]/20 text-[#ff007a] hover:bg-[#ff007a]/30' 
+                            : 'text-gray-300 hover:bg-gray-700/50 hover:text-[#ff007a]'
+                          }
+                          ${isAddingFavorite || !otherUser ? 'opacity-40 cursor-not-allowed' : ''}
+                        `}
+                      >
+                        <Star size={16} fill={isFavorite ? 'currentColor' : 'none'} />
+                        <span className="text-sm">
+                          {isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+                        </span>
+                        {isAddingFavorite && (
+                          <div className="ml-auto">
+                            <div className="animate-spin rounded-full h-3 w-3 border border-current border-t-transparent"></div>
+                          </div>
+                        )}
+                      </button>
 
-                {/* 💖 EMOJI */}
-                <button
-                  onClick={handleEmojiClick}
-                  className="p-3 rounded-xl transition-all duration-300 hover:scale-105 bg-gray-800/50 text-[#ff007a] hover:bg-[#ff007a]/10"
-                  title="Agregar emoji"
-                >
-                  <Heart size={16} />
-                </button>
-              </>
+                      {/* 🚫 BLOQUEAR */}
+                      <button
+                        onClick={() => {
+                          blockCurrentUser();
+                          setShowThreeDotsMenu(false);
+                        }}
+                        disabled={isBlocking || !otherUser}
+                        className={`
+                          w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 text-left
+                          text-gray-300 hover:bg-red-500/20 hover:text-red-400
+                          ${isBlocking || !otherUser ? 'opacity-40 cursor-not-allowed' : ''}
+                        `}
+                      >
+                        <UserX size={16} />
+                        <span className="text-sm">Bloquear usuario</span>
+                        {isBlocking && (
+                          <div className="ml-auto">
+                            <div className="animate-spin rounded-full h-3 w-3 border border-current border-t-transparent"></div>
+                          </div>
+                        )}
+                      </button>
+
+                      {/* 🎁 PEDIR REGALO */}
+                      <button
+                        onClick={() => {
+                          handleGiftClick();
+                          setShowThreeDotsMenu(false);
+                        }}
+                        disabled={!otherUser}
+                        className={`
+                          w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 text-left
+                          ${otherUser 
+                            ? 'text-gray-300 hover:bg-[#ff007a]/20 hover:text-[#ff007a]' 
+                            : 'opacity-40 cursor-not-allowed text-gray-500'
+                          }
+                        `}
+                      >
+                        <Gift size={16} />
+                        <span className="text-sm">Pedir regalo</span>
+                      </button>
+
+                      {/* 💖 EMOJI */}
+                      <button
+                        onClick={() => {
+                          handleEmojiClick();
+                          setShowThreeDotsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 text-left text-gray-300 hover:bg-[#ff007a]/20 hover:text-[#ff007a]"
+                      >
+                        <Heart size={16} />
+                        <span className="text-sm">Agregar emoji</span>
+                      </button>
+
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
           {/* Input de mensaje */}
           <div className="p-3">
             <div className="flex items-center gap-2">
-              <div className="flex-1 relative max-w-[60%]">
+              <div className="flex-1 relative">
                 <input
                   value={mensaje}
                   onChange={(e) => setMensaje(e.target.value)}
@@ -448,11 +480,11 @@ const MobileControlsImproved = ({
                   placeholder={isModelView ? "Responde..." : "Escribe mensaje..."}
                   maxLength={200}
                   className="
-                    w-full bg-gray-800/60 backdrop-blur-sm px-3 py-2 rounded-xl 
+                    w-full bg-gray-800/60 backdrop-blur-sm px-3 py-2.5 rounded-xl 
                     outline-none text-white text-sm placeholder-gray-400
                     border border-gray-600/30 focus:border-[#ff007a]/50 
                     transition-all duration-300 focus:bg-gray-800/80
-                    pr-10
+                    h-10
                   "
                 />
                 
@@ -470,20 +502,38 @@ const MobileControlsImproved = ({
                 )}
               </div>
 
-              {/* Botón enviar */}
+              {/* 🎁 BOTÓN DE REGALO - MISMO TAMAÑO QUE INPUT */}
+              <button
+                onClick={handleGiftClick}
+                className="
+                  relative h-10 w-10 rounded-xl transition-all duration-300 overflow-hidden shrink-0
+                  bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:scale-105 shadow-lg 
+                  hover:from-amber-600 hover:to-amber-700 flex items-center justify-center
+                  border border-amber-400/30
+                "
+                title={isModelView ? "Pedir regalo" : "Enviar regalo"}
+              >
+                <Gift size={18} />
+                
+                {/* Efecto de brillo */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full hover:translate-x-full transition-transform duration-700"></div>
+              </button>
+
+              {/* Botón enviar - MISMO TAMAÑO */}
               <button
                 onClick={enviarMensaje}
                 disabled={!mensaje.trim()}
                 className={`
-                  relative p-3 rounded-xl transition-all duration-300 overflow-hidden shrink-0
+                  relative h-10 w-10 rounded-xl transition-all duration-300 overflow-hidden shrink-0
+                  flex items-center justify-center
                   ${mensaje.trim() 
-                    ? 'bg-gradient-to-r from-[#ff007a] to-[#ff007a]/80 text-white hover:scale-105 shadow-lg' 
-                    : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                    ? 'bg-gradient-to-r from-[#ff007a] to-[#ff007a]/80 text-white hover:scale-105 shadow-lg border border-[#ff007a]/30' 
+                    : 'bg-gray-700/50 text-gray-500 cursor-not-allowed border border-gray-600/30'
                   }
                 `}
                 title="Enviar mensaje"
               >
-                <Send size={16} />
+                <Send size={18} />
                 
                 {/* Efecto de brillo */}
                 {mensaje.trim() && (
@@ -491,26 +541,11 @@ const MobileControlsImproved = ({
                 )}
               </button>
 
-              {/* Indicador de conexión */}
-              {otherUser && (
-                <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-lg rounded-full px-2 py-1 border border-[#00ff66]/30 shrink-0">
-                  <div className="flex items-center gap-1">
-                    <div className="relative">
-                      <div className="w-1.5 h-1.5 bg-[#00ff66] rounded-full"></div>
-                      <div className="absolute inset-0 w-1.5 h-1.5 bg-[#00ff66] rounded-full animate-ping opacity-40"></div>
-                    </div>
-                    <span className="text-[#00ff66] text-xs font-medium truncate max-w-[60px]">
-                      {otherUser.name}
-                    </span>
-                  </div>
-                </div>
-              )}
-
               {/* Indicador de saldo - Solo para usuarios */}
               {!isModelView && userBalance > 0 && (
-                <div className="bg-gradient-to-r from-amber-500/20 to-amber-500/10 backdrop-blur-lg rounded-full px-2 py-1 border border-amber-500/30 shrink-0">
+                <div className="bg-gradient-to-r from-amber-500/20 to-amber-500/10 backdrop-blur-lg rounded-full px-2 py-1.5 border border-amber-500/30 shrink-0 h-10 flex items-center">
                   <div className="flex items-center gap-1">
-                    <Gift size={12} className="text-amber-500" />
+                    <Gift size={14} className="text-amber-500" />
                     <span className="text-amber-500 text-xs font-bold">
                       {userBalance}
                     </span>
@@ -621,7 +656,7 @@ const MobileControlsImproved = ({
                 )}
               </div>
 
-              {/* Sección Micrófono */}
+      {/* Sección Micrófono */}
               <div className="space-y-4 bg-black/20 rounded-xl p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -716,16 +751,13 @@ const MobileControlsImproved = ({
                     </button>
 
                     {/* 🎁 REGALO */}
-                    <button
+                   <button
                       onClick={handleGiftClick}
-                      disabled={!otherUser || !userBalance || userBalance <= 0}
-                      className={`
-                        flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-300
-                        ${otherUser && userBalance > 0
-                          ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 hover:scale-105' 
-                          : 'bg-gray-800/50 text-gray-400 opacity-40 cursor-not-allowed'
-                        }
-                      `}
+                      // ← SIN disabled
+                      className="
+                        relative p-3 rounded-xl transition-all duration-300 overflow-hidden shrink-0
+                        bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:scale-105 shadow-lg hover:from-amber-600 hover:to-amber-700
+                      "
                     >
                       <Gift size={20} />
                       <span className="text-xs text-center">Regalo</span>
@@ -763,6 +795,24 @@ const MobileControlsImproved = ({
                   </button>
                 </div>
               </div>
+
+              {/* Información de Usuario Conectado - Limitar nombre a 8 caracteres */}
+              {otherUser && (
+                <div className="bg-[#00ff66]/10 border border-[#00ff66]/30 rounded-xl p-4 text-center">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className="relative">
+                      <div className="w-2 h-2 bg-[#00ff66] rounded-full"></div>
+                      <div className="absolute inset-0 w-2 h-2 bg-[#00ff66] rounded-full animate-ping opacity-40"></div>
+                    </div>
+                    <span className="text-[#00ff66] text-sm font-medium">
+                      {isModelView ? 'Usuario conectado' : 'Modelo conectada'}
+                    </span>
+                  </div>
+                  <div className="text-white font-bold text-lg">
+                    {truncateUserName(otherUser.name)}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

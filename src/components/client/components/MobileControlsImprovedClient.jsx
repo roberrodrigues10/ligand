@@ -400,32 +400,20 @@ const MobileControlsImprovedClient = ({
                 )}
               </button>
 
-              {/* Indicador de conexión */}
-              {otherUser && (
-                <div className="bg-gradient-to-r from-[#0a0d10] to-[#131418] backdrop-blur-lg rounded-full px-2 py-1 border border-[#00ff66]/30 shrink-0">
-                  <div className="flex items-center gap-1">
-                    <div className="relative">
-                      <div className="w-1.5 h-1.5 bg-[#00ff66] rounded-full"></div>
-                      <div className="absolute inset-0 w-1.5 h-1.5 bg-[#00ff66] rounded-full animate-ping opacity-40"></div>
-                    </div>
-                    <span className="text-[#00ff66] text-xs font-medium truncate max-w-[60px]">
-                      {otherUser.name}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Indicador de saldo */}
-              {userBalance > 0 && (
-                <div className="bg-gradient-to-r from-amber-500/20 to-amber-500/10 backdrop-blur-lg rounded-full px-2 py-1 border border-amber-500/30 shrink-0">
-                  <div className="flex items-center gap-1">
-                    <Gift size={12} className="text-amber-500" />
-                    <span className="text-amber-500 text-xs font-bold">
-                      {userBalance}
-                    </span>
-                  </div>
-                </div>
-              )}
+            <button
+              onClick={setShowGiftsModal  }
+              className="
+                relative h-10 w-10 rounded-xl transition-all duration-300 overflow-hidden shrink-0
+                bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:scale-105 shadow-lg 
+                hover:from-amber-600 hover:to-amber-700 flex items-center justify-center
+                border border-amber-400/30
+              "
+            >
+              <Gift size={18} />
+              
+              {/* Efecto de brillo */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full hover:translate-x-full transition-transform duration-700"></div>
+            </button>
             </div>
           </div>
         </div>

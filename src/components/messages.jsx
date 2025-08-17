@@ -401,25 +401,67 @@ newMessages.forEach(msg => {
       sender: msg.user_name,
       senderRole: msg.user_role,
       
-      // 🔥 TIPO CORRECTO BASADO EN CONTENIDO
+      // 🔥 MEJORAR DETECCIÓN DE TIPO
       type: (() => {
+        console.log('🔍 [SIMPLECHAT] Detectando tipo de mensaje:', {
+          originalType: msg.type,
+          message: msg.message,
+          hasExtraData: !!msg.extra_data,
+          hasGiftData: !!msg.gift_data
+        });
+        
         if (isGiftRequest) return 'gift_request';
         if (msg.type === 'gift_sent') return 'gift_sent';
         if (msg.type === 'gift_received') return 'gift_received';
         if (msg.type === 'gift_rejected') return 'gift_rejected';
         if (msg.type === 'gift') return 'gift';
+        
+        // 🔥 DETECTAR POR CONTENIDO DE MENSAJE
+        if (msg.message && msg.message.includes('Enviaste:')) return 'gift_sent';
+        if (msg.message && msg.message.includes('Recibiste:')) return 'gift_received';
+        if (msg.message && msg.message.includes('Solicitud de regalo')) return 'gift_request';
+        
         return msg.type || 'remote';
       })(),
       
       timestamp: msg.created_at,
       
-      // 🔥 PARSING SIMPLIFICADO
-      extra_data: parseJsonSafely(msg.extra_data, 'extra_data'),
+      // 🔥 DATOS DE REGALO MEJORADOS
+      extra_data: (() => {
+        const parsed = parseJsonSafely(msg.extra_data, 'extra_data');
+        
+        // 🔥 SI NO HAY DATOS PERO ES MENSAJE DE REGALO, CREAR DATOS BÁSICOS
+        if (Object.keys(parsed).length === 0 && msg.message) {
+          if (msg.message.includes('Enviaste:') || msg.message.includes('Recibiste:')) {
+            const giftName = msg.message.split(':')[1]?.trim() || 'Regalo';
+            return {
+              gift_name: giftName,
+              gift_image: '', // Imagen por defecto o buscar en base de datos
+              gift_price: 0,
+              action_text: msg.message.includes('Enviaste:') ? 'Enviaste' : 'Recibiste'
+            };
+          }
+        }
+        
+        return parsed;
+      })(),
+      
       gift_data: parseJsonSafely(msg.gift_data, 'gift_data'),
       
       // Legacy compatibility
       messageType: msg.type
     };
+
+// 🔥 DEBUG ESPECÍFICO PARA MENSAJES DE REGALO
+if (messageForParent.type.includes('gift')) {
+  console.log('🎁 [SIMPLECHAT] MENSAJE DE REGALO DETECTADO:', {
+    finalType: messageForParent.type,
+    text: messageForParent.text,
+    extraData: messageForParent.extra_data,
+    giftData: messageForParent.gift_data,
+    willShowAsCard: Object.keys(messageForParent.extra_data).length > 0
+  });
+}
 
     // 🔥 DEBUG ESPECÍFICO PARA GIFT REQUESTS
     if (isGiftRequest) {

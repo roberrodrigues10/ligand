@@ -58,10 +58,13 @@ const NotificationSystemImprovedClient = ({ notifications, onRemove }) => {
   if (!notifications || notifications.length === 0) {
     return null;
   }
+  
+  const limitedNotifications = notifications.slice(-1);
+
 
   return (
     <div className="fixed top-4 right-4 z-[9999] max-w-sm w-full space-y-3">
-      {notifications.map((notification, index) => {
+      {limitedNotifications.map((notification, index) => {
         const styles = getNotificationStyles(notification.type);
         const icon = getNotificationIcon(notification.type);
         
@@ -154,6 +157,17 @@ const NotificationSystemImprovedClient = ({ notifications, onRemove }) => {
           </div>
         );
       })}
+      {/* 🔥 INDICADOR DE NOTIFICACIONES ADICIONALES */}
+        {notifications.length > 2 && (
+          <div className="overflow-indicator">
+            <div className="overflow-content">
+              <Info size={10} className="text-[#ff007a]" />
+              <span className="overflow-text">
+                +{notifications.length - 2} más
+              </span>
+            </div>
+          </div>
+        )}
       
       {/* Estilos CSS para las animaciones */}
       <style jsx>{`

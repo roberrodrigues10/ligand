@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Heart, ChevronDown, HelpCircle, Menu } from 'lucide-react';
-import pruebahistorias from './imagenes/pruebahistorias.jpg';
+import pruebahistorias from './imagenes/pruebahistorias.png';
 import logoproncipal from './imagenes/logoprincipal.png';
 import LoginLigand from "./verificacion/login/loginligand";
 import Register from "./verificacion/register/register";

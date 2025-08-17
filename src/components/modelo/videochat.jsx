@@ -19,9 +19,10 @@
   import MobileControlsImproved from "./components/MobileControlsImproved";
   import DesktopControlsImproved from "./components/DesktopControlsImproved";
   import TimeDisplayImproved from "./components/TimeDisplayImproved";
-  import NotificationSystemImproved from "./components/NotificationSystemImproved";
+  import NotificationSystemImproved from "./components/NotificationSystemImproved.jsx";
   import DisconnectionScreenImproved from "./components/DisconnectionScreenImproved";
   import MediaControlsImproved from "./components/MediaControlsImproved";
+  import { useGlobalTranslation } from '../../contexts/GlobalTranslationContext.jsx';
 
   // Componentes originales necesarios
   import SimpleChat from "../messages.jsx";
@@ -38,9 +39,7 @@
   import { getUser } from "../../utils/auth";
   import { useSessionCleanup } from '../closesession.jsx';
   import { useSearching } from '../../contexts/SearchingContext';
-  import { GlobalTranslationProvider, useGlobalTranslation } from './contexts/GlobalTranslationContext';
-  import HybridChatSystem from './components/ybridChatSystem.jsx';
-  import { useHybridChat } from './hooks/useHybridChat';
+
 
   // Configuraciones
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -185,7 +184,11 @@
     const [micEnabled, setMicEnabled] = useState(true);
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [camaraPrincipal, setCamaraPrincipal] = useState("remote");
-    const [volumeEnabled, setVolumeEnabled] = useState(true);
+    const [volumeEnabled, setVolumeEnabled] = useState(() => {
+      // Para modelos: siempre true (no controlan volumen)
+      // Para usuarios: true por defecto
+      return true; // Siempre empezar en true
+    });
     const [cameras, setCameras] = useState([]);
     const [microphones, setMicrophones] = useState([]);
     const [selectedCameraDevice, setSelectedCameraDevice] = useState('');
@@ -213,6 +216,10 @@
     const [disconnectionType, setDisconnectionType] = useState('');
     const [redirectCountdown, setRedirectCountdown] = useState(0);
 
+
+    const { translateGlobalText, isEnabled: translationEnabled } = useGlobalTranslation();
+
+
     // Estados de detección
     const [isDetectingUser, setIsDetectingUser] = useState(() => {
       if (!roomName || !userName) return false;
@@ -237,7 +244,14 @@
       console.log('✅ Room lista:', !!roomInstance);
       setRoom(roomInstance);
       setConnected(true);
+      
+      // 🔥 IMPORTANTE: Guardar room globalmente para el sistema de auto-siguiente
+      window.livekitRoom = roomInstance;
+      console.log('🌍 Room guardada globalmente');
     };
+    const [showGiftNotification, setShowGiftNotification] = useState(false);
+    const [processingGift, setProcessingGift] = useState(null);
+    const [availableGifts, setAvailableGifts] = useState([]);
 
     // Estados de notificaciones
     const [notifications, setNotifications] = useState([]);
@@ -267,44 +281,242 @@
       pendingRequests,
       userBalance,
       loading: giftLoading,
-      requestGift,
+      requestGift,        // ✅ PARA PEDIR REGALOS
+      acceptGift,         // ✅ PARA RECIBIR REGALOS  
+      rejectGift,         // ✅ PARA RECHAZAR REGALOS
       loadGifts,
-      loadUserBalance
+      loadUserBalance,
+      setPendingRequests
     } = useVideoChatGifts(
       roomName,
       { id: userData.id, role: userData.role, name: userData.name },
       otherUser ? { id: otherUser.id, name: otherUser.name } : null
     );
-    const {
-      messages: hybridMessages,
-      sendMessage: sendHybridMessage,
-      sendGift: sendHybridGift,
-      isConnected: chatConnected,
-      isSendingMessage: isHybridSending,
-      stats: chatStats
-    } = useHybridChat(
-      roomName,
-      userData,
-      otherUser,
-      {
-        onMessageReceived: (message) => {
-          console.log('📥 [HÍBRIDO] Mensaje recibido:', {
-            type: message.type,
-            text: message.text?.substring(0, 30),
-            hasGiftData: !!message.gift_data,
-            isLocal: message.isLocal
-          });
+
+
+const processSessionEarnings = async (durationSeconds, endedBy = 'user') => {
+  console.log('🚀 [STEP 1] processSessionEarnings INICIADO');
+  console.log('📊 [STEP 1] Parámetros recibidos:', {
+    durationSeconds,
+    endedBy,
+    timestamp: new Date().toISOString()
+  });
+
+  console.log('📊 [STEP 2] Variables globales:', {
+    roomName,
+    'otherUser existe': !!otherUser,
+    'otherUser.id': otherUser?.id,
+    'otherUser.name': otherUser?.name,
+    'userData existe': !!userData,
+    'userData.id': userData?.id,
+    'userData.name': userData?.name,
+    'userData.role': userData?.role
+  });
+
+  // PASO 3: Verificar condiciones básicas
+  console.log('🔍 [STEP 3] Verificando condiciones básicas...');
+  
+  const checks = {
+    hasRoomName: !!roomName,
+    hasOtherUserId: !!otherUser?.id,
+    hasUserDataId: !!userData?.id,
+    validDuration: durationSeconds > 0
+  };
+  
+  console.log('✅ [STEP 3] Checks:', checks);
+  
+  const allChecksPass = Object.values(checks).every(check => check === true);
+  console.log('🎯 [STEP 3] ¿Todas las condiciones?', allChecksPass);
+
+  if (!allChecksPass) {
+    console.error('❌ [STEP 3] FALLO - Condiciones no cumplidas');
+    console.log('🛑 [STEP 3] Deteniendo processSessionEarnings');
+    return { success: false, error: 'Condiciones básicas no cumplidas' };
+  }
+
+  console.log('✅ [STEP 3] Todas las condiciones básicas OK - continuando...');
+
+  try {
+    // PASO 4: Verificar token
+    console.log('🔑 [STEP 4] Verificando token...');
+    const authToken = localStorage.getItem('token');
+    
+    if (!authToken) {
+      console.error('❌ [STEP 4] NO HAY TOKEN');
+      return { success: false, error: 'No hay token' };
+    }
+    
+    console.log('✅ [STEP 4] Token encontrado:', authToken.substring(0, 30) + '...');
+
+    // PASO 5: Determinar roles correctamente
+    console.log('👥 [STEP 5] Determinando roles...');
+    
+    let modeloId, clienteId, modeloName, clienteName;
+    
+    console.log('🔍 [STEP 5] Mi rol actual:', userData.role);
+    
+    if (userData.role === 'modelo') {
+      modeloId = userData.id;
+      modeloName = userData.name;
+      clienteId = otherUser.id;
+      clienteName = otherUser.name;
+      console.log('✅ [STEP 5] Yo soy modelo, el otro es cliente');
+    } else {
+      // Esto no debería pasar en VideoChat modelo, pero por seguridad
+      modeloId = otherUser.id;
+      modeloName = otherUser.name;
+      clienteId = userData.id;
+      clienteName = userData.name;
+      console.log('⚠️ [STEP 5] Yo soy cliente (¿raro en VideoChat modelo?)');
+    }
+
+    console.log('📋 [STEP 5] Roles finales:', {
+      'MODELO ID': modeloId,
+      'MODELO NAME': modeloName,
+      'CLIENTE ID': clienteId,
+      'CLIENTE NAME': clienteName
+    });
+
+    // PASO 6: Crear payload
+    console.log('📦 [STEP 6] Creando payload...');
+    
+    const requestPayload = {
+      room_name: roomName,
+      duration_seconds: durationSeconds,
+      modelo_user_id: modeloId,
+      cliente_user_id: clienteId,
+      session_type: 'video_chat',
+      ended_by: endedBy
+    };
+
+    console.log('📦 [STEP 6] Payload creado:', requestPayload);
+
+    // PASO 7: Verificar URL
+    const url = `${API_BASE_URL}/api/earnings/process-session`;
+    console.log('🌐 [STEP 7] URL destino:', url);
+
+    // PASO 8: Enviar request
+    console.log('🚀 [STEP 8] Enviando request...');
+    
+    const startTime = Date.now();
+    
+    const earningsResponse = await Promise.race([
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
         },
-        onUserDetected: (user) => {
-          updateOtherUser(user);
-        },
-        onGiftReceived: (gift) => {
-          console.log('🎁 [HÍBRIDO] Regalo recibido:', gift);
-        },
-        debugMode: false,
-        enabled: !!roomName && !!userData.id
+        body: JSON.stringify(requestPayload)
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout después de 10 segundos')), 10000))
+    ]);
+    
+    const responseTime = Date.now() - startTime;
+    console.log(`⏱️ [STEP 8] Response recibida en ${responseTime}ms`);
+
+    // PASO 9: Analizar response
+    console.log('📥 [STEP 9] Analizando response...');
+    console.log('📥 [STEP 9] Status:', earningsResponse.status);
+    console.log('📥 [STEP 9] Status Text:', earningsResponse.statusText);
+    console.log('📥 [STEP 9] OK:', earningsResponse.ok);
+
+    // PASO 10: Leer contenido
+    console.log('📄 [STEP 10] Leyendo contenido de response...');
+    
+    let responseText = '';
+    try {
+      responseText = await earningsResponse.text();
+      console.log('📄 [STEP 10] Response text:', responseText);
+    } catch (textError) {
+      console.error('❌ [STEP 10] Error leyendo text:', textError);
+      return { success: false, error: 'Error leyendo response' };
+    }
+
+    // PASO 11: Parsear JSON
+    console.log('🔧 [STEP 11] Parseando JSON...');
+    
+    let responseData = null;
+    try {
+      if (responseText.trim()) {
+        responseData = JSON.parse(responseText);
+        console.log('✅ [STEP 11] JSON parseado:', responseData);
+      } else {
+        console.warn('⚠️ [STEP 11] Response text está vacío');
+        return { success: false, error: 'Response vacío' };
       }
-    );
+    } catch (parseError) {
+      console.error('❌ [STEP 11] Error parseando JSON:', parseError);
+      console.log('📄 [STEP 11] Raw text que falló:', responseText);
+      return { success: false, error: 'Error parseando JSON' };
+    }
+
+    // PASO 12: Verificar status HTTP
+    if (!earningsResponse.ok) {
+      console.error('❌ [STEP 12] HTTP Error:', {
+        status: earningsResponse.status,
+        statusText: earningsResponse.statusText,
+        responseData
+      });
+
+      if (earningsResponse.status === 400) {
+        console.error('❌ [STEP 12] BAD REQUEST - Datos inválidos');
+      } else if (earningsResponse.status === 404) {
+        console.error('❌ [STEP 12] NOT FOUND - Endpoint no existe');
+      } else if (earningsResponse.status === 401) {
+        console.error('❌ [STEP 12] UNAUTHORIZED - Token inválido');
+      } else if (earningsResponse.status === 500) {
+        console.error('❌ [STEP 12] SERVER ERROR - Error en backend');
+      }
+
+      return { 
+        success: false, 
+        error: `HTTP ${earningsResponse.status}: ${responseData?.error || 'Error desconocido'}` 
+      };
+    }
+
+    // PASO 13: Verificar respuesta exitosa
+    console.log('🎉 [STEP 13] HTTP OK - Verificando contenido...');
+    
+    if (responseData && responseData.success) {
+      console.log('🎉 [STEP 13] SUCCESS = TRUE');
+      
+      if (responseData.model_earnings && responseData.model_earnings > 0) {
+        const minutes = Math.floor(durationSeconds / 60);
+        console.log(`💰 [STEP 13] ÉXITO TOTAL: ${minutes} min = $${responseData.model_earnings} para modelo ID ${modeloId}`);
+        
+        return {
+          success: true,
+          model_earnings: responseData.model_earnings,
+          duration_minutes: minutes,
+          modelo_id: modeloId,
+          cliente_id: clienteId
+        };
+      } else {
+        console.warn('⚠️ [STEP 13] Success pero sin ganancias:', responseData);
+        return { success: true, model_earnings: 0, message: 'Sin ganancias registradas' };
+      }
+    } else {
+      console.error('❌ [STEP 13] SUCCESS = FALSE:', responseData);
+      return { 
+        success: false, 
+        error: responseData?.error || 'Respuesta sin success' 
+      };
+    }
+    
+  } catch (error) {
+    console.error('❌ [ERROR GENERAL] Error en processSessionEarnings:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    return { 
+      success: false, 
+      error: `Error de conexión: ${error.message}` 
+    };
+  }
+};
 
     // 🔥 SISTEMA DE NOTIFICACIONES MEJORADO
     const addNotification = useCallback((type, title, message, duration = 5000) => {
@@ -376,120 +588,76 @@
       return tiempoActual;
     };
    
-  const currentMessages = useMemo(() => {
-    console.log('🔄 [currentMessages] SISTEMA ÚNICO - Calculando...', {
-      hybridCount: hybridMessages.length,
-      legacyCount: messages.length,
-      hasOtherUser: !!otherUser?.id,
-      chatConnected
-  });
-  
 
-  // 🔥 REGLA ÚNICA: Solo un sistema, nunca mezclar
-  if (otherUser?.id) {
-    // HÍBRIDO está activo - SOLO usar híbrido
-    console.log('✅ [currentMessages] MODO HÍBRIDO ACTIVO');
-    
-    if (hybridMessages.length > 0) {
-      console.log('📱 [currentMessages] Usando mensajes híbridos:', hybridMessages.length);
-      // 🔄 ORDEN DESCENDENTE: mensajes más nuevos primero
-      return [...hybridMessages].sort((a, b) => new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp));
-    } else {
-      console.log('⏳ [currentMessages] Híbrido sin mensajes, mostrando vacío');
-      return []; // Mostrar vacío si híbrido no tiene mensajes
-    }
-  } else {
-    // LEGACY está activo - SOLO usar legacy
-    console.log('📟 [currentMessages] MODO LEGACY ACTIVO');
-    
-    if (messages.length > 0) {
-      console.log('📨 [currentMessages] Usando mensajes legacy:', messages.length);
-      // 🔄 ORDEN DESCENDENTE: mensajes más nuevos primero
-      return [...messages].sort((a, b) => new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp));
-    } else {
-      console.log('⏳ [currentMessages] Legacy sin mensajes, mostrando vacío');
-      return [];
-    }
-    
-  }
-}, [
-  // 🔥 DEPENDENCIAS MÍNIMAS para evitar recálculos
-  otherUser?.id,
-  hybridMessages.length,
-  messages.length,
-  // 🔥 Solo agregar esto si realmente necesitas detectar cambios de contenido
-  hybridMessages.map(m => m.id).join(','),
-  messages.map(m => m.id).join(',')
-]);
 
-  const enviarTiempoReal = async (sessionId, tiempoEspecifico = null) => {
-        let tiempoAEnviar;
-        
-        if (tiempoEspecifico !== null) {
-          tiempoAEnviar = tiempoEspecifico;
-        } else if (tiempoInicioRef.current) {
-          tiempoAEnviar = Math.floor((Date.now() - tiempoInicioRef.current) / 1000);
-        } else {
-          tiempoAEnviar = tiempoReal;
-        }
-        
-        if (!sessionId || sessionId === 'null' || sessionId === 'undefined') {
-          console.error('❌ SessionId inválido:', sessionId);
-          return;
-        }
-        
-        if (tiempoAEnviar <= 0) {
-          console.error('❌ Tiempo inválido:', tiempoAEnviar);
-          return;
-        }
-
-        console.log('🚀 ENVIANDO TIEMPO DETALLADO:', {
-          sessionId,
-          segundos: tiempoAEnviar,
-          formateado: `${Math.floor(tiempoAEnviar/60)}:${(tiempoAEnviar%60).toString().padStart(2, '0')}`,
-          minutos: (tiempoAEnviar / 60).toFixed(2)
-        });
-
-        try {
-          const token = localStorage.getItem('token');
-          if (!token) {
-            console.error('❌ No hay token de autenticación');
+    const enviarTiempoReal = async (sessionId, tiempoEspecifico = null) => {
+          let tiempoAEnviar;
+          
+          if (tiempoEspecifico !== null) {
+            tiempoAEnviar = tiempoEspecifico;
+          } else if (tiempoInicioRef.current) {
+            tiempoAEnviar = Math.floor((Date.now() - tiempoInicioRef.current) / 1000);
+          } else {
+            tiempoAEnviar = tiempoReal;
+          }
+          
+          if (!sessionId || sessionId === 'null' || sessionId === 'undefined') {
+            console.error('❌ SessionId inválido:', sessionId);
+            return;
+          }
+          
+          if (tiempoAEnviar <= 0) {
+            console.error('❌ Tiempo inválido:', tiempoAEnviar);
             return;
           }
 
-          const requestBody = {
-            session_id: sessionId,
-            duration_seconds: tiempoAEnviar
-          };
-
-          const response = await fetch(`${API_BASE_URL}/api/earnings/update-duration`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
+          console.log('🚀 ENVIANDO TIEMPO DETALLADO:', {
+            sessionId,
+            segundos: tiempoAEnviar,
+            formateado: `${Math.floor(tiempoAEnviar/60)}:${(tiempoAEnviar%60).toString().padStart(2, '0')}`,
+            minutos: (tiempoAEnviar / 60).toFixed(2)
           });
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Error HTTP:', response.status, errorText);
-            return;
-          }
+          try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+              console.error('❌ No hay token de autenticación');
+              return;
+            }
 
-          const data = await response.json();
-          
-          if (data.success) {
-            console.log(`✅ Tiempo enviado exitosamente: ${Math.floor(tiempoAEnviar/60)}:${(tiempoAEnviar%60).toString().padStart(2, '0')}`);
-            console.log('💰 Ganancias calculadas:', data.model_earnings || 'N/A');
-          } else {
-            console.error('❌ Error del servidor:', data.error);
+            const requestBody = {
+              session_id: sessionId,
+              duration_seconds: tiempoAEnviar
+            };
+
+            const response = await fetch(`${API_BASE_URL}/api/earnings/update-duration`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error('❌ Error HTTP:', response.status, errorText);
+              return;
+            }
+
+            const data = await response.json();
+            
+            if (data.success) {
+              console.log(`✅ Tiempo enviado exitosamente: ${Math.floor(tiempoAEnviar/60)}:${(tiempoAEnviar%60).toString().padStart(2, '0')}`);
+              console.log('💰 Ganancias calculadas:', data.model_earnings || 'N/A');
+            } else {
+              console.error('❌ Error del servidor:', data.error);
+            }
+          } catch (error) {
+            console.error('❌ Error enviando tiempo:', error);
           }
-        } catch (error) {
-          console.error('❌ Error enviando tiempo:', error);
-        }
-      };
-      
+    };
+        
 
       // 🔥 FUNCIONES DE CACHE MEJORADAS
       const updateOtherUser = (user) => {
@@ -562,54 +730,32 @@
         applyMirrorToAllVideos(mirrorMode);
         setupMirrorObserver(mirrorMode);
       }, [mirrorMode]);
-    const enviarMensaje = async () => {
-      if (!mensaje.trim()) {
-        return;
-      }
 
-      const messageText = mensaje.trim();
-      console.log('📤 [VIDEOCHAT] SISTEMA ÚNICO - Enviando:', messageText);
-      
-      // 🔥 LIMPIAR INPUT INMEDIATAMENTE
-      setMensaje("");
-      
-      try {
-        if (otherUser?.id) {
-          // 🔥 MODO HÍBRIDO - Solo usar híbrido
-          console.log('📤 [VIDEOCHAT] Enviando vía HÍBRIDO');
+    const enviarMensaje = async () => {
+      if (mensaje.trim() && !isSendingMessage) {
+        setIsSendingMessage(true);
+        const messageToSend = mensaje.trim();
+        
+        if (chatFunctions?.sendMessage) {
+          const success = chatFunctions.sendMessage(messageToSend);
           
-          const result = await sendHybridMessage(messageText);
-          
-          if (!result.success) {
-            console.error('❌ [VIDEOCHAT] Error híbrido:', result.error);
-            addNotification('error', 'Error', 'No se pudo enviar el mensaje');
-            setMensaje(messageText); // Restaurar en caso de error
-          } else {
-            console.log('✅ [VIDEOCHAT] Mensaje híbrido enviado exitosamente');
-          }
-        } else {
-          // 🔥 MODO LEGACY - Solo usar legacy
-          console.log('📤 [VIDEOCHAT] Enviando vía LEGACY');
-          
-          if (chatFunctions?.sendMessage) {
-            const success = chatFunctions.sendMessage(messageText);
-            if (!success) {
-              console.error('❌ [VIDEOCHAT] Error legacy');
-              addNotification('error', 'Error', 'No se pudo enviar el mensaje');
-              setMensaje(messageText);
-            } else {
-              console.log('✅ [VIDEOCHAT] Mensaje legacy enviado exitosamente');
-            }
-          } else {
-            console.error('❌ [VIDEOCHAT] chatFunctions no disponible');
-            addNotification('error', 'Error', 'Sistema de chat no disponible');
-            setMensaje(messageText);
+          if (success) {
+            const nuevoMensaje = {
+              id: Date.now(),
+              type: 'local',
+              text: messageToSend,
+              timestamp: Date.now(),
+              isOld: false,
+              sender: userData.name,
+              senderRole: userData.role
+            };
+            
+            setMessages(prev => [nuevoMensaje, ...prev]);
+            setMensaje("");
           }
         }
-      } catch (error) {
-        console.error('❌ [VIDEOCHAT] Error crítico:', error);
-        addNotification('error', 'Error', 'Error de conexión');
-        setMensaje(messageText);
+        
+        setIsSendingMessage(false);
       }
     };
 
@@ -661,338 +807,401 @@
     }
     }
 
-const handleCameraChange = (deviceId) => {
-  console.log('🎥 [SYNC] Seleccionando cámara:', deviceId);
-  
-  // Solo actualizar el estado, el cambio real lo hace el useEffect
-  setSelectedCameraDevice(deviceId);
-};
-
-// 2️⃣ REEMPLAZAR handleMicrophoneChange - VERSION SINCRONIZADA  
-const handleMicrophoneChange = (deviceId) => {
-  console.log('🎤 [SYNC] Seleccionando micrófono:', deviceId);
-  
-  // Solo actualizar el estado, el cambio real lo hace el useEffect
-  setSelectedMicrophoneDevice(deviceId);
-};
-
-// 3️⃣ AGREGAR useEffect PARA CAMBIO REAL DE CÁMARA
-useEffect(() => {
-  if (!selectedCameraDevice || !room?.localParticipant || !cameraEnabled) {
-    console.log('🎥 [EFFECT] Condiciones no cumplidas para cámara');
-    return;
-  }
-
-  const changeCameraDevice = async () => {
-    try {
-      console.log('🎥 [EFFECT] Cambiando cámara a:', selectedCameraDevice);
+    const handleCameraChange = (deviceId) => {
+      console.log('🎥 [SYNC] Seleccionando cámara:', deviceId);
       
-      const localParticipant = room.localParticipant;
+      // Solo actualizar el estado, el cambio real lo hace el useEffect
+      setSelectedCameraDevice(deviceId);
+    };
+
+    // 2️⃣ REEMPLAZAR handleMicrophoneChange - VERSION SINCRONIZADA  
+    const handleMicrophoneChange = (deviceId) => {
+      console.log('🎤 [SYNC] Seleccionando micrófono:', deviceId);
       
-      // Detener cámara actual
-      const currentVideoTrack = localParticipant.getTrackPublication('camera')?.track;
-      if (currentVideoTrack) {
-        console.log('🛑 [EFFECT] Deteniendo cámara actual...');
-        currentVideoTrack.stop();
-        await localParticipant.unpublishTrack(currentVideoTrack);
-      }
+      // Solo actualizar el estado, el cambio real lo hace el useEffect
+      setSelectedMicrophoneDevice(deviceId);
+    };
 
-      // Crear nueva cámara
-      console.log('🎬 [EFFECT] Creando stream con deviceId:', selectedCameraDevice);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          deviceId: { exact: selectedCameraDevice },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
-
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack) {
-        console.log('📤 [EFFECT] Publicando nueva cámara...');
-        await localParticipant.publishTrack(videoTrack, {
-          name: 'camera',
-          source: 'camera'
-        });
-        
-        console.log('✅ [EFFECT] Cámara cambiada exitosamente');
-        addNotification('success', 'Cámara Cambiada', 'Dispositivo actualizado');
-        
-        // Re-aplicar espejo
-        setTimeout(() => {
-          console.log('🪞 [EFFECT] Aplicando espejo...');
-          applyMirrorToAllVideos(mirrorMode);
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('❌ [EFFECT] Error cambiando cámara:', error);
-      addNotification('error', 'Error', `Error: ${error.message}`);
-    }
-  };
-
-  // Pequeño delay para evitar llamadas muy rápidas
-  const timer = setTimeout(changeCameraDevice, 200);
-  return () => clearTimeout(timer);
-
-}, [selectedCameraDevice, room, cameraEnabled, mirrorMode]); // ← DEPENDENCIAS
-
-// 4️⃣ AGREGAR useEffect PARA CAMBIO REAL DE MICRÓFONO
-useEffect(() => {
-  if (!selectedMicrophoneDevice || !room?.localParticipant || !micEnabled) {
-    console.log('🎤 [EFFECT] Condiciones no cumplidas para micrófono');
-    return;
-  }
-
-  const changeMicrophoneDevice = async () => {
-    try {
-      console.log('🎤 [EFFECT] Cambiando micrófono a:', selectedMicrophoneDevice);
-      
-      const localParticipant = room.localParticipant;
-      
-      // Detener micrófono actual
-      const currentAudioTrack = localParticipant.getTrackPublication('microphone')?.track;
-      if (currentAudioTrack) {
-        console.log('🛑 [EFFECT] Deteniendo micrófono actual...');
-        currentAudioTrack.stop();
-        await localParticipant.unpublishTrack(currentAudioTrack);
-      }
-
-      // Crear nuevo micrófono
-      console.log('🎙️ [EFFECT] Creando stream con deviceId:', selectedMicrophoneDevice);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { 
-          deviceId: { exact: selectedMicrophoneDevice },
-          echoCancellation: true,
-          noiseSuppression: true
-        }
-      });
-
-      const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack) {
-        console.log('📤 [EFFECT] Publicando nuevo micrófono...');
-        await localParticipant.publishTrack(audioTrack, {
-          name: 'microphone',
-          source: 'microphone'
-        });
-        
-        console.log('✅ [EFFECT] Micrófono cambiado exitosamente');
-        addNotification('success', 'Micrófono Cambiado', 'Dispositivo actualizado');
-      }
-    } catch (error) {
-      console.error('❌ [EFFECT] Error cambiando micrófono:', error);
-      addNotification('error', 'Error', `Error: ${error.message}`);
-    }
-  };
-
-  // Pequeño delay para evitar llamadas muy rápidas
-  const timer = setTimeout(changeMicrophoneDevice, 200);
-  return () => clearTimeout(timer);
-
-}, [selectedMicrophoneDevice, room, micEnabled]); // ← DEPENDENCIAS
-
-// 4️⃣ EFECTO PARA CARGAR DISPOSITIVOS INICIALMENTE (agregar después de otros useEffect)
-useEffect(() => {
-  // Cargar dispositivos cuando el componente se monta
-  loadDevices();
-  
-  // Listener para detectar cambios en dispositivos
-  const handleDeviceChange = () => {
-    console.log('🔄 Dispositivos cambiaron, recargando...');
-    setTimeout(() => loadDevices(), 1000);
-  };
-  
-  navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
-  
-  return () => {
-    navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
-  };
-}, []);
-
-// 5️⃣ EFECTO PARA CONFIGURAR ROOM INSTANCE (agregar después del efecto anterior)
-useEffect(() => {
-  // Listener global para establecer la instancia de room
-  const handleRoomReady = (event) => {
-    if (event.detail && event.detail.room) {
-      console.log('🏠 Room instancia recibida desde LiveKit');
-      setRoom(event.detail.room);
-    }
-  };
-  
-  // Escuchar evento personalizado
-  window.addEventListener('livekitRoomReady', handleRoomReady);
-  
-  // También verificar si ya existe globalmente
-  if (window.livekitRoom && !room) {
-    console.log('🏠 Room encontrada globalmente');
-    setRoom(window.livekitRoom);
-  }
-  
-  return () => {
-    window.removeEventListener('livekitRoomReady', handleRoomReady);
-  };
-}, [room]);
-
-// 6️⃣ EFECTO PARA APLICAR CONFIGURACIONES CUANDO CAMBIA LA ROOM (agregar después del efecto anterior)
-useEffect(() => {
-  if (room && connected) {
-    console.log('🔧 Room conectada, configurando dispositivos...');
-    
-    // Pequeño delay para asegurar que todo esté listo
-    setTimeout(() => {
-      // Re-aplicar dispositivos seleccionados
-      if (selectedCameraDevice && cameraEnabled) {
-        handleCameraChange(selectedCameraDevice);
-      }
-      
-      if (selectedMicrophoneDevice && micEnabled) {
-        handleMicrophoneChange(selectedMicrophoneDevice);
-      }
-      
-      // Re-aplicar modo espejo
-      applyMirrorToAllVideos(mirrorMode);
-    }, 2000);
-  }
-}, [room, connected]);
-
-
-
-
-    const handleMessageReceived = (newMessage) => {
-      console.log('📥 [VIDEOCHAT] Mensaje recibido en legacy:', newMessage);
-
-      // 🔥 SI HAY USUARIO DETECTADO, NO PROCESAR EN LEGACY
-      if (otherUser?.id) {
-        console.log('🚫 [VIDEOCHAT] Híbrido activo, ignorando mensaje legacy');
+    // 3️⃣ AGREGAR useEffect PARA CAMBIO REAL DE CÁMARA
+    useEffect(() => {
+      if (!selectedCameraDevice || !room?.localParticipant || !cameraEnabled) {
+        console.log('🎥 [EFFECT] Condiciones no cumplidas para cámara');
         return;
       }
 
-      // 🔥 NO PROCESAR MENSAJES PROPIOS
-      if (newMessage.senderId === userData.id || 
-          newMessage.user_id === userData.id || 
-          newMessage.sender === userData.name ||
-          newMessage.user_name === userData.name) {
-        console.log('🚫 [VIDEOCHAT] Ignorando mensaje propio en legacy');
-        return;
-      }
+      const changeCameraDevice = async () => {
+        try {
+          console.log('🎥 [EFFECT] Cambiando cámara a:', selectedCameraDevice);
+          
+          const localParticipant = room.localParticipant;
+          
+          // Detener cámara actual
+          const currentVideoTrack = localParticipant.getTrackPublication('camera')?.track;
+          if (currentVideoTrack) {
+            console.log('🛑 [EFFECT] Deteniendo cámara actual...');
+            currentVideoTrack.stop();
+            await localParticipant.unpublishTrack(currentVideoTrack);
+          }
 
-      // 🔥 FORMATEAR Y AGREGAR MENSAJE
-      const formattedMessage = {
-        id: newMessage.id || `legacy_${Date.now()}_${Math.random()}`,
-        type: newMessage.type || 'remote',
-        text: newMessage.message || newMessage.text || '',
-        timestamp: newMessage.timestamp || newMessage.created_at || Date.now(),
-        isOld: false,
-        sender: newMessage.user_name || newMessage.sender || 'Usuario',
-        senderRole: newMessage.senderRole || 'cliente',
-        user_id: newMessage.user_id,
-        isLocal: false,
-        
-        // Datos de regalo si existen
-        ...(newMessage.extra_data && {
-          gift_data: newMessage.extra_data,
-          extra_data: newMessage.extra_data
-        })
+          // Crear nueva cámara
+          console.log('🎬 [EFFECT] Creando stream con deviceId:', selectedCameraDevice);
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+              deviceId: { exact: selectedCameraDevice },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          });
+
+          const videoTrack = stream.getVideoTracks()[0];
+          if (videoTrack) {
+            console.log('📤 [EFFECT] Publicando nueva cámara...');
+            await localParticipant.publishTrack(videoTrack, {
+              name: 'camera',
+              source: 'camera'
+            });
+            
+            console.log('✅ [EFFECT] Cámara cambiada exitosamente');
+            addNotification('success', 'Cámara Cambiada', 'Dispositivo actualizado');
+            
+            // Re-aplicar espejo
+            setTimeout(() => {
+              console.log('🪞 [EFFECT] Aplicando espejo...');
+              applyMirrorToAllVideos(mirrorMode);
+            }, 1000);
+          }
+        } catch (error) {
+          console.error('❌ [EFFECT] Error cambiando cámara:', error);
+          addNotification('error', 'Error', `Error: ${error.message}`);
+        }
       };
 
-      console.log('✅ [VIDEOCHAT] Agregando mensaje a legacy:', formattedMessage.id);
+      // Pequeño delay para evitar llamadas muy rápidas
+      const timer = setTimeout(changeCameraDevice, 200);
+      return () => clearTimeout(timer);
 
-      setMessages(prev => {
-        // Verificar duplicados
-        const exists = prev.some(m => 
-          m.id === formattedMessage.id ||
-          (m.text === formattedMessage.text && 
-          Math.abs(m.timestamp - formattedMessage.timestamp) < 2000)
-        );
+    }, [selectedCameraDevice, room, cameraEnabled, mirrorMode]); // ← DEPENDENCIAS
+
+    // 4️⃣ AGREGAR useEffect PARA CAMBIO REAL DE MICRÓFONO
+    useEffect(() => {
+      if (!selectedMicrophoneDevice || !room?.localParticipant || !micEnabled) {
+        console.log('🎤 [EFFECT] Condiciones no cumplidas para micrófono');
+        return;
+      }
+
+      const changeMicrophoneDevice = async () => {
+        try {
+          console.log('🎤 [EFFECT] Cambiando micrófono a:', selectedMicrophoneDevice);
+          
+          const localParticipant = room.localParticipant;
+          
+          // Detener micrófono actual
+          const currentAudioTrack = localParticipant.getTrackPublication('microphone')?.track;
+          if (currentAudioTrack) {
+            console.log('🛑 [EFFECT] Deteniendo micrófono actual...');
+            currentAudioTrack.stop();
+            await localParticipant.unpublishTrack(currentAudioTrack);
+          }
+
+          // Crear nuevo micrófono
+          console.log('🎙️ [EFFECT] Creando stream con deviceId:', selectedMicrophoneDevice);
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { 
+              deviceId: { exact: selectedMicrophoneDevice },
+              echoCancellation: true,
+              noiseSuppression: true
+            }
+          });
+
+          const audioTrack = stream.getAudioTracks()[0];
+          if (audioTrack) {
+            console.log('📤 [EFFECT] Publicando nuevo micrófono...');
+            await localParticipant.publishTrack(audioTrack, {
+              name: 'microphone',
+              source: 'microphone'
+            });
+            
+            console.log('✅ [EFFECT] Micrófono cambiado exitosamente');
+            addNotification('success', 'Micrófono Cambiado', 'Dispositivo actualizado');
+          }
+        } catch (error) {
+          console.error('❌ [EFFECT] Error cambiando micrófono:', error);
+          addNotification('error', 'Error', `Error: ${error.message}`);
+        }
+      };
+
+      // Pequeño delay para evitar llamadas muy rápidas
+      const timer = setTimeout(changeMicrophoneDevice, 200);
+      return () => clearTimeout(timer);
+
+    }, [selectedMicrophoneDevice, room, micEnabled]); // ← DEPENDENCIAS
+
+    // 4️⃣ EFECTO PARA CARGAR DISPOSITIVOS INICIALMENTE (agregar después de otros useEffect)
+    useEffect(() => {
+      // Cargar dispositivos cuando el componente se monta
+      loadDevices();
+      
+      // Listener para detectar cambios en dispositivos
+      const handleDeviceChange = () => {
+        console.log('🔄 Dispositivos cambiaron, recargando...');
+        setTimeout(() => loadDevices(), 1000);
+      };
+      
+      navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+      
+      return () => {
+        navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+      };
+    }, []);
+
+    // 5️⃣ EFECTO PARA CONFIGURAR ROOM INSTANCE (agregar después del efecto anterior)
+    useEffect(() => {
+      // Listener global para establecer la instancia de room
+      const handleRoomReady = (event) => {
+        if (event.detail && event.detail.room) {
+          console.log('🏠 Room instancia recibida desde LiveKit');
+          setRoom(event.detail.room);
+        }
+      };
+      
+      // Escuchar evento personalizado
+      window.addEventListener('livekitRoomReady', handleRoomReady);
+      
+      // También verificar si ya existe globalmente
+      if (window.livekitRoom && !room) {
+        console.log('🏠 Room encontrada globalmente');
+        setRoom(window.livekitRoom);
+      }
+      
+      return () => {
+        window.removeEventListener('livekitRoomReady', handleRoomReady);
+      };
+    }, [room]);
+
+    // 6️⃣ EFECTO PARA APLICAR CONFIGURACIONES CUANDO CAMBIA LA ROOM (agregar después del efecto anterior)
+    useEffect(() => {
+      if (room && connected) {
+        console.log('🔧 Room conectada, configurando dispositivos...');
         
-        if (exists) {
-          console.log('⚠️ [VIDEOCHAT] Mensaje duplicado en legacy');
-          return prev;
+        // Pequeño delay para asegurar que todo esté listo
+        setTimeout(() => {
+          // Re-aplicar dispositivos seleccionados
+          if (selectedCameraDevice && cameraEnabled) {
+            handleCameraChange(selectedCameraDevice);
+          }
+          
+          if (selectedMicrophoneDevice && micEnabled) {
+            handleMicrophoneChange(selectedMicrophoneDevice);
+          }
+          
+          // Re-aplicar modo espejo
+          applyMirrorToAllVideos(mirrorMode);
+        }, 2000);
+      }
+    }, [room, connected]);
+
+
+    useEffect(() => {
+      // Cargar mensajes cuando se conecte a la sala
+      if (roomName && connected) {
+        const loadMessages = async () => {
+          try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/api/chat/messages/${roomName}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.messages) {
+                const formattedMessages = data.messages.map(msg => {
+                  console.log('📨 [LOAD] Mensaje desde BD:', {
+                    id: msg.id,
+                    type: msg.type,           // 🔥 USAR TIPO DE LA BD
+                    message: msg.message,
+                    gift_data: msg.gift_data,
+                    extra_data: msg.extra_data
+                  });
+                  
+                  return {
+                    id: msg.id,
+                    type: msg.type || (msg.user_id === userData?.id ? 'local' : 'remote'), // 🔥 USAR msg.type DE LA BD
+                    text: msg.message,
+                    timestamp: new Date(msg.created_at).getTime(),
+                    sender: msg.user_name,
+                    senderRole: msg.user_role,
+                    isOld: true,
+                    // 🔥 PRESERVAR DATOS DE REGALO DE LA BD
+                    ...(msg.gift_data && { gift_data: msg.gift_data }),
+                    ...(msg.extra_data && { extra_data: msg.extra_data })
+                  };
+                }).sort((a, b) => b.timestamp - a.timestamp);
+                
+                setMessages(formattedMessages);
+                console.log(`📱 Cargados ${formattedMessages.length} mensajes desde BD:`, {
+                  regalos: formattedMessages.filter(m => m.type.includes('gift')).length,
+                  textos: formattedMessages.filter(m => m.type === 'text' || m.type === 'local' || m.type === 'remote').length
+                });
+              }
+            }
+          } catch (error) {
+            console.log('No se pudieron cargar mensajes:', error);
+          }
+        };
+        
+        loadMessages();
+      }
+    }, [roomName, connected, userData?.id]);
+
+    const handleMessageReceived = (newMessage) => {
+      console.log('📥 [VIDEOCHAT] Mensaje recibido:', newMessage);
+
+      // 🔥 MEJORAR MENSAJES DE REGALO QUE VIENEN INCOMPLETOS
+      if (newMessage.text && (newMessage.text.includes('Enviaste:') || newMessage.text.includes('Recibiste:'))) {
+        console.log('🎁 [VIDEOCHAT] Completando datos de regalo faltantes');
+        
+        const giftName = newMessage.text.split(':')[1]?.trim() || 'Regalo';
+        const isReceived = newMessage.text.includes('Recibiste:');
+        
+        // 🔥 COMPLETAR DATOS FALTANTES
+        newMessage.type = isReceived ? 'gift_received' : 'gift_sent';
+        
+        if (!newMessage.extra_data || Object.keys(newMessage.extra_data).length === 0) {
+          newMessage.extra_data = {
+            gift_name: giftName,
+            gift_image: '', // Se puede buscar después
+            gift_price: 0,
+            action_text: isReceived ? 'Recibiste' : 'Enviaste',
+            sender_name: newMessage.sender
+          };
         }
         
-        return [formattedMessage, ...prev];
-      });
+        if (!newMessage.gift_data || Object.keys(newMessage.gift_data).length === 0) {
+          newMessage.gift_data = newMessage.extra_data;
+        }
+        
+        console.log('🎁 [VIDEOCHAT] Datos de regalo completados:', newMessage);
+      }
+
+      const formattedMessage = {
+        ...newMessage,
+        id: newMessage.id || Date.now() + Math.random(),
+        type: newMessage.type || 'remote',
+        senderRole: newMessage.senderRole || 'cliente'
+      };
+      
+      setMessages(prev => [formattedMessage, ...prev]);
     };
 
 
-    const handleAcceptGift = async (requestId, securityHash) => {
-      if (processingGift === requestId) {
-        console.warn('⚠️ [CLIENTE] Regalo ya siendo procesado');
-        return;
-      }
-
+    const handleRequestGift = async (giftId, recipientId, roomName, message) => {
       try {
-        setProcessingGift(requestId);
-        console.log('✅ [CLIENTE] Aceptando regalo:', { requestId, hasHash: !!securityHash });
+        // 🔥 DEBUG: Ver todos los regalos disponibles
+        console.log('🎁 [DEBUG] Todos los regalos disponibles:', gifts);
+        console.log('🎁 [DEBUG] Buscando regalo con ID:', giftId);
         
-        const result = await acceptGift(requestId, securityHash);
+        // 🔥 DEBUG: Ver estructura de cada regalo
+        gifts.forEach((gift, index) => {
+          console.log(`🎁 [DEBUG] Regalo ${index}:`, {
+            id: gift.id,
+            name: gift.name,
+            image: gift.image,
+            price: gift.price,
+            todasLasPropiedades: Object.keys(gift),
+            objetoCompleto: gift
+          });
+        });
+        
+        const selectedGift = gifts.find(g => g.id === giftId);
+        
+        if (!selectedGift) {
+          console.error('❌ [MODELO] Regalo no encontrado:', giftId);
+          console.log('❌ [DEBUG] IDs disponibles:', gifts.map(g => g.id));
+          addNotification('error', 'Error', 'Regalo no encontrado');
+          return { success: false, error: 'Regalo no encontrado' };
+        }
+        
+        console.log('🎁 [DEBUG] Regalo seleccionado COMPLETO:', {
+          id: selectedGift.id,
+          name: selectedGift.name,
+          image: selectedGift.image,
+          price: selectedGift.price,
+          imageProperty: selectedGift.image,
+          imageUrl: selectedGift.image_url,
+          imagePath: selectedGift.image_path,
+          pic: selectedGift.pic,
+          icon: selectedGift.icon,
+          todasLasPropiedades: Object.keys(selectedGift),
+          objetoCompleto: selectedGift
+        });
+        
+        // Resto de la función...
+        const result = await requestGift(giftId, message);
         
         if (result.success) {
-          console.log('✅ [CLIENTE] Regalo aceptado exitosamente');
+          setShowGiftsModal(false);
+          console.log('✅ [MODELO] Solicitud de regalo enviada exitosamente');
           
-          // Cerrar notificación
-          setShowGiftNotification(false);
+          // 🔥 PROBAR DIFERENTES PROPIEDADES DE IMAGEN
+          const imageProperty = selectedGift.image || 
+                              selectedGift.image_url || 
+                              selectedGift.image_path || 
+                              selectedGift.pic || 
+                              selectedGift.icon || 
+                              null;
           
-          // 🔥 MENSAJE LOCAL INMEDIATO CON TIPO CORRECTO
-          const giftMessage = {
+          console.log('🔥 [DEBUG] Imagen final seleccionada:', imageProperty);
+          
+          const requestMessage = {
             id: Date.now(),
-            type: 'gift_sent', // 🔥 TIPO CORRECTO
-            text: `🎁 Enviaste: ${result.giftInfo?.name}`,
+            type: 'gift_request',
+            text: `🎁 Pediste: ${selectedGift.name}`,
             timestamp: Date.now(),
             isOld: false,
             sender: userData.name,
             senderRole: userData.role,
-            user_id: userData.id,
-            // 🔥 DATOS COMPLETOS DEL REGALO
             gift_data: {
-              gift_name: result.giftInfo?.name,
-              gift_image: result.giftInfo?.image,
-              gift_price: result.giftInfo?.price || result.giftInfo?.amount,
-              action_text: "Enviaste",
-              recipient_name: otherUser?.name || "Modelo",
-              client_name: userData.name,
-              modelo_name: otherUser?.name
+              gift_name: selectedGift.name,
+              gift_image: imageProperty,  // 🔥 USAR LA PROPIEDAD CORRECTA
+              gift_price: selectedGift.price,
+              action_text: "Pediste",
+              recipient_name: otherUser?.name || "Cliente",
+              original_message: message || ""
             },
             extra_data: {
-              gift_name: result.giftInfo?.name,
-              gift_image: result.giftInfo?.image,
-              gift_price: result.giftInfo?.price || result.giftInfo?.amount,
-              action_text: "Enviaste",
-              recipient_name: otherUser?.name || "Modelo",
-              client_name: userData.name,
-              modelo_name: otherUser?.name
+              gift_name: selectedGift.name,
+              gift_image: imageProperty,  // 🔥 USAR LA PROPIEDAD CORRECTA
+              gift_price: selectedGift.price,
+              action_text: "Pediste",
+              recipient_name: otherUser?.name || "Cliente",
+              original_message: message || ""
             }
           };
           
-          console.log('🎁 [CLIENTE] Agregando mensaje gift_sent local:', giftMessage);
-          setMessages(prev => [giftMessage, ...prev]);
+          console.log('🎁 [DEBUG] Mensaje final con imagen:', {
+            giftName: requestMessage.gift_data.gift_name,
+            giftImage: requestMessage.gift_data.gift_image,
+            selectedGiftImage: selectedGift.image,
+            imageProperty: imageProperty
+          });
           
-          // Actualizar balance
-          updateBalance();
+          setMessages(prev => [requestMessage, ...prev]);
+          
+          addNotification('success', '🎁 Solicitud Enviada', 
+            `Pediste ${selectedGift.name} a ${otherUser?.name || 'Cliente'}`);
           
           return { success: true };
         } else {
-          console.error('❌ [CLIENTE] Error aceptando regalo:', result.error);
-          addNotification('error', 'Error', result.error);
+          console.error('❌ [MODELO] Error pidiendo regalo:', result.error);
+          addNotification('error', 'Error', result.error || 'Error pidiendo regalo');
           return { success: false, error: result.error };
         }
+        
       } catch (error) {
-        console.error('❌ [CLIENTE] Error de conexión:', error);
+        console.error('❌ [MODELO] Error crítico pidiendo regalo:', error);
         addNotification('error', 'Error', 'Error de conexión');
-        return { success: false, error: 'Error de conexión' };
-      } finally {
-        setProcessingGift(null);
+        return { success: false, error: error.message };
       }
-    };
-
-    const handleGiftReceived = (gift) => {
-      const giftMessage = {
-        id: Date.now(),
-        type: 'system',
-        text: `¡Recibiste ${gift.nombre}! +${gift.valor} monedas 💰`,
-        timestamp: Date.now(),
-        isOld: false
-      };
-      setMessages(prev => [giftMessage, ...prev]);
     };
 
     const handleUserLoadedFromChat = (user) => {
@@ -1000,118 +1209,220 @@ useEffect(() => {
       updateOtherUser(user);
     };
 
-    const enviarRegalo = (regalo) => {
-      if (chatFunctions?.sendGift) {
-        const success = chatFunctions.sendGift(regalo);
-        if (success) {
-          const regaloMessage = {
-            id: Date.now(),
-            type: 'local',
-            text: `Enviaste ${regalo.nombre}`,
-            timestamp: Date.now(),
-            isOld: false
-          };
-          setMessages(prev => [...prev, regaloMessage]);
-          setMostrarRegalos(false);
+
+
+    const siguientePersona = async () => {
+      console.log('➡️ [DEBUG] siguientePersona INICIADO');
+      console.log('📊 [DEBUG] Estado actual:', {
+        tiempo,
+        tiempoReal,
+        roomName,
+        otherUser: otherUser ? {
+          id: otherUser.id,
+          name: otherUser.name
+        } : null,
+        userData: userData ? {
+          id: userData.id,
+          name: userData.name,
+          role: userData.role
+        } : null,
+        timestamp: new Date().toISOString()
+      });
+      
+      const tiempoFinalSesion = tiempo;
+      console.log('⏱️ [DEBUG] Tiempo a procesar:', tiempoFinalSesion);
+      
+      if (roomName && tiempoFinalSesion > 0 && otherUser?.id && userData?.id) {
+        console.log('✅ [DEBUG] Todas las condiciones cumplidas - procesando ganancias...');
+        try {
+          await processSessionEarnings(tiempoFinalSesion, 'model_next');
+          console.log('✅ [DEBUG] Ganancias procesadas exitosamente en siguientePersona');
+          
+          addNotification('success', 'Sesión guardada', 
+            `Tiempo registrado: ${Math.floor(tiempoFinalSesion / 60)} min`);
+            
+        } catch (error) {
+          console.error('❌ [DEBUG] Error procesando ganancias en siguientePersona:', error);
+          addNotification('error', 'Error', 'No se pudo guardar la sesión');
+        }
+      } else {
+        console.error('❌ [DEBUG] Condiciones NO cumplidas para procesar ganancias:', {
+          hasRoomName: !!roomName,
+          validTiempo: tiempoFinalSesion > 0,
+          hasOtherUserId: !!otherUser?.id,
+          hasUserDataId: !!userData?.id
+        });
+      }
+      
+      // Resto del código...
+      setTiempo(0);
+      tiempoInicioRef.current = null;
+      setTiempoReal(0);
+      
+      setMessages([]);
+      setMensaje("");
+      clearUserCache();
+      startSearching();
+      
+      if (otherUser?.id && roomName) {
+        fetch(`${API_BASE_URL}/api/livekit/notify-partner-next`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ roomName })
+        }).catch(() => {});
+
+         localStorage.removeItem('sessionTime');
+        localStorage.removeItem('sessionStartTime');
+      }
+      localStorage.removeItem('sessionTime');
+      localStorage.removeItem('sessionStartTime');
+      
+      const urlParams = new URLSearchParams({
+        role: 'modelo',
+        action: 'siguiente',
+        from: 'videochat_siguiente',
+        excludeUser: otherUser?.id || '',
+        excludeUserName: otherUser?.name || '',
+        selectedCamera: selectedCamera || '',
+        selectedMic: selectedMic || ''
+      });
+      
+      navigate(`/usersearch?${urlParams}`, { replace: true });
+    };
+    window.siguientePersona = siguientePersona;
+
+    // 3️⃣ VERSIÓN DEBUG DE finalizarChat
+    const finalizarChat = useCallback(async () => {
+      console.log('🛑 [DEBUG] finalizarChat INICIADO');
+      console.log('📊 [DEBUG] Estado actual:', {
+        tiempo,
+        tiempoReal,
+        roomName,
+        otherUser: otherUser ? {
+          id: otherUser.id,
+          name: otherUser.name
+        } : null,
+        userData: userData ? {
+          id: userData.id,
+          name: userData.name,
+          role: userData.role
+        } : null,
+        timestamp: new Date().toISOString()
+      });
+      
+      setModeloStoppedWorking(true);
+      setClientDisconnected(false);
+      setClientWentNext(false);
+      
+      const tiempoFinalSesion = tiempo;
+      console.log('⏱️ [DEBUG] Tiempo a procesar en finalizar:', tiempoFinalSesion);
+      
+      if (roomName && tiempoFinalSesion > 0 && otherUser?.id && userData?.id) {
+        console.log('✅ [DEBUG] Todas las condiciones cumplidas en finalizar - procesando ganancias...');
+        try {
+          await processSessionEarnings(tiempoFinalSesion, 'model_ended');
+          console.log('✅ [DEBUG] Ganancias procesadas exitosamente en finalizarChat');
+          addNotification('success', 'Sesión finalizada', 
+            `Tiempo registrado: ${Math.floor(tiempoFinalSesion / 60)} min`);
+        } catch (error) {
+          console.error('❌ [DEBUG] Error procesando ganancias en finalizarChat:', error);
+          addNotification('error', 'Error', 'No se pudo guardar el tiempo');
+        }
+      } else {
+        console.error('❌ [DEBUG] Condiciones NO cumplidas para procesar ganancias en finalizar:', {
+          hasRoomName: !!roomName,
+          validTiempo: tiempoFinalSesion > 0,
+          hasOtherUserId: !!otherUser?.id,
+          hasUserDataId: !!userData?.id
+        });
+      }
+      
+      // Resto del código...
+      if (roomName && tiempoFinalSesion > 0) {
+        try {
+          await enviarTiempoReal(roomName, tiempoFinalSesion);
+          console.log('✅ [DEBUG] Tiempo enviado a enviarTiempoReal');
+        } catch (error) {
+          console.warn('⚠️ [DEBUG] Error enviando tiempo real:', error);
         }
       }
-    };
+      
+      setTiempo(0);
+      tiempoInicioRef.current = null;
+      setTiempoReal(0);
+      clearUserCache();
 
-  const siguientePersona = async () => {
-    const tiempoFinalSesion = detenerTiempoReal();
-    
-    if (roomName && tiempoFinalSesion > 0) {
-      try {
-        await enviarTiempoReal(roomName, tiempoFinalSesion);
-        addNotification('success', 'Sesión guardada', 'Tiempo de sesión registrado correctamente');
-      } catch (error) {
-        addNotification('error', 'Error', 'No se pudo guardar el tiempo de sesión');
+      if (otherUser?.id && roomName) {
+        fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ roomName })
+        }).catch(() => {});
+        
       }
-    }
-    
-    tiempoInicioRef.current = null;
-    setTiempoReal(0);
-    
-    // 🔥 LIMPIAR TODO EL ESTADO DE MENSAJES
-    setMessages([]);
-    setMensaje("");
-    clearUserCache();
-    startSearching();
-    
-    if (otherUser?.id && roomName) {
-      fetch(`${API_BASE_URL}/api/livekit/notify-partner-next`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ roomName })
-      }).catch(() => {});
-    }
-    
-    const urlParams = new URLSearchParams({
-      role: 'modelo',
-      action: 'siguiente',
-      from: 'videochat_siguiente',
-      excludeUser: otherUser?.id || '',
-      excludeUserName: otherUser?.name || '',
-      selectedCamera: selectedCamera || '',
-      selectedMic: selectedMic || ''
-    });
-    
-    navigate(`/usersearch?${urlParams}`, { replace: true });
+
+      localStorage.removeItem('roomName');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('currentRoom');
+      localStorage.removeItem('inCall');
+      localStorage.removeItem('sessionTime');
+      localStorage.removeItem('sessionStartTime');
+      console.log('🏠 [DEBUG] Navegando a home inmediatamente');
+      navigate('/homellamadas', { replace: true });
+    }, [roomName, navigate, addNotification, otherUser, userData, tiempo]);
+
+// 4️⃣ FUNCIÓN DE TEST MANUAL MEJORADA
+const testProcessEarningsManually = async () => {
+  console.log('🧪 [TEST] Probando processSessionEarnings manualmente...');
+  
+  const testData = {
+    tiempo: tiempo || 60,      // Al menos 1 minuto
+    roomName: roomName || 'test_room',
+    otherUser: otherUser || { id: 999, name: 'Test User' },
+    userData: userData || { id: 1, name: 'Test Modelo', role: 'modelo' }
   };
+  
+  console.log('🧪 [TEST] Datos de prueba:', testData);
+  
+  try {
+    await processSessionEarnings(testData.tiempo, 'manual_test');
+    console.log('✅ [TEST] Test completado - ver logs arriba');
+  } catch (error) {
+    console.error('❌ [TEST] Error en test:', error);
+  }
+};
+
+// 5️⃣ AGREGAR FUNCIÓN AL WINDOW PARA DEBUG
+useEffect(() => {
+  // Hacer disponible para debugging desde consola
+  window.debugEarnings = {
+    testProcessEarnings: testProcessEarningsManually,
+    currentState: {
+      tiempo,
+      tiempoReal, 
+      roomName,
+      otherUser,
+      userData
+    },
+    processSessionEarnings: (duration) => processSessionEarnings(duration, 'manual_debug')
+  };
+  
+  console.log('🛠️ [DEBUG] Debug tools disponibles en window.debugEarnings');
+  
+  return () => {
+    delete window.debugEarnings;
+  };
+}, [tiempo, tiempoReal, roomName, otherUser, userData]);
     const onCameraSwitch = useCallback(() => {
       cambiarCamara();
     }, []);
 
-      
-  const finalizarChat = useCallback(async () => {
-    console.log('🛑 [MODELO] FINALIZANDO CHAT - Deteniendo todo inmediatamente');
-    
-    // 🔥 DETENER TODO INMEDIATAMENTE
-    setModeloStoppedWorking(true);
-    setClientDisconnected(false);  // Evitar pantallas de desconexión
-    setClientWentNext(false);      // Evitar pantallas de desconexión
-    
-    const tiempoFinalSesion = detenerTiempoReal();
-    
-    if (roomName && tiempoFinalSesion > 0) {
-      try {
-        await enviarTiempoReal(roomName, tiempoFinalSesion);
-        addNotification('success', 'Sesión finalizada', 'Tiempo registrado correctamente');
-      } catch (error) {
-        addNotification('error', 'Error', 'No se pudo guardar el tiempo');
-      }
-    }
-    
-    tiempoInicioRef.current = null;
-    setTiempoReal(0);
-    clearUserCache();
-
-    // 🔥 NOTIFICAR AL CLIENTE (opcional)
-    if (otherUser?.id && roomName) {
-      fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ roomName })
-      }).catch(() => {});
-    }
-
-    // 🔥 LIMPIAR STORAGE
-    localStorage.removeItem('roomName');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('currentRoom');
-    localStorage.removeItem('inCall');
-    
-    // 🔥 NAVEGAR INMEDIATAMENTE
-    console.log('🏠 [MODELO] Navegando a home inmediatamente');
-    navigate('/homellamadas', { replace: true });
-    }, [roomName, navigate, addNotification, otherUser]);
-    // 🔥 FUNCIÓN DE DESCONEXIÓN MEJORADA
     const handleClientDisconnected = (reason = 'stop', customMessage = '') => {
       setLoading(false);
       setConnected(false);
@@ -1271,67 +1582,7 @@ useEffect(() => {
     };
 
 
-    const handleRequestGift = async (giftId, recipientId, roomName, message) => {
-      try {
-        console.log('🎁 [VIDEOCHAT] Enviando regalo híbrido:', { 
-          giftId, 
-          message,
-          recipientId,
-          roomName,
-          availableGifts: gifts.length
-        });
-        
-        // 🔥 BUSCAR REGALO EN LA LISTA
-        const selectedGift = gifts.find(g => g.id === giftId);
-        if (!selectedGift) {
-          console.error('❌ [VIDEOCHAT] Regalo no encontrado:', giftId);
-          return { success: false, error: 'Regalo no encontrado' };
-        }
-        
-        console.log('🎁 [VIDEOCHAT] Regalo encontrado:', selectedGift);
-        
-        // 🔥 CREAR DATOS COMPLETOS DEL REGALO
-        const giftData = {
-          id: giftId,
-          name: selectedGift.name || 'Regalo',
-          image: selectedGift.image || '',
-          price: selectedGift.price || 0,
-          recipientId,
-          recipientName: otherUser?.name || 'Usuario'
-        };
-        
-        console.log('🎁 [VIDEOCHAT] Datos del regalo preparados:', giftData);
-        
-        // 🔥 ENVIAR POR SISTEMA HÍBRIDO
-        const result = await sendHybridGift(giftData, message);
-        
-        if (result.success) {
-          setShowGiftsModal(false);
-          console.log('✅ [VIDEOCHAT] Regalo enviado por sistema híbrido exitosamente');
-          
-          // 🔥 MANTENER LÓGICA EXISTENTE DE BACKEND SI ES NECESARIA
-          if (typeof requestGift === 'function') {
-            console.log('🔄 [VIDEOCHAT] Ejecutando requestGift del backend...');
-            try {
-              await requestGift(giftId, message);
-              console.log('✅ [VIDEOCHAT] requestGift del backend completado');
-            } catch (backendError) {
-              console.warn('⚠️ [VIDEOCHAT] Error en requestGift del backend (ignorado):', backendError);
-            }
-          }
-          
-          return { success: true };
-        } else {
-          console.error('❌ [VIDEOCHAT] Error enviando regalo híbrido:', result.error);
-          return { success: false, error: result.error };
-        }
-        
-      } catch (error) {
-        console.error('❌ [VIDEOCHAT] Error crítico enviando regalo:', error);
-        return { success: false, error: error.message };
-      }
-    };
-
+   
 
     // 🔥 FUNCIÓN DE RATE LIMITING
     const handleRateLimit = useCallback((error, context = 'general') => {
@@ -1473,11 +1724,13 @@ useEffect(() => {
       fetchUser();
     }, [addNotification, handleRateLimit]);
 
+
     // Efecto para obtener token
     const memoizedRoomName = useMemo(() => {
       const room = getParam("roomName");
       return room && room !== 'null' && room !== 'undefined' ? room : null;
     }, [location.state, searchParams]);
+
 
     const memoizedUserName = useMemo(() => {
       const user = getParam("userName");
@@ -1701,132 +1954,157 @@ useEffect(() => {
       };
     }, [roomName, userName, otherUser]); // 🔥 AGREGAR otherUser A DEPENDENCIAS
 
-
-    // Efecto para notificaciones
     useEffect(() => {
-      if (!roomName || !userName || !connected || modeloStoppedWorking) {
+  if (!roomName || !userName || !connected || modeloStoppedWorking) {
+    return;
+  }
+
+  console.log('🔔 [MODELO] Iniciando polling de notificaciones con tiempo legacy');
+
+  let isPolling = true;
+  let pollInterval = 3000;
+  let consecutiveEmpty = 0;
+
+  const checkNotifications = async () => {
+    
+    if (!isPolling || modeloStoppedWorking) {
+        console.log('🛑 [MODELO] Polling detenido por flag o estado');
+        return;
+      }
+    try {
+      const authToken = localStorage.getItem('token');
+      if (!authToken) return;
+
+      const response = await fetch(`${API_BASE_URL}/api/status/updates`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        console.log(`⚠️ Response ${response.status} en polling - continuando`);
         return;
       }
 
-      console.log('🔔 [MODELO] Iniciando polling de notificaciones');
-
-      let isPolling = true;
-      let pollInterval = 3000;
-      let consecutiveEmpty = 0;
-
-      const checkNotifications = async () => {
+      if (response.ok) {
+        const data = await response.json();
         
-        if (!isPolling || modeloStoppedWorking) {
-            console.log('🛑 [MODELO] Polling detenido por flag o estado');
-            return;
-          }
-        try {
-          const authToken = localStorage.getItem('token');
-          if (!authToken) return;
-
-          const response = await fetch(`${API_BASE_URL}/api/status/updates`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${authToken}`,
-              'Content-Type': 'application/json',
-            },
-          });
+        if (data.success && data.has_notifications) {
+          consecutiveEmpty = 0;
+          const notification = data.notification;
+          console.log('📨 [MODELO] Notificación recibida:', notification.type);
           
-          if (!response.ok) {
-            console.log(`⚠️ Response ${response.status} en polling - continuando`);
-            return;
-          }
-
-          if (response.ok) {
-            const data = await response.json();
+          isPolling = false;
+          
+          if (notification.type === 'partner_went_next') {
+            console.log('🔄 [MODELO] Cliente fue a siguiente - procesando ganancias con tiempo legacy');
+              localStorage.removeItem('sessionTime');
+              localStorage.removeItem('sessionStartTime');
             
-            if (data.success && data.has_notifications) {
-              consecutiveEmpty = 0;
-              const notification = data.notification;
-              console.log('📨 [MODELO] Notificación recibida:', notification.type);
-              
-              isPolling = false;
-              
-              if (notification.type === 'partner_went_next') {
-                console.log('🔄 [MODELO] Cliente fue a siguiente - mostrando mensaje');
-                
-                handleClientDisconnected('next', 'El cliente fue a la siguiente modelo');
-                
-                clearUserCache();
-                startSearching();
-                
-                const redirectParams = notification.data.redirect_params || {};
-                const urlParams = new URLSearchParams({
-                  role: 'modelo',
-                  from: 'partner_went_next',
-                  action: 'siguiente',
-                  excludeUser: redirectParams.excludeUser || '',
-                  excludeUserName: redirectParams.excludeUserName || '',
-                  selectedCamera: selectedCamera || '',
-                  selectedMic: selectedMic || ''
-                });
-                
-                setTimeout(() => {
-                  navigate(`/usersearch?${urlParams}`, { replace: true });
-                }, 3000);
-              }
-              
-              if (notification.type === 'partner_left_session') {
-                console.log('🛑 [MODELO] Cliente terminó sesión - mostrando mensaje');
-                
-                handleClientDisconnected('stop', 'El cliente finalizó la videollamada');
-                
-                setTimeout(() => {
-                  setModeloStoppedWorking(true);
-                  setReceivedNotification(true);
-                  clearUserCache();
-                  
-                  localStorage.removeItem('roomName');
-                  localStorage.removeItem('userName');
-                  localStorage.removeItem('currentRoom');
-                  localStorage.removeItem('inCall');
-                  localStorage.removeItem('videochatActive');
-                  
-                  startSearching();
-                  
-                  const urlParams = new URLSearchParams({
-                    role: 'modelo',
-                    from: 'client_stopped_session',
-                    action: 'find_new_client',
-                    reason: 'previous_client_left',
-                    selectedCamera: selectedCamera || '',
-                    selectedMic: selectedMic || ''
-                  });
-                  
-                  setTimeout(() => {
-                    navigate(`/usersearch?${urlParams}`, { replace: true });
-                  }, 3000);
-                }, 100);
-              }
-            } else {
-              consecutiveEmpty++;
-              if (consecutiveEmpty >= 3) {
-                pollInterval = Math.min(pollInterval + 1000, 8000);
+            // 🔥 PROCESAR GANANCIAS CON TIEMPO LEGACY ANTES DE REDIRIGIR
+            const tiempoActual = tiempo; // ← USAR TIEMPO LEGACY
+            if (tiempoActual > 0 && otherUser?.id && userData?.id) {
+              try {
+                await processSessionEarnings(tiempoActual, 'partner_went_next');
+                console.log('✅ [MODELO] Ganancias procesadas en partner_went_next:', tiempoActual);
+              } catch (error) {
+                console.error('❌ [MODELO] Error procesando ganancias en partner_went_next:', error);
               }
             }
+            
+            handleClientDisconnected('next', 'El cliente fue a la siguiente modelo');
+            
+            clearUserCache();
+            startSearching();
+            
+            const redirectParams = notification.data.redirect_params || {};
+            const urlParams = new URLSearchParams({
+              role: 'modelo',
+              from: 'partner_went_next',
+              action: 'siguiente',
+              excludeUser: redirectParams.excludeUser || '',
+              excludeUserName: redirectParams.excludeUserName || '',
+              selectedCamera: selectedCamera || '',
+              selectedMic: selectedMic || ''
+            });
+            
+            setTimeout(() => {
+              navigate(`/usersearch?${urlParams}`, { replace: true });
+            }, 3000);
           }
-        } catch (error) {
-          console.log('⚠️ [MODELO] Error en polling:', error);
+          
+          if (notification.type === 'partner_left_session') {
+            console.log('🛑 [MODELO] Cliente terminó sesión - procesando ganancias con tiempo legacy');
+            localStorage.removeItem('sessionTime');
+            localStorage.removeItem('sessionStartTime');    
+            // 🔥 PROCESAR GANANCIAS CON TIEMPO LEGACY ANTES DE REDIRIGIR  
+            const tiempoActual = tiempo; // ← USAR TIEMPO LEGACY
+            if (tiempoActual > 0 && otherUser?.id && userData?.id) {
+              try {
+                await processSessionEarnings(tiempoActual, 'partner_left_session');
+                console.log('✅ [MODELO] Ganancias procesadas en partner_left_session:', tiempoActual);
+              } catch (error) {
+                console.error('❌ [MODELO] Error procesando ganancias en partner_left_session:', error);
+              }
+            }
+            
+            handleClientDisconnected('stop', 'El cliente finalizó la videollamada');
+            
+            setTimeout(() => {
+              setModeloStoppedWorking(true);
+              setReceivedNotification(true);
+              clearUserCache();
+              
+              localStorage.removeItem('roomName');
+              localStorage.removeItem('userName');
+              localStorage.removeItem('currentRoom');
+              localStorage.removeItem('inCall');
+              localStorage.removeItem('videochatActive');
+              
+              startSearching();
+              
+              const urlParams = new URLSearchParams({
+                role: 'modelo',
+                from: 'client_stopped_session',
+                action: 'find_new_client',
+                reason: 'previous_client_left',
+                selectedCamera: selectedCamera || '',
+                selectedMic: selectedMic || ''
+              });
+              
+              setTimeout(() => {
+                navigate(`/usersearch?${urlParams}`, { replace: true });
+              }, 3000);
+            }, 100);
+          }
+        } else {
+          consecutiveEmpty++;
+          if (consecutiveEmpty >= 3) {
+            pollInterval = Math.min(pollInterval + 1000, 8000);
+          }
         }
-        
-        if (isPolling && !modeloStoppedWorking) {
-          setTimeout(checkNotifications, pollInterval);
-        }
-      };
+      }
+    } catch (error) {
+      console.log('⚠️ [MODELO] Error en polling:', error);
+    }
+    
+    if (isPolling && !modeloStoppedWorking) {
+      setTimeout(checkNotifications, pollInterval);
+    }
+  };
 
-      checkNotifications();
+  checkNotifications();
 
-      return () => {
-        console.log('🛑 [MODELO] Deteniendo polling de notificaciones');
-        isPolling = false;
-      };
-    }, [roomName, userName, connected, modeloStoppedWorking, navigate, selectedCamera, selectedMic]);
+  return () => {
+    console.log('🛑 [MODELO] Deteniendo polling de notificaciones');
+    isPolling = false;
+  };
+    }, [roomName, userName, connected, modeloStoppedWorking, navigate, selectedCamera, selectedMic, tiempo, otherUser, userData]); // ← AGREGAR tiempo, otherUser, userData
 
+
+    
     // Efecto para resetear flags
     useEffect(() => {
       setModeloStoppedWorking(false);
@@ -1859,6 +2137,177 @@ useEffect(() => {
       }
     }, [otherUser?.id]);
 
+// 🔥 REEMPLAZAR EL useEffect DEL AUTO-SIGUIENTE CON ESTA VERSIÓN DEFINITIVA
+    useEffect(() => {
+      // ✅ CONDICIONES MEJORADAS
+      if (!room || !connected || modeloStoppedWorking) {
+        return;
+      }
+
+      console.log('🚀 [AUTO-SIGUIENTE] Iniciando detector estable de sala vacía');
+
+      let autoNextTimer = null;
+      let warningTimer = null;
+      let checkInterval = null;
+      let isActive = true;
+
+      // ✅ FUNCIÓN DE CLEANUP MEJORADA
+      const cleanupTimers = () => {
+        if (autoNextTimer) {
+          clearTimeout(autoNextTimer);
+          autoNextTimer = null;
+        }
+        if (warningTimer) {
+          clearTimeout(warningTimer);
+          warningTimer = null;
+        }
+        if (checkInterval) {
+          clearInterval(checkInterval);
+          checkInterval = null;
+        }
+      };
+
+      // ✅ FUNCIÓN DE EJECUCIÓN CON SAFETY CHECKS
+      const executeAutoNext = async () => {
+        if (!isActive || modeloStoppedWorking) {
+          console.log('🛑 [AUTO-SIGUIENTE] Cancelado - componente inactivo');
+          return;
+        }
+
+        console.log('🚀 [AUTO-SIGUIENTE] Ejecutando cambio automático...');
+        
+        try {
+          // Marcar como inactivo inmediatamente
+          isActive = false;
+          cleanupTimers();
+
+          // Procesar ganancias si hay datos válidos
+          if (tiempo > 0 && otherUser?.id && userData?.id) {
+            console.log('💰 [AUTO-SIGUIENTE] Procesando ganancias...');
+            await processSessionEarnings(tiempo, 'auto_empty_room');
+          }
+
+          // Verificar que siguientePersona existe
+          if (typeof window.siguientePersona === 'function') {
+            console.log('➡️ [AUTO-SIGUIENTE] Llamando siguientePersona()');
+            window.siguientePersona();
+          } else {
+            console.log('🚨 [AUTO-SIGUIENTE] siguientePersona no existe - navegando directo');
+            navigate('/usersearch?role=modelo&action=auto_next&from=empty_room', { replace: true });
+          }
+
+        } catch (error) {
+          console.error('❌ [AUTO-SIGUIENTE] Error ejecutando:', error);
+          // Fallback: navegar directamente
+          navigate('/usersearch?role=modelo&action=auto_error', { replace: true });
+        }
+      };
+
+      // ✅ VERIFICADOR DE SALA VACÍA OPTIMIZADO
+      const checkEmptyRoom = () => {
+        if (!isActive || !room || room.state !== 'connected') {
+          return;
+        }
+
+        const remoteCount = room.remoteParticipants?.size || 0;
+        const hasLocal = !!room.localParticipant;
+        
+        // Solo proceder si estoy conectado pero sin usuarios remotos
+        if (remoteCount === 0 && hasLocal) {
+          
+          if (!autoNextTimer) {
+            console.log('⚠️ [AUTO-SIGUIENTE] Sala vacía detectada - Timer de 30s');
+            
+            // Warning a los 20 segundos
+            warningTimer = setTimeout(() => {
+              if (isActive && !modeloStoppedWorking) {
+                addNotification('warning', 'Usuario Desconectado', 
+                  'Cambiando en 10 segundos...');
+              }
+            }, 20000);
+            
+            // Auto-next a los 30 segundos
+            autoNextTimer = setTimeout(() => {
+              if (isActive) {
+                executeAutoNext();
+              }
+            }, 30000);
+          }
+          
+        } else if (remoteCount > 0) {
+          // Hay usuarios - cancelar timers
+          if (autoNextTimer || warningTimer) {
+            console.log('✅ [AUTO-SIGUIENTE] Usuario detectado - cancelando');
+            cleanupTimers();
+          }
+        }
+      };
+
+      // ✅ VERIFICACIÓN INICIAL
+      checkEmptyRoom();
+      
+      // ✅ INTERVALO DE VERIFICACIÓN CADA 10 SEGUNDOS (menos frecuente)
+      checkInterval = setInterval(() => {
+        if (isActive) {
+          checkEmptyRoom();
+        }
+      }, 10000);
+
+      // ✅ LISTENERS DE PARTICIPANTES
+      const handleParticipantConnected = () => {
+        console.log('👥 [AUTO-SIGUIENTE] Participante conectado');
+        setTimeout(checkEmptyRoom, 2000);
+      };
+
+      const handleParticipantDisconnected = () => {
+        console.log('👋 [AUTO-SIGUIENTE] Participante desconectado');
+        setTimeout(checkEmptyRoom, 2000);
+      };
+
+      if (room) {
+        room.on('participantConnected', handleParticipantConnected);
+        room.on('participantDisconnected', handleParticipantDisconnected);
+      }
+
+      // ✅ CLEANUP FUNCTION DEFINITIVO
+      return () => {
+        console.log('🧹 [AUTO-SIGUIENTE] Cleanup definitivo');
+        isActive = false;
+        cleanupTimers();
+        
+        if (room) {
+          room.off('participantConnected', handleParticipantConnected);
+          room.off('participantDisconnected', handleParticipantDisconnected);
+        }
+      };
+
+    }, [room?.state, connected, modeloStoppedWorking]); // ✅ DEPENDENCIAS MÍNIMAS Y ESTABLES
+
+    // 🔥 AGREGAR TAMBIÉN ESTA FUNCIÓN DE EMERGENCIA PERMANENTE
+    useEffect(() => {
+      // Función de emergencia disponible globalmente
+      window.emergencyExit = () => {
+        console.log('🚨 SALIDA DE EMERGENCIA ACTIVADA');
+        
+        // Detener todos los timers
+        for (let i = 1; i < 9999; i++) {
+          clearTimeout(i);
+          clearInterval(i);
+        }
+        
+        // Desconectar LiveKit si existe
+        if (window.livekitRoom) {
+          window.livekitRoom.disconnect().catch(() => {});
+        }
+        
+        // Navegar inmediatamente
+        window.location.href = '/usersearch?role=modelo&action=emergency&from=manual';
+      };
+      
+      return () => {
+        delete window.emergencyExit;
+      };
+    }, []);
     // Efecto para scroll de mensajes
     useEffect(() => {
       if (messagesContainerRef.current) {
@@ -1952,9 +2401,9 @@ useEffect(() => {
             recipientName={getDisplayName()}
             recipientId={otherUser?.id}
             roomName={roomName}
-            userRole="modelo"
+            userRole="modelo"                    // ✅ MODELO
             gifts={gifts}
-            onRequestGift={handleRequestGift}
+            onRequestGift={handleRequestGift}    // ✅ PEDIR (no enviar)
             loading={giftLoading}
           />
           
@@ -2028,65 +2477,31 @@ useEffect(() => {
             >
               <RoomAudioRenderer />
               <RoomCapture onRoomReady={handleRoomReady} />
-
-
-              {memoizedRoomName && memoizedUserName && (
-                <>
-                  {/* 🔥 HÍBRIDO: Solo cuando hay otherUser Y está habilitado */}
-                  {otherUser?.id && (
-                    <>
-                      <HybridChatSystem
-                        roomName={roomName}
-                        userData={userData}
-                        otherUser={otherUser}
-                        onUserDetected={(user) => updateOtherUser(user)}
-                        enabled={true} // Siempre habilitado cuando hay otherUser
-                        debugMode={process.env.NODE_ENV === 'development'}
-                      />
-                      
-                      {/* 🔥 DESACTIVAR COMPLETAMENTE SimpleChat cuando híbrido está activo */}
-                      <div style={{display: 'none'}}>
-                        <SimpleChat
-                          roomName={memoizedRoomName}
-                          userName={memoizedUserName}
-                          userData={userData}
-                          onMessageReceived={() => {}} // Función vacía
-                          onUserLoaded={() => {}} // Función vacía
-                          detectOnly={true}
-                          disabled={true}
-                          suppressMessages={true}
-                        />
-                      </div>
-                    </>
-                  )}
-                  
-                  {/* 🔥 LEGACY: Solo cuando NO hay otherUser */}
-                  {!otherUser?.id && (
-                    <SimpleChat
-                      roomName={memoizedRoomName}
-                      userName={memoizedUserName}
-                      userData={userData}
-                      onMessageReceived={handleMessageReceived}
-                      onUserLoaded={handleUserLoadedFromChat}
-                      onParticipantsChanged={(participants) => {
-                        console.log('👥 Participantes legacy:', participants);
-                      }}
-                      detectOnly={false}
-                      disabled={false}
-                      suppressMessages={false}
-                    />
-                  )}
-                </>
-              )}
+               {memoizedRoomName && memoizedUserName && (
+                  <SimpleChat
+                    key={`${memoizedRoomName}-${memoizedUserName}`}
+                    userName={userData.name}
+                    userRole={userData.role}
+                    roomName={memoizedRoomName}
+                    onMessageReceived={handleMessageReceived}
+                    onUserLoaded={handleUserLoadedFromChat}
+                    onParticipantsUpdated={(participants) => {
+                      console.log('👥 Todos los participantes:', participants);
+                    }}
+                  />
+               )}
 
               {/* Controles de media ocultos */}
-              <MediaControlsImproved
+             <MediaControlsImproved
                 micEnabled={micEnabled}
                 cameraEnabled={cameraEnabled}
+                volumeEnabled={volumeEnabled}
                 setMicEnabled={setMicEnabled}
                 setCameraEnabled={setCameraEnabled}
+                setVolumeEnabled={setVolumeEnabled}
+                userData={userData}  // ← AGREGAR ESTA LÍNEA
               />
-              
+                          
               <div className="p-2 sm:p-4">
                 <Header />
                 
@@ -2111,8 +2526,13 @@ useEffect(() => {
                     otherUser={otherUser}
                     isDetectingUser={isDetectingUser}
                     t={t}
+                    
                   />  
-                  
+                  <FloatingMessagesImproved
+                    messages={messages || []}
+                    t={t}
+                  />
+                                  
                   {/* Controles móviles mejorados */}
                   <MobileControlsImproved
                     // Props existentes...
@@ -2146,6 +2566,8 @@ useEffect(() => {
                     onLoadDevices={loadDevices}
                     showMainSettings={showMainSettings}
                     setShowMainSettings={setShowMainSettings}
+                    isModelView={userData.role === 'modelo'}  // ← AGREGAR
+                    userData={userData}   
                   />
                 </div>
                 
@@ -2153,7 +2575,7 @@ useEffect(() => {
                 {/* DESKTOP - Layout principal */}
                 <div className="hidden lg:flex flex-col lg:flex-row lg:gap-6 mx-4">
                   {/* ZONA VIDEO */}
-                  <div className="flex-1 bg-[#1f2125] rounded-xl lg:rounded-2xl overflow-hidden relative flex items-center justify-center h-[500px]">
+                <div className="flex-1 bg-[#1f2125] rounded-xl lg:rounded-2xl overflow-hidden relative flex items-center justify-center video-main-container">
                     <VideoDisplayImproved
                       onCameraSwitch={cambiarCamara}
                       mainCamera={camaraPrincipal}
@@ -2166,26 +2588,25 @@ useEffect(() => {
                   </div>
                   
                   {/* PANEL DERECHO - Desktop */}
-                  <DesktopChatPanel
-                    getDisplayName={getDisplayName}
-                    isDetectingUser={isDetectingUser}
-                    toggleFavorite={toggleFavorite}
-                    blockCurrentUser={blockCurrentUser}
-                    isFavorite={isFavorite}
-                    isAddingFavorite={isAddingFavorite}
-                    isBlocking={isBlocking}
-                    otherUser={otherUser}
-                    setShowGiftsModal={setShowGiftsModal}
-                    messages={currentMessages.filter((msg, index, arr) => 
-                        arr.findIndex(m => m.id === msg.id) === index
-                      )}
-                    mensaje={mensaje}
-                    setMensaje={setMensaje}
-                    enviarMensaje={enviarMensaje}
-                    handleKeyPress={handleKeyPress}
-                    userData={userData}
-                    t={t}
-                  />
+                    <DesktopChatPanel
+                      getDisplayName={getDisplayName}
+                      isDetectingUser={isDetectingUser}
+                      toggleFavorite={toggleFavorite}
+                      blockCurrentUser={blockCurrentUser}
+                      isFavorite={isFavorite}
+                      isAddingFavorite={isAddingFavorite}
+                      isBlocking={isBlocking}
+                      otherUser={otherUser}
+                      setShowGiftsModal={setShowGiftsModal}
+                      messages={messages || []}                    // ✅ FALLBACK a array vacío
+                      mensaje={mensaje || ''}                      // ✅ AGREGAR esta prop que faltaba
+                      setMensaje={setMensaje}
+                      enviarMensaje={enviarMensaje}
+                      handleKeyPress={handleKeyPress}
+                      userData={userData || {}}                    // ✅ FALLBACK a objeto vacío
+                      userBalance={userBalance || 0}               // ✅ FALLBACK a 0
+                      t={t}
+                    />
                 </div>
                 
                 {/* CONTROLES PRINCIPALES MEJORADOS */}
@@ -2214,6 +2635,8 @@ useEffect(() => {
                   onCameraChange={handleCameraChange}
                   onMicrophoneChange={handleMicrophoneChange}
                   onLoadDevices={loadDevices}
+                  isModelView={userData.role === 'modelo'}  // ← AGREGAR
+  userData={userData}   
                 />
               </div>
             </LiveKitRoom>

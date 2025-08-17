@@ -4,6 +4,7 @@ import Header from "./headercliente";
 import { useTranslation } from "react-i18next"; // 🔥 AGREGAR IMPORT
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+
 // 🔥 AGREGAR IMPORT DEL CONTEXTO DE BÚSQUEDA
 import { useSearching } from '../../contexts/SearchingContext.jsx';
 

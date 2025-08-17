@@ -177,7 +177,6 @@ export default function VideoChatClient() {
   const [error, setError] = useState(null);
   const [connected, setConnected] = useState(false);
   const [room, setRoom] = useState(null);
-  const [modeloDisconnected, setModeloDisconnected] = useState(false);
   const [modeloWentNext, setModeloWentNext] = useState(false);
   const [receivedNotification, setReceivedNotification] = useState(false);
   const [isProcessingLeave, setIsProcessingLeave] = useState(false);
@@ -229,6 +228,10 @@ export default function VideoChatClient() {
     console.log('✅ Room lista:', !!roomInstance);
     setRoom(roomInstance);
     setConnected(true);
+    
+    // 🔥 IMPORTANTE: Guardar room globalmente para el sistema de auto-siguiente
+    window.livekitRoom = roomInstance;
+    console.log('🌍 Room guardada globalmente');
   };
 
 
@@ -280,6 +283,62 @@ export default function VideoChatClient() {
   // Estados para notificaciones de regalo
   const [showGiftNotification, setShowGiftNotification] = useState(false);
   const [processingGift, setProcessingGift] = useState(null);
+  const [modeloDisconnected, setModeloDisconnected] = useState(false);
+
+
+  const processSessionEarnings = async (durationSeconds, endedBy = 'user') => {
+  if (!roomName || !otherUser?.id || !userData?.id || durationSeconds <= 0) {
+    console.log('⚠️ No se pueden procesar ganancias - datos insuficientes');
+    return;
+  }
+
+  try {
+    console.log('💰 Procesando ganancias de sesión', {
+      duration_seconds: durationSeconds,
+      duration_minutes: Math.floor(durationSeconds / 60),
+      modelo_id: otherUser.id,
+      cliente_id: userData.id,
+      room_name: roomName,
+      ended_by: endedBy
+    });
+
+    const authToken = localStorage.getItem('token');
+    
+    const earningsResponse = await Promise.race([
+      fetch(`${API_BASE_URL}/api/earnings/process-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          room_name: roomName,
+          duration_seconds: durationSeconds,
+          modelo_user_id: otherUser.id,
+          cliente_user_id: userData.id,
+          session_type: 'video_chat',
+          ended_by: endedBy
+        })
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+    ]);
+    
+    if (earningsResponse.ok) {
+      const earningsData = await earningsResponse.json();
+      console.log('✅ Ganancias procesadas exitosamente', earningsData);
+      
+      if (earningsData.success && earningsData.model_earnings > 0) {
+        const minutes = Math.floor(durationSeconds / 60);
+        console.log(`💰 Sesión de ${minutes} min registrada - $${earningsData.model_earnings} para la modelo`);
+      }
+    } else {
+      console.warn('⚠️ Error procesando ganancias:', earningsResponse.status);
+    }
+    
+  } catch (error) {
+    console.warn('⚠️ Error de conexión procesando ganancias:', error.message);
+  }
+  };
 
   // Usar heartbeat
   useVideoChatHeartbeat(roomName, 'cliente');
@@ -390,16 +449,6 @@ export default function VideoChatClient() {
     setMessages(prev => [formattedMessage, ...prev]);
   };
 
-  const handleGiftReceived = (gift) => {
-    const giftMessage = {
-      id: Date.now(),
-      type: 'system',
-      text: `¡Enviaste ${gift.nombre}! -${gift.valor} monedas 💰`,
-      timestamp: Date.now(),
-      isOld: false
-    };
-    setMessages(prev => [giftMessage, ...prev]);
-  };
 
   const handleUserLoadedFromChat = (user) => {
     console.log('📥 Usuario recibido desde SimpleChat:', user);
@@ -448,10 +497,25 @@ export default function VideoChatClient() {
   } catch (error) {
     console.error('Error actualizando balances:', error);
   }
-};
+  };
 
-  // 🔥 FUNCIONES DE NAVEGACIÓN MEJORADAS
   const siguientePersona = async () => {
+    console.log('➡️ [CLIENTE] Siguiente persona - Procesando ganancias primero', {
+      tiempo_actual: tiempo,
+      otherUser_id: otherUser?.id,
+      roomName
+    });
+    
+    // 🔥 PROCESAR GANANCIAS ANTES DE CAMBIAR (NUEVO)
+    if (tiempo > 0 && otherUser?.id && userData?.id) {
+      try {
+        await processSessionEarnings(tiempo, 'client_next');
+        console.log('✅ [CLIENTE] Ganancias procesadas en siguiente');
+      } catch (error) {
+        console.warn('⚠️ [CLIENTE] Error procesando ganancias en siguiente:', error);
+      }
+    }
+    
     clearUserCache();
     startSearching();
 
@@ -478,180 +542,189 @@ export default function VideoChatClient() {
     
     navigate(`/usersearch?${urlParams}`, { replace: true });
   };
+  window.siguientePersona = siguientePersona;
+
 
   const onCameraSwitch = useCallback(() => {
     cambiarCamara();
   }, []);
 
   const finalizarChat = useCallback(async (forceEnd = false) => {
-    console.log('🛑 [CLIENTE] finalizarChat iniciado...', { 
-      forceEnd,
-      roomName,
-      otherUserId: otherUser?.id,
-      timestamp: new Date().toISOString()
-    });
+  console.log('🛑 [CLIENTE] finalizarChat iniciado...', { 
+    forceEnd,
+    roomName,
+    otherUserId: otherUser?.id,
+    currentTime: tiempo, // ← CAPTURAR TIEMPO ACTUAL
+    timestamp: new Date().toISOString()
+  });
+  
+  // Prevenir ejecuciones múltiples
+  if (window.finalizandoChat) {
+    console.log('⚠️ [CLIENTE] finalizarChat ya en proceso - ignorando');
+    return;
+  }
+  
+  window.finalizandoChat = true;
+  
+  try {
+    const authToken = localStorage.getItem('token');
     
-    // Prevenir ejecuciones múltiples
-    if (window.finalizandoChat) {
-      console.log('⚠️ [CLIENTE] finalizarChat ya en proceso - ignorando');
-      return;
+    if (!authToken) {
+      console.warn('⚠️ [CLIENTE] No hay token de auth');
+      throw new Error('No auth token');
+    }
+
+    // 🔥 PROCESAR GANANCIAS ANTES DE TODO
+    if (tiempo > 0 && otherUser?.id) {
+      const endReason = forceEnd ? 'balance_exhausted' : 'client_ended';
+      await processSessionEarnings(tiempo, endReason);
+    }
+
+    // Mostrar mensaje si es automático
+    if (forceEnd) {
+      console.log('🚨 [CLIENTE] FINALIZACIÓN AUTOMÁTICA - SALDO AGOTADO');
+      
+      setMessages(prev => [{
+        id: Date.now(),
+        type: 'system', 
+        text: '⚠️ Sesión finalizando automáticamente - saldo insuficiente',
+        timestamp: Date.now(),
+        isOld: false
+      }, ...prev]);
     }
     
-    window.finalizandoChat = true;
-    
-    try {
-      const authToken = localStorage.getItem('token');
-      
-      if (!authToken) {
-        console.warn('⚠️ [CLIENTE] No hay token de auth');
-        throw new Error('No auth token');
-      }
-
-      // Mostrar mensaje si es automático
-      if (forceEnd) {
-        console.log('🚨 [CLIENTE] FINALIZACIÓN AUTOMÁTICA - SALDO AGOTADO');
-        
-        setMessages(prev => [{
-          id: Date.now(),
-          type: 'system', 
-          text: '⚠️ Sesión finalizando automáticamente - saldo insuficiente',
-          timestamp: Date.now(),
-          isOld: false
-        }, ...prev]);
-      }
-      
-      // Finalizar sesión de monedas
-      if (roomName && authToken) {
-        try {
-          console.log('💰 [CLIENTE] Finalizando sesión de monedas...');
-          
-          const endResponse = await Promise.race([
-            fetch(`${API_BASE_URL}/api/livekit/end-coin-session`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`,
-              },
-              body: JSON.stringify({ 
-                roomName,
-                reason: forceEnd ? 'balance_exhausted' : 'user_ended'
-              })
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-          ]);
-          
-          if (endResponse.ok) {
-            console.log('✅ [CLIENTE] Sesión finalizada');
-          } else {
-            console.warn('⚠️ [CLIENTE] Error:', endResponse.status);
-          }
-          
-        } catch (error) {
-          console.warn('⚠️ [CLIENTE] Error finalizando sesión:', error.message);
-        }
-      }
-      
-      // Notificar al partner
-      if (otherUser?.id && roomName && authToken) {
-        try {
-          console.log('📡 [CLIENTE] Notificando partner...');
-          
-          const notifyResponse = await Promise.race([
-            fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`,
-              },
-              body: JSON.stringify({ 
-                roomName,
-                reason: forceEnd ? 'client_balance_exhausted' : 'client_ended_session'
-              })
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-          ]);
-          
-          if (notifyResponse.ok) {
-            console.log('✅ [CLIENTE] Partner notificado');
-          }
-          
-        } catch (error) {
-          console.warn('⚠️ [CLIENTE] Error notificando:', error.message);
-        }
-      }
-      
-      // Limpiar datos
-      console.log('🧹 [CLIENTE] Limpiando datos...');
-      
-      const itemsToRemove = [
-        'roomName', 'userName', 'currentRoom', 
-        'inCall', 'callToken', 'videochatActive'
-      ];
-      
-      itemsToRemove.forEach(item => localStorage.removeItem(item));
-      
-      // Limpiar cache
-      if (typeof clearUserCache === 'function') {
-        clearUserCache();
-      }
-      
-      // Actualizar heartbeat
+    // Finalizar sesión de monedas
+    if (roomName && authToken) {
       try {
-        await Promise.race([
-          fetch(`${API_BASE_URL}/api/heartbeat`, {
+        console.log('💰 [CLIENTE] Finalizando sesión de monedas...');
+        
+        const endResponse = await Promise.race([
+          fetch(`${API_BASE_URL}/api/livekit/end-coin-session`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${authToken}`,
             },
-            body: JSON.stringify({
-              activity_type: 'browsing',
-              room: null
+            body: JSON.stringify({ 
+              roomName,
+              reason: forceEnd ? 'balance_exhausted' : 'user_ended'
             })
           }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
         ]);
         
-        console.log('✅ [CLIENTE] Heartbeat actualizado');
+        if (endResponse.ok) {
+          console.log('✅ [CLIENTE] Sesión finalizada');
+        } else {
+          console.warn('⚠️ [CLIENTE] Error:', endResponse.status);
+        }
+        
       } catch (error) {
-        console.warn('⚠️ [CLIENTE] Error heartbeat:', error.message);
+        console.warn('⚠️ [CLIENTE] Error finalizando sesión:', error.message);
       }
-      
-      // Navegar
-      console.log('🏠 [CLIENTE] Navegando...');
-      
-      const stateData = forceEnd ? {
-        message: 'Tu sesión terminó automáticamente porque se agotaron las monedas o el tiempo disponible.',
-        type: 'warning',
-        autoEnded: true
-      } : undefined;
-      
-      // Navegar inmediatamente
-      navigate('/homecliente', { 
-        replace: true,
-        state: stateData
-      });
-      
-      console.log('✅ [CLIENTE] finalizarChat completado');
-      
-    } catch (error) {
-      console.error('❌ [CLIENTE] Error crítico:', error);
-      
-      // Fallback
-      try {
-        localStorage.clear();
-        navigate('/homecliente', { replace: true });
-      } catch (fallbackError) {
-        console.error('❌ Fallback error:', fallbackError);
-        window.location.href = '/homecliente';
-      }
-    } finally {
-      // Limpiar flag después de un delay
-      setTimeout(() => {
-        window.finalizandoChat = false;
-      }, 3000);
     }
-  }, [roomName, otherUser, navigate, setMessages]);
+    
+    // Notificar al partner
+    if (otherUser?.id && roomName && authToken) {
+      try {
+        console.log('📡 [CLIENTE] Notificando partner...');
+        
+        const notifyResponse = await Promise.race([
+          fetch(`${API_BASE_URL}/api/livekit/notify-partner-stop`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ 
+              roomName,
+              reason: forceEnd ? 'client_balance_exhausted' : 'client_ended_session'
+            })
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+        ]);
+        
+        if (notifyResponse.ok) {
+          console.log('✅ [CLIENTE] Partner notificado');
+        }
+        
+      } catch (error) {
+        console.warn('⚠️ [CLIENTE] Error notificando:', error.message);
+      }
+    }
+    
+    // Limpiar datos
+    console.log('🧹 [CLIENTE] Limpiando datos...');
+    
+    const itemsToRemove = [
+      'roomName', 'userName', 'currentRoom', 
+      'inCall', 'callToken', 'videochatActive'
+    ];
+    
+    itemsToRemove.forEach(item => localStorage.removeItem(item));
+    
+    // Limpiar cache
+    if (typeof clearUserCache === 'function') {
+      clearUserCache();
+    }
+    
+    // Actualizar heartbeat
+    try {
+      await Promise.race([
+        fetch(`${API_BASE_URL}/api/heartbeat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            activity_type: 'browsing',
+            room: null
+          })
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+      ]);
+      
+      console.log('✅ [CLIENTE] Heartbeat actualizado');
+    } catch (error) {
+      console.warn('⚠️ [CLIENTE] Error heartbeat:', error.message);
+    }
+    
+    // Navegar
+    console.log('🏠 [CLIENTE] Navegando...');
+    
+    const stateData = forceEnd ? {
+      message: 'Tu sesión terminó automáticamente porque se agotaron las monedas o el tiempo disponible.',
+      type: 'warning',
+      autoEnded: true
+    } : undefined;
+    
+    // Navegar inmediatamente
+    navigate('/homecliente', { 
+      replace: true,
+      state: stateData
+    });
+    
+    console.log('✅ [CLIENTE] finalizarChat completado');
+    
+  } catch (error) {
+    console.error('❌ [CLIENTE] Error crítico:', error);
+    
+    // Fallback
+    try {
+      localStorage.clear();
+      navigate('/homecliente', { replace: true });
+    } catch (fallbackError) {
+      console.error('❌ Fallback error:', fallbackError);
+      window.location.href = '/homecliente';
+    }
+  } finally {
+    // Limpiar flag después de un delay
+    setTimeout(() => {
+      window.finalizandoChat = false;
+    }, 3000);
+  }
+  }, [roomName, otherUser, userData, tiempo, navigate, setMessages]); // ← AGREGAR tiempo y userData
 
   // 🔥 FUNCIÓN DE DESCONEXIÓN MEJORADA
   const handleModeloDisconnected = (reason = 'stop', customMessage = '') => {
@@ -813,69 +886,184 @@ export default function VideoChatClient() {
     return "Esperando modelo...";
   };
 
-  // 🔥 FUNCIÓN PARA ACEPTAR REGALO (CLIENTE)
- const handleAcceptGift = async (requestId, securityHash) => {
+
+  const handleAcceptGift = async (requestId, securityHash) => {
     if (processingGift === requestId) {
-        console.warn('⚠️ [CLIENTE] Regalo ya siendo procesado');
-        return;
+      console.warn('⚠️ [CLIENTE] Regalo ya siendo procesado');
+      return;
     }
 
     try {
-        setProcessingGift(requestId);
-        console.log('✅ [CLIENTE] Aceptando regalo:', { requestId, hasHash: !!securityHash });
+      setProcessingGift(requestId);
+      console.log('✅ [CLIENTE] Aceptando regalo con verificación:', { 
+        requestId, 
+        hasHash: !!securityHash,
+        currentGiftBalance: giftBalance
+      });
+
+      // 🔥 STEP 1: OBTENER INFORMACIÓN DE LA SOLICITUD PENDIENTE
+      let giftRequestInfo = null;
+      
+      // Buscar en las solicitudes pendientes para obtener el precio
+      if (pendingRequests && pendingRequests.length > 0) {
+        giftRequestInfo = pendingRequests.find(req => req.id === requestId);
         
-        const result = await acceptGift(requestId, securityHash);
-        
-        if (result.success) {
-            console.log('✅ [CLIENTE] Regalo aceptado exitosamente');
-            
-            // Cerrar notificación
-            setShowGiftNotification(false);
-            
-            // ✅ MENSAJE MEJORADO CON DATOS COMPLETOS
-            const giftMessage = {
-                id: Date.now(),
-                type: 'gift_sent',
-                text: `🎁 Enviaste: ${result.giftInfo?.name}`,
-                timestamp: Date.now(),
-                isOld: false,
-                sender: userData.name,
-                senderRole: userData.role,
-                // 🔥 DATOS COMPLETOS DEL REGALO
-                gift_data: {
-                    gift_name: result.giftInfo?.name,
-                    gift_image: result.giftInfo?.image,
-                    gift_price: result.giftInfo?.price || result.giftInfo?.amount,
-                    action_text: "Enviaste",
-                    recipient_name: otherUser?.name || "Modelo"  // ← NOMBRE DEL RECEPTOR
-                },
-                extra_data: {
-                    gift_name: result.giftInfo?.name,
-                    gift_image: result.giftInfo?.image,
-                    gift_price: result.giftInfo?.price || result.giftInfo?.amount,
-                    action_text: "Enviaste",
-                    recipient_name: otherUser?.name || "Modelo"  // ← NOMBRE DEL RECEPTOR
-                }
-            };
-            setMessages(prev => [giftMessage, ...prev]);
-            
-            // Actualizar balance
-            updateBalance();
-            
-            return { success: true };
-        } else {
-            console.error('❌ [CLIENTE] Error aceptando regalo:', result.error);
-            addNotification('error', 'Error', result.error);
-            return { success: false, error: result.error };
+        if (giftRequestInfo) {
+          console.log('📋 [CLIENTE] Info de solicitud encontrada:', {
+            requestId,
+            giftName: giftRequestInfo.gift?.name,
+            giftPrice: giftRequestInfo.gift?.price,
+            requiredBalance: giftRequestInfo.amount
+          });
         }
+      }
+
+      // 🔥 STEP 2: VERIFICAR SALDO ANTES DE ACEPTAR (si tenemos la info)
+      if (giftRequestInfo && giftRequestInfo.amount) {
+        const requiredGiftCoins = giftRequestInfo.amount;
+        
+        console.log('💰 [CLIENTE] Verificando saldo para aceptar regalo:', {
+          required: requiredGiftCoins,
+          available: giftBalance,
+          canAfford: giftBalance >= requiredGiftCoins
+        });
+
+        if (giftBalance < requiredGiftCoins) {
+          console.error('❌ [CLIENTE] Gift coins insuficientes para aceptar:', {
+            required: requiredGiftCoins,
+            available: giftBalance,
+            deficit: requiredGiftCoins - giftBalance
+          });
+
+          addNotification(
+            'error', 
+            'Gift Coins Insuficientes', 
+            `Necesitas ${requiredGiftCoins} gift coins para aceptar este regalo. Tienes ${giftBalance}`
+          );
+
+          // Cerrar notificación automáticamente
+          setShowGiftNotification(false);
+          
+          return { 
+            success: false, 
+            error: `Saldo insuficiente para aceptar regalo` 
+          };
+        }
+      }
+
+      // 🔥 STEP 3: PROCEDER CON LA ACEPTACIÓN
+      const result = await acceptGift(requestId, securityHash);
+      
+      if (result.success) {
+        console.log('✅ [CLIENTE] Regalo aceptado exitosamente:', result);
+        
+        // Cerrar notificación
+        setShowGiftNotification(false);
+        
+        // 🔥 STEP 4: ACTUALIZAR GIFT BALANCE LOCAL INMEDIATAMENTE
+        const giftCost = result.giftInfo?.price || 
+                        result.giftInfo?.amount || 
+                        giftRequestInfo?.amount || 
+                        giftRequestInfo?.gift?.price || 
+                        0;
+        
+        if (giftCost > 0) {
+          console.log('💸 [CLIENTE] Actualizando gift balance tras aceptar:', {
+            previousGiftBalance: giftBalance,
+            giftCost: giftCost,
+            newGiftBalance: Math.max(0, giftBalance - giftCost)
+          });
+          
+          // Actualizar gift balance específicamente
+          if (typeof setGiftBalance === 'function') {
+            setGiftBalance(prev => Math.max(0, prev - giftCost));
+          } else {
+            console.warn('⚠️ [CLIENTE] setGiftBalance no disponible en aceptar');
+          }
+        }
+        
+        // 🔥 STEP 5: AGREGAR MENSAJE AL CHAT CON DATOS COMPLETOS
+        const giftMessage = {
+          id: Date.now(),
+          type: 'gift_sent',
+          text: `🎁 Enviaste: ${result.giftInfo?.name || giftRequestInfo?.gift?.name || 'Regalo'}`,
+          timestamp: Date.now(),
+          isOld: false,
+          sender: userData.name,
+          senderRole: userData.role,
+          // 🔥 DATOS COMPLETOS DEL REGALO
+          gift_data: {
+            gift_name: result.giftInfo?.name || giftRequestInfo?.gift?.name || 'Regalo',
+            gift_image: result.giftInfo?.image || giftRequestInfo?.gift?.image,
+            gift_price: giftCost,
+            action_text: "Enviaste",
+            recipient_name: otherUser?.name || "Modelo"
+          },
+          extra_data: {
+            gift_name: result.giftInfo?.name || giftRequestInfo?.gift?.name || 'Regalo',
+            gift_image: result.giftInfo?.image || giftRequestInfo?.gift?.image,
+            gift_price: giftCost,
+            action_text: "Enviaste",
+            recipient_name: otherUser?.name || "Modelo"
+          }
+        };
+        
+        setMessages(prev => [giftMessage, ...prev]);
+        
+        // 🔥 STEP 6: ACTUALIZAR BALANCES DESDE SERVIDOR (VERIFICACIÓN)
+        setTimeout(() => {
+          updateBalance(); // Esto actualiza ambos balances desde el servidor
+        }, 1000);
+        
+        // 🔥 STEP 7: NOTIFICACIÓN DE ÉXITO
+        addNotification(
+          'success', 
+          '🎁 Regalo Enviado', 
+          `${result.giftInfo?.name || 'Regalo'} enviado a ${otherUser?.name || 'Modelo'} (-${giftCost} gift coins)`
+        );
+        
+        return { success: true };
+        
+      } else {
+        console.error('❌ [CLIENTE] Error aceptando regalo:', result.error);
+        
+        // 🔥 MANEJO DE ERRORES ESPECÍFICOS
+        let errorTitle = 'Error';
+        let errorMessage = result.error;
+        
+        if (result.error?.includes('saldo insuficiente') || result.error?.includes('insufficient balance')) {
+          errorTitle = 'Gift Coins Insuficientes';
+          errorMessage = 'No tienes suficientes gift coins para aceptar este regalo';
+        } else if (result.error?.includes('expirado') || result.error?.includes('expired')) {
+          errorTitle = 'Solicitud Expirada';
+          errorMessage = 'Esta solicitud de regalo ya expiró';
+        } else if (result.error?.includes('ya procesada') || result.error?.includes('already processed')) {
+          errorTitle = 'Ya Procesado';
+          errorMessage = 'Este regalo ya fue procesado anteriormente';
+        }
+        
+        addNotification('error', errorTitle, errorMessage);
+        
+        // Cerrar notificación en caso de error
+        setShowGiftNotification(false);
+        
+        return { success: false, error: result.error };
+      }
+      
     } catch (error) {
-        console.error('❌ [CLIENTE] Error de conexión:', error);
-        addNotification('error', 'Error', 'Error de conexión');
-        return { success: false, error: 'Error de conexión' };
+      console.error('❌ [CLIENTE] Error crítico aceptando regalo:', error);
+      
+      addNotification('error', 'Error de Conexión', 'No se pudo procesar el regalo. Verifica tu conexión.');
+      
+      // Cerrar notificación en caso de error crítico
+      setShowGiftNotification(false);
+      
+      return { success: false, error: 'Error de conexión' };
+      
     } finally {
-        setProcessingGift(null);
+      setProcessingGift(null);
     }
-  }
+  };
 
   // 🔥 FUNCIÓN PARA RECHAZAR REGALO (CLIENTE)
   const handleRejectGift = async (requestId, reason = '') => {
@@ -1156,122 +1344,248 @@ useEffect(() => {
   }
 }, [room, connected]);
     // 🔥 FUNCIÓN PARA ENVIAR REGALO DIRECTAMENTE (CLIENTE)
+  // 🔥 REEMPLAZA TODA la función handleSendGift en VideoChatClient.jsx
+
   const handleSendGift = async (giftId, recipientId, roomName, message) => {
     try {
-      console.log('🎁 [CLIENTE] Enviando regalo directamente:', {
+      console.log('🎁 [CLIENTE] Enviando regalo con verificación COMPLETA:', {
         giftId,
         recipientId,
         roomName,
         message,
-        userBalance
+        userBalance,      // ← Monedas normales  
+        giftBalance       // ← Gift coins (LO CRÍTICO)
       });
 
+      // 🔥 STEP 1: VERIFICAR QUE TENEMOS GIFT BALANCE
+      if (typeof giftBalance !== 'number' || giftBalance <= 0) {
+        console.error('❌ [CLIENTE] Sin gift coins:', giftBalance);
+        addNotification('error', 'Sin Gift Coins', 
+          'No tienes gift coins. Necesitas comprar regalos para enviar.');
+        return { success: false, error: 'Sin gift coins disponibles' };
+      }
+
+      // 🔥 STEP 2: OBTENER PRECIO DEL REGALO ANTES DE ENVIARLO
       const authToken = localStorage.getItem('token');
       if (!authToken) {
         throw new Error('No hay token de autenticación');
       }
 
-      // 🔥 ENVIAR REGALO DIRECTAMENTE AL ENDPOINT
-      const response = await fetch(`${API_BASE_URL}/api/gifts/send-direct`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          gift_id: giftId,
-          recipient_id: recipientId,
-          room_name: roomName,
-          message: message || '',
-          sender_type: 'cliente'  // Especificar que es un cliente
-        })
+      // Obtener información del regalo
+      let giftInfo;
+      try {
+        const giftInfoResponse = await fetch(`${API_BASE_URL}/api/gifts/available`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!giftInfoResponse.ok) {
+          throw new Error('No se pudo obtener información de regalos');
+        }
+
+        const giftData = await giftInfoResponse.json();
+        
+        if (!giftData.success) {
+          throw new Error('Error obteniendo regalos disponibles');
+        }
+
+        // Buscar el regalo específico
+        giftInfo = giftData.gifts.find(gift => gift.id === giftId);
+        
+        if (!giftInfo) {
+          throw new Error('Regalo no encontrado en la lista');
+        }
+
+      } catch (error) {
+        console.error('❌ [CLIENTE] Error obteniendo info del regalo:', error);
+        addNotification('error', 'Error', 'No se pudo verificar el regalo');
+        return { success: false, error: 'Error verificando regalo' };
+      }
+
+      const requiredGiftCoins = giftInfo.price || 0;
+      
+      console.log('💰 [CLIENTE] Verificación de saldo:', {
+        requiredGiftCoins,
+        currentGiftBalance: giftBalance,
+        canAfford: giftBalance >= requiredGiftCoins
       });
 
-      const result = await response.json();
+      // 🔥 STEP 3: VERIFICAR SALDO SUFICIENTE
+      if (giftBalance < requiredGiftCoins) {
+        console.error('❌ [CLIENTE] Gift coins insuficientes:', {
+          required: requiredGiftCoins,
+          available: giftBalance,
+          deficit: requiredGiftCoins - giftBalance
+        });
 
-      if (result.success) {
-        console.log('✅ [CLIENTE] Regalo enviado exitosamente:', result);
-        
-        // 🔥 ACTUALIZAR SALDO LOCAL INMEDIATAMENTE
-        const giftPrice = result.gift_price || result.amount || 0;
-        setUserBalance(prev => Math.max(0, prev - giftPrice));
-        
-        // 🔥 AGREGAR MENSAJE AL CHAT CON DATOS COMPLETOS
-        const giftMessage = {
-          id: Date.now(),
-          type: 'gift_sent',
-          text: `🎁 Enviaste: ${result.gift_name}`,
-          timestamp: Date.now(),
-          isOld: false,
-          sender: userData.name,
-          senderRole: userData.role,
-          // 🔥 DATOS COMPLETOS DEL REGALO
-          gift_data: {
-            gift_name: result.gift_name,
-            gift_image: result.gift_image,
-            gift_price: giftPrice,
-            action_text: "Enviaste",
-            recipient_name: otherUser?.name || "Modelo"
-          },
-          extra_data: {
-            gift_name: result.gift_name,
-            gift_image: result.gift_image,
-            gift_price: giftPrice,
-            action_text: "Enviaste",
-            recipient_name: otherUser?.name || "Modelo"
-          }
-        };
-        
-        setMessages(prev => [giftMessage, ...prev]);
-        
-        // 🔥 ACTUALIZAR BALANCE DESDE SERVIDOR (VERIFICACIÓN)
-        setTimeout(() => {
-          updateBalance();
-        }, 1000);
-        
-        // 🔥 NOTIFICACIÓN DE ÉXITO
         addNotification(
-          'success', 
-          '🎁 Regalo Enviado', 
-          `${result.gift_name} enviado a ${otherUser?.name || 'Modelo'}`
+          'error', 
+          'Gift Coins Insuficientes', 
+          `Necesitas ${requiredGiftCoins} gift coins. Tienes ${giftBalance}`
         );
-        
+
         return { 
-          success: true, 
-          gift_name: result.gift_name,
-          gift_price: giftPrice
+          success: false, 
+          error: `Saldo insuficiente. Necesitas ${requiredGiftCoins} gift coins, tienes ${giftBalance}` 
         };
+      }
+
+      // 🔥 STEP 4: PREVENIR DOBLE ENVÍO / SPAM
+      const sendKey = `sending_gift_${giftId}_${recipientId}_${Date.now()}`;
+      if (window[sendKey]) {
+        console.warn('⚠️ [CLIENTE] Regalo ya siendo enviado - ignorando');
+        return { success: false, error: 'Regalo ya siendo procesado' };
+      }
+      
+      // Crear lock temporal
+      window[sendKey] = true;
+      
+      // Auto-limpiar lock después de 10 segundos
+      setTimeout(() => {
+        delete window[sendKey];
+      }, 10000);
+
+      try {
+        console.log('🚀 [CLIENTE] Enviando regalo al backend...');
         
-      } else {
-        console.error('❌ [CLIENTE] Error del servidor:', result.error);
-        
-        // 🔥 MANEJO DE ERRORES ESPECÍFICOS
-        if (result.error?.includes('saldo insuficiente') || result.error?.includes('insufficient balance')) {
-          addNotification('error', 'Saldo Insuficiente', 'No tienes suficientes monedas para este regalo');
-        } else if (result.error?.includes('no encontrado') || result.error?.includes('not found')) {
-          addNotification('error', 'Regalo No Disponible', 'Este regalo ya no está disponible');
+        // 🔥 STEP 5: ENVIAR AL ENDPOINT BACKEND
+        const response = await fetch(`${API_BASE_URL}/api/gifts/send-direct`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            gift_id: giftId,
+            recipient_id: recipientId,
+            room_name: roomName,
+            message: message || '',
+            sender_type: 'cliente',
+            expected_cost: requiredGiftCoins  // ← VERIFICACIÓN ADICIONAL
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          console.log('✅ [CLIENTE] Regalo enviado exitosamente:', result);
+          
+          // 🔥 STEP 6: ACTUALIZAR GIFT BALANCE LOCAL INMEDIATAMENTE
+          const actualCost = result.gift_price || requiredGiftCoins;
+          
+          console.log('💸 [CLIENTE] Actualizando gift balance local:', {
+            previousGiftBalance: giftBalance,
+            cost: actualCost,
+            newGiftBalance: Math.max(0, giftBalance - actualCost)
+          });
+          
+          // 🔥 CRÍTICO: Actualizar giftBalance (NO userBalance)
+          // Buscar la función que actualiza giftBalance
+          if (typeof setGiftBalance === 'function') {
+            setGiftBalance(prev => Math.max(0, prev - actualCost));
+          } else {
+            console.warn('⚠️ [CLIENTE] setGiftBalance no disponible');
+          }
+          
+          // 🔥 STEP 7: AGREGAR MENSAJE AL CHAT
+          const giftMessage = {
+            id: Date.now(),
+            type: 'gift_sent',
+            text: `🎁 Enviaste: ${result.gift_name}`,
+            timestamp: Date.now(),
+            isOld: false,
+            sender: userData.name,
+            senderRole: userData.role,
+            gift_data: {
+              gift_name: result.gift_name,
+              gift_image: result.gift_image,
+              gift_price: actualCost,
+              action_text: "Enviaste",
+              recipient_name: otherUser?.name || "Modelo"
+            },
+            extra_data: {
+              gift_name: result.gift_name,
+              gift_image: result.gift_image,
+              gift_price: actualCost,
+              action_text: "Enviaste",
+              recipient_name: otherUser?.name || "Modelo"
+            }
+          };
+          
+          setMessages(prev => [giftMessage, ...prev]);
+          
+          // 🔥 STEP 8: ACTUALIZAR BALANCE DESDE SERVIDOR (VERIFICACIÓN)
+          setTimeout(() => {
+            updateBalance();
+          }, 1000);
+          
+          // 🔥 STEP 9: NOTIFICACIÓN DE ÉXITO
+          addNotification(
+            'success', 
+            '🎁 Regalo Enviado', 
+            `${result.gift_name} enviado a ${otherUser?.name || 'Modelo'} (-${actualCost} gift coins)`
+          );
+          
+          // Limpiar lock inmediatamente en caso de éxito
+          delete window[sendKey];
+          
+          return { 
+            success: true, 
+            gift_name: result.gift_name,
+            gift_price: actualCost,
+            new_gift_balance: Math.max(0, giftBalance - actualCost)
+          };
+          
         } else {
-          addNotification('error', 'Error', result.error || 'Error enviando regalo');
+          console.error('❌ [CLIENTE] Error del servidor:', result.error);
+          
+          // 🔥 MANEJO DE ERRORES ESPECÍFICOS
+          if (result.error?.includes('saldo insuficiente') || result.error?.includes('insufficient balance')) {
+            addNotification('error', 'Gift Coins Insuficientes', 'No tienes suficientes gift coins para este regalo');
+          } else if (result.error?.includes('no encontrado') || result.error?.includes('not found')) {
+            addNotification('error', 'Regalo No Disponible', 'Este regalo ya no está disponible');
+          } else if (result.error?.includes('already_processing')) {
+            addNotification('warning', 'Procesando', 'Ya hay una transacción en proceso');
+          } else {
+            addNotification('error', 'Error', result.error || 'Error enviando regalo');
+          }
+          
+          // Limpiar lock
+          delete window[sendKey];
+          
+          return { 
+            success: false, 
+            error: result.error || 'Error desconocido' 
+          };
         }
+        
+      } catch (networkError) {
+        console.error('❌ [CLIENTE] Error de red enviando regalo:', networkError);
+        
+        addNotification('error', 'Error de Conexión', 'No se pudo enviar el regalo. Verifica tu conexión.');
+        
+        // Limpiar lock
+        delete window[sendKey];
         
         return { 
           success: false, 
-          error: result.error || 'Error desconocido' 
+          error: 'Error de conexión' 
         };
       }
       
     } catch (error) {
-      console.error('❌ [CLIENTE] Error de conexión enviando regalo:', error);
+      console.error('❌ [CLIENTE] Error crítico en handleSendGift:', error);
       
-      addNotification('error', 'Error de Conexión', 'No se pudo enviar el regalo. Verifica tu conexión.');
+      addNotification('error', 'Error Crítico', 'Error interno enviando regalo');
       
       return { 
         success: false, 
-        error: 'Error de conexión' 
+        error: error.message || 'Error crítico' 
       };
     }
   };
-
   // 🔥 FUNCIÓN DE RATE LIMITING
   const handleRateLimit = useCallback((error, context = 'general') => {
     if (error?.response?.status === 429) {
@@ -1379,101 +1693,477 @@ useEffect(() => {
     return user && user !== 'null' && user !== 'undefined' ? user : null;
   }, [location.state, searchParams]);
 
-  useEffect(() => {
-    let isMounted = true;
-    let retryCount = 0;
-    const maxRetries = 3;
+// 🚨 DIAGNÓSTICO: ¿POR QUÉ SE QUITAN 500 COINS EN 3 MINUTOS?
+
+// ❌ PROBLEMA #1: MÚLTIPLES useEffect EJECUTÁNDOSE
+// Tu useEffect tiene estas dependencias:
+// [connected, room, roomName, setUserBalance, setRemainingMinutes, addNotification, finalizarChat]
+// 
+// Cada vez que cualquiera cambia, se crea un nuevo sistema de descuentos
+// Esto significa que puedes tener 10+ sistemas corriendo simultáneamente
+
+// ❌ PROBLEMA #2: EL ENDPOINT PUEDE ESTAR LLAMÁNDOSE MÚLTIPLES VECES
+// Si tienes 10 sistemas, cada uno hace:
+// - 1 descuento inicial de 10 coins = 10 x 10 = 100 coins
+// - Descuentos regulares de 5 coins cada 30s = 10 x 5 = 50 coins cada 30s
+// En 3 minutos = 180 segundos = 6 intervalos de 30s
+// Total: 100 + (50 x 6) = 400 coins + otros descuentos = ~500 coins
+
+// ✅ SOLUCIÓN RADICAL: SISTEMA COMPLETAMENTE AISLADO
+
+// 1️⃣ PRIMERO: AGREGAR LOGS DETALLADOS PARA VER QUÉ PASA
+const DEBUG_DEDUCTION = true; // Cambiar a false en producción
+
+const logDeduction = (message, data = {}) => {
+  if (DEBUG_DEDUCTION) {
+    console.log(`🔥 [DEDUCTION_DEBUG] ${message}`, {
+      timestamp: new Date().toISOString(),
+      roomName: roomName,
+      activeCount: Object.keys(window).filter(key => key.includes('DEDUCTION_SYSTEM')).length,
+      ...data
+    });
+  }
+};
+
+// 2️⃣ REEMPLAZAR COMPLETAMENTE TU useEffect CON ESTE:
+useEffect(() => {
+  // ✅ VALIDACIÓN ESTRICTA INICIAL
+  if (!connected || !room || !roomName) {
+    logDeduction('❌ Condiciones no cumplidas', { connected, hasRoom: !!room, roomName });
+    return;
+  }
+
+  // ✅ CLAVE ÚNICA ABSOLUTA POR SALA
+  const UNIQUE_KEY = `DEDUCTION_${roomName}_${Date.now()}`;
+  const GLOBAL_LOCK = `LOCK_${roomName}`;
+  
+  // ✅ VERIFICAR SI YA HAY UN LOCK GLOBAL PARA ESTA SALA
+  if (window[GLOBAL_LOCK]) {
+    logDeduction('🚨 BLOQUEADO - Ya existe sistema para esta sala', { 
+      existingLock: window[GLOBAL_LOCK],
+      newKey: UNIQUE_KEY 
+    });
+    return;
+  }
+
+  // ✅ ESTABLECER LOCK GLOBAL
+  window[GLOBAL_LOCK] = UNIQUE_KEY;
+  logDeduction('🔒 LOCK establecido', { lockKey: GLOBAL_LOCK, uniqueKey: UNIQUE_KEY });
+
+  // ✅ VARIABLES DE CONTROL ESTRICTAS
+  let isSystemActive = true;
+  let appliedCharges = {
+    initial: false,
+    regular90: false,
+    regular120: false,
+    continuousStarted: false
+  };
+
+  // ✅ TIEMPO DE INICIO DE SESIÓN
+  const getSessionStart = () => {
+    const key = `session_start_${roomName}`;
+    let startTime = localStorage.getItem(key);
     
-    const getTokenWithRetry = async () => {
-      try {
-        if (!memoizedRoomName || !memoizedUserName) {
-          throw new Error(`Parámetros inválidos - roomName: "${memoizedRoomName}", userName: "${memoizedUserName}"`);
-        }
+    if (!startTime) {
+      startTime = Date.now().toString();
+      localStorage.setItem(key, startTime);
+      logDeduction('⏰ Nuevo tiempo de sesión creado', { startTime });
+    } else {
+      logDeduction('⏰ Tiempo de sesión existente', { startTime });
+    }
+    
+    return parseInt(startTime);
+  };
 
-        console.log("🎥 CLIENTE - Obteniendo token para:", {
-          roomName: memoizedRoomName,
-          userName: memoizedUserName
-        });
+  const sessionStartTime = getSessionStart();
 
-        const authToken = localStorage.getItem('token');
-        if (!authToken) {
-          throw new Error('No se encontró token de autenticación');
-        }
+  // ✅ FUNCIÓN DE DESCUENTO CON VALIDACIÓN MÚLTIPLE
+  const applySecureDeduction = async (amount, reason) => {
+    // Verificar que el sistema sigue activo
+    if (!isSystemActive) {
+      logDeduction('🛑 Sistema inactivo, cancelando descuento', { reason, amount });
+      return false;
+    }
 
-        const response = await fetch(`${API_BASE_URL}/api/livekit/token`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            room: memoizedRoomName.trim(),
-            identity: memoizedUserName.trim(),
-            preferredCamera: selectedCamera,
-            preferredMic: selectedMic
-          }),
-        });
+    // Verificar que el lock sigue siendo nuestro
+    if (window[GLOBAL_LOCK] !== UNIQUE_KEY) {
+      logDeduction('🚨 LOCK perdido, cancelando descuento', { 
+        reason, 
+        amount,
+        ourKey: UNIQUE_KEY,
+        currentLock: window[GLOBAL_LOCK]
+      });
+      isSystemActive = false;
+      return false;
+    }
 
-        if (!response.ok) {
-          const errorData = await response.text();
-          const error = new Error(`Error ${response.status}: ${errorData}`);
-          error.response = { status: response.status };
-          
-          if (response.status === 429) {
-            const wasRateLimited = handleRateLimit(error, 'livekit-token');
-            if (wasRateLimited) {
-              return;
-            }
-            
-            if (retryCount < maxRetries) {
-              retryCount++;
-              const delay = 3000 * retryCount;
-              console.warn(`⚠️ Rate limited token, reintentando en ${delay}ms...`);
-              setTimeout(() => {
-                if (isMounted) getTokenWithRetry();
-              }, delay);
-              return;
-            }
-          }
-          
-          throw error;
-        }
+    // Verificar que seguimos en la misma sala
+    const currentRoom = localStorage.getItem('roomName');
+    if (currentRoom !== roomName) {
+      logDeduction('🚪 Sala cambió, cancelando descuento', { 
+        reason,
+        originalRoom: roomName,
+        currentRoom 
+      });
+      isSystemActive = false;
+      return false;
+    }
 
+    try {
+      logDeduction(`💰 APLICANDO DESCUENTO: ${amount} coins`, { reason });
+      
+      const authToken = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/livekit/periodic-deduction`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          room_name: roomName,
+          session_duration_seconds: 30,
+          manual_coins_amount: amount,
+          reason: `${reason}_${UNIQUE_KEY.slice(-8)}` // Agregar ID único
+        })
+      });
+
+      if (response.ok) {
         const data = await response.json();
-        console.log("✅ CLIENTE - Token obtenido exitosamente");
+        if (data.success) {
+          logDeduction(`✅ DESCUENTO EXITOSO: ${amount} coins`, { 
+            reason,
+            remainingBalance: data.remaining_balance,
+            uniqueId: UNIQUE_KEY.slice(-8)
+          });
 
-        if (isMounted) {
-          setToken(data.token);
-          setServerUrl(data.serverUrl);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('❌ CLIENTE - Error al obtener token:', err);
-        
-        const wasRateLimited = handleRateLimit(err, 'token-error');
-        if (!wasRateLimited && isMounted) {
-          setError(err.message);
-          setLoading(false);
+          // Actualizar UI
+          setUserBalance(data.remaining_balance);
+          setRemainingMinutes(data.minutes_remaining);
+
+          // Verificar saldo agotado
+          if (data.remaining_balance <= 0) {
+            logDeduction('💳 SALDO AGOTADO', { reason });
+            isSystemActive = false;
+            window[GLOBAL_LOCK] = null;
+            addNotification('error', 'Saldo Agotado', 'Sesión terminando');
+            setTimeout(() => finalizarChat(true), 2000);
+            return false;
+          }
+
+          return true;
         }
       }
+    } catch (error) {
+      logDeduction(`❌ ERROR EN DESCUENTO: ${amount} coins`, { reason, error: error.message });
+    }
+
+    return false;
+  };
+
+  // ✅ FUNCIÓN PARA OBTENER TIEMPO TRANSCURRIDO
+  const getElapsedSeconds = () => {
+    return Math.floor((Date.now() - sessionStartTime) / 1000);
+  };
+
+  // ✅ EJECUTOR PRINCIPAL
+  const runDeductionSystem = () => {
+    const elapsed = getElapsedSeconds();
+    logDeduction('🚀 INICIANDO SISTEMA', { elapsedSeconds: elapsed });
+
+    // ⏰ DESCUENTO INICIAL: 20 segundos = -10 coins
+    const scheduleInitial = () => {
+      if (appliedCharges.initial) return;
+      
+      const timeToWait = Math.max(0, 20 - elapsed) * 1000;
+      
+      setTimeout(async () => {
+        if (!isSystemActive || appliedCharges.initial) return;
+        
+        appliedCharges.initial = true;
+        const success = await applySecureDeduction(10, 'initial_20s');
+        
+        if (success) {
+          schedule90s();
+        }
+      }, timeToWait);
+
+      logDeduction(`⏳ Descuento inicial programado`, { waitMs: timeToWait });
     };
 
-    if (memoizedRoomName && memoizedUserName) {
-      getTokenWithRetry();
-    } else {
-      console.error("Parámetros faltantes:", {
+    // ⏰ PRIMER REGULAR: 90 segundos = -5 coins
+    const schedule90s = () => {
+      if (appliedCharges.regular90) return;
+      
+      const currentElapsed = getElapsedSeconds();
+      const timeToWait = Math.max(0, 90 - currentElapsed) * 1000;
+      
+      setTimeout(async () => {
+        if (!isSystemActive || appliedCharges.regular90) return;
+        
+        appliedCharges.regular90 = true;
+        const success = await applySecureDeduction(5, 'regular_90s');
+        
+        if (success) {
+          schedule120s();
+        }
+      }, timeToWait);
+
+      logDeduction(`⏳ Descuento 90s programado`, { waitMs: timeToWait });
+    };
+
+    // ⏰ SEGUNDO REGULAR: 120 segundos = -5 coins
+    const schedule120s = () => {
+      if (appliedCharges.regular120) return;
+      
+      const currentElapsed = getElapsedSeconds();
+      const timeToWait = Math.max(0, 120 - currentElapsed) * 1000;
+      
+      setTimeout(async () => {
+        if (!isSystemActive || appliedCharges.regular120) return;
+        
+        appliedCharges.regular120 = true;
+        const success = await applySecureDeduction(5, 'regular_120s');
+        
+        if (success) {
+          startContinuous();
+        }
+      }, timeToWait);
+
+      logDeduction(`⏳ Descuento 120s programado`, { waitMs: timeToWait });
+    };
+
+    // ⏰ CONTINUOS: Cada 30 segundos después de 120s = -5 coins
+    const startContinuous = () => {
+      if (appliedCharges.continuousStarted) return;
+      
+      appliedCharges.continuousStarted = true;
+      logDeduction('🔄 INICIANDO DESCUENTOS CONTINUOS cada 30s');
+      
+      const interval = setInterval(async () => {
+        if (!isSystemActive) {
+          logDeduction('🛑 Deteniendo interval continuo');
+          clearInterval(interval);
+          return;
+        }
+
+        await applySecureDeduction(5, 'continuous_30s');
+      }, 30000); // EXACTAMENTE 30 segundos
+
+      // Guardar referencia para limpieza
+      window[`${UNIQUE_KEY}_interval`] = interval;
+    };
+
+    // INICIAR FLUJO
+    scheduleInitial();
+  };
+
+  // ✅ EJECUTAR EL SISTEMA
+  runDeductionSystem();
+
+  // ✅ FUNCIÓN DE LIMPIEZA COMPLETA
+  return () => {
+    logDeduction('🧹 LIMPIANDO SISTEMA', { uniqueKey: UNIQUE_KEY });
+    
+    // Desactivar sistema
+    isSystemActive = false;
+    
+    // Limpiar interval
+    const intervalKey = `${UNIQUE_KEY}_interval`;
+    if (window[intervalKey]) {
+      clearInterval(window[intervalKey]);
+      delete window[intervalKey];
+      logDeduction('🗑️ Interval limpiado');
+    }
+    
+    // Liberar lock solo si es nuestro
+    if (window[GLOBAL_LOCK] === UNIQUE_KEY) {
+      window[GLOBAL_LOCK] = null;
+      logDeduction('🔓 LOCK liberado');
+    }
+  };
+
+// ✅ DEPENDENCIAS MÍNIMAS - SOLO LAS ESENCIALES
+}, [connected, room, roomName]); // ← QUITAR las funciones de las dependencias
+
+// 3️⃣ EFECTO SEPARADO PARA LIMPIEZA FINAL
+useEffect(() => {
+  return () => {
+    if (roomName) {
+      // Limpiar localStorage
+      localStorage.removeItem(`session_start_${roomName}`);
+      
+      // Limpiar todos los locks de esta sala
+      Object.keys(window).forEach(key => {
+        if (key.includes(`LOCK_${roomName}`) || key.includes(`DEDUCTION_${roomName}`)) {
+          window[key] = null;
+          delete window[key];
+        }
+      });
+      
+      logDeduction('🧹 LIMPIEZA FINAL COMPLETA');
+    }
+  };
+}, []); // Sin dependencias para que solo se ejecute al desmontar
+
+// 4️⃣ MONITOR DE SISTEMAS ACTIVOS (PARA DEBUG)
+if (DEBUG_DEDUCTION) {
+  useEffect(() => {
+    const monitor = setInterval(() => {
+      const activeSystems = Object.keys(window).filter(key => 
+        key.includes('DEDUCTION_SYSTEM') || key.includes('LOCK_')
+      ).length;
+      
+      if (activeSystems > 0) {
+        console.log(`🔍 [MONITOR] Sistemas activos: ${activeSystems}`, {
+          keys: Object.keys(window).filter(key => key.includes('DEDUCTION') || key.includes('LOCK'))
+        });
+      }
+    }, 10000); // Cada 10 segundos
+
+    return () => clearInterval(monitor);
+  }, []);
+}
+
+// ✅ FLUJO CORRECTO:
+// Segundo 20: -10 coins (UNA SOLA VEZ)
+// Segundo 90: -5 coins (UNA SOLA VEZ) 
+// Segundo 120: -5 coins (UNA SOLA VEZ)
+// Después: -5 coins cada 30 segundos (EXACTOS)
+
+// Total en 3 minutos (180s):
+// - 10 (inicial) + 5 (90s) + 5 (120s) + 5 (150s) + 5 (180s) = 30 coins
+// NO 500 coins como antes
+
+useEffect(() => {
+  console.log('🔍 CLIENTE - Estados relevantes:', {
+    connected,
+    hasRoom: !!room,
+    roomName,
+    isProcessingLeave,
+    userBalance,
+    remainingMinutes,
+    timestamp: new Date().toISOString()
+  });
+}, [connected, room, roomName, isProcessingLeave, userBalance, remainingMinutes]);
+
+
+  useEffect(() => {
+  let isMounted = true;
+  let retryCount = 0;
+  const maxRetries = 3;
+  
+  const getSecureTokenWithRetry = async () => {
+    try {
+      if (!memoizedRoomName || !memoizedUserName) {
+        throw new Error(`Parámetros inválidos - roomName: "${memoizedRoomName}", userName: "${memoizedUserName}"`);
+      }
+
+      console.log("🔒 CLIENTE - Obteniendo token SEGURO con descuento inmediato:", {
         roomName: memoizedRoomName,
         userName: memoizedUserName
       });
-      setError(`Faltan parámetros de la sala.`);
-      setLoading(false);
+
+      const authToken = localStorage.getItem('token');
+      if (!authToken) {
+        throw new Error('No se encontró token de autenticación');
+      }
+
+      // 🔥 USAR ENDPOINT SEGURO PARA CLIENTES
+      const response = await fetch(`${API_BASE_URL}/api/livekit/token-secure`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          room: memoizedRoomName.trim(),
+          identity: memoizedUserName.trim(),
+          preferredCamera: selectedCamera,
+          preferredMic: selectedMic
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        
+        // 🔥 MANEJO ESPECÍFICO DE SALDO INSUFICIENTE
+        if (response.status === 402) { // Payment Required
+          console.error('💳 SALDO INSUFICIENTE:', errorData);
+          
+          addNotification('error', 'Saldo Insuficiente', 
+            `Necesitas ${errorData.required_coins || 30} monedas. Tienes ${errorData.current_coins || 0}`);
+          
+          // Redirigir a compra de monedas
+          setTimeout(() => {
+            navigate('/buy-coins', {
+              state: {
+                requiredCoins: errorData.required_coins || 30,
+                currentCoins: errorData.current_coins || 0,
+                returnTo: '/videochatclient',
+                returnState: location.state
+              }
+            });
+          }, 2000);
+          
+          return;
+        }
+        
+        // Rate limiting
+        if (response.status === 429) {
+          const wasRateLimited = handleRateLimit({ response: { status: 429 } }, 'secure-token');
+          if (wasRateLimited) return;
+          
+          if (retryCount < maxRetries) {
+            retryCount++;
+            const delay = 3000 * retryCount;
+            console.warn(`⚠️ Rate limited secure token, reintentando en ${delay}ms...`);
+            setTimeout(() => {
+              if (isMounted) getSecureTokenWithRetry();
+            }, delay);
+            return;
+          }
+        }
+        
+        throw new Error(`Error ${response.status}: ${errorData.error || 'Error desconocido'}`);
+      }
+
+      const data = await response.json();
+      console.log("✅ CLIENTE - Token SEGURO obtenido (descuento aplicado)");
+      
+      if (isMounted) {
+          setToken(data.token);
+          setServerUrl(data.serverUrl);
+          setLoading(false);
+          console.log('🎯 Token obtenido, esperando conexión para iniciar descuento');
+
+          addNotification('success', 'Acceso Autorizado', 'Descuento inicial aplicado correctamente');
+      }
+    } catch (err) {
+      console.error('❌ CLIENTE - Error al obtener token seguro:', err);
+      
+      const wasRateLimited = handleRateLimit(err, 'secure-token-error');
+      if (!wasRateLimited && isMounted) {
+        setError(err.message);
+        setLoading(false);
+      }
     }
+  };
 
-    return () => {
-      isMounted = false;
-    };
+  if (memoizedRoomName && memoizedUserName) {
+    getSecureTokenWithRetry();
+  } else {
+    console.error("Parámetros faltantes:", {
+      roomName: memoizedRoomName,
+      userName: memoizedUserName
+    });
+    setError(`Faltan parámetros de la sala.`);
+    setLoading(false);
+  }
+
+  return () => {
+    isMounted = false;
+  };
   }, [memoizedRoomName, memoizedUserName, handleRateLimit, selectedCamera, selectedMic]);
-
   // Efecto para espejo
   useEffect(() => {
     const savedMirrorMode = localStorage.getItem("mirrorMode");
@@ -1729,7 +2419,179 @@ useEffect(() => {
     };
   }, [roomName, userName, connected, navigate, selectedCamera, selectedMic]);
 
-  // Efecto para monitoreo de balance automático
+  
+  useEffect(() => {
+    // ✅ CONDICIONES MEJORADAS PARA CLIENTE
+    if (!room || !connected || modeloWentNext || isProcessingLeave) {
+      return;
+    }
+
+    console.log('🚀 [AUTO-SIGUIENTE-CLIENTE] Iniciando detector estable de sala vacía');
+
+    let autoNextTimer = null;
+    let warningTimer = null;
+    let checkInterval = null;
+    let isActive = true;
+
+    // ✅ FUNCIÓN DE CLEANUP MEJORADA
+    const cleanupTimers = () => {
+      if (autoNextTimer) {
+        clearTimeout(autoNextTimer);
+        autoNextTimer = null;
+      }
+      if (warningTimer) {
+        clearTimeout(warningTimer);
+        warningTimer = null;
+      }
+      if (checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+      }
+    };
+
+    // ✅ FUNCIÓN DE EJECUCIÓN CON SAFETY CHECKS
+    const executeAutoNext = async () => {
+      if (!isActive || modeloWentNext || isProcessingLeave) {
+        console.log('🛑 [AUTO-SIGUIENTE-CLIENTE] Cancelado - componente inactivo');
+        return;
+      }
+
+      console.log('🚀 [AUTO-SIGUIENTE-CLIENTE] Ejecutando cambio automático...');
+      
+      try {
+        // Marcar como inactivo inmediatamente
+        isActive = false;
+        cleanupTimers();
+
+        // Procesar ganancias si hay datos válidos (para cliente es diferente)
+        if (tiempo > 0 && otherUser?.id && userData?.id) {
+          console.log('💰 [AUTO-SIGUIENTE-CLIENTE] Procesando ganancias...');
+          await processSessionEarnings(tiempo, 'auto_empty_room_client');
+        }
+
+        // Verificar que siguientePersona existe
+        if (typeof window.siguientePersona === 'function') {
+          console.log('➡️ [AUTO-SIGUIENTE-CLIENTE] Llamando siguientePersona()');
+          window.siguientePersona();
+        } else {
+          console.log('🚨 [AUTO-SIGUIENTE-CLIENTE] siguientePersona no existe - navegando directo');
+          navigate('/usersearch?role=cliente&action=auto_next&from=empty_room', { replace: true });
+        }
+
+      } catch (error) {
+        console.error('❌ [AUTO-SIGUIENTE-CLIENTE] Error ejecutando:', error);
+        // Fallback: navegar directamente
+        navigate('/usersearch?role=cliente&action=auto_error', { replace: true });
+      }
+    };
+
+    // ✅ VERIFICADOR DE SALA VACÍA OPTIMIZADO
+    const checkEmptyRoom = () => {
+      if (!isActive || !room || room.state !== 'connected') {
+        return;
+      }
+
+      const remoteCount = room.remoteParticipants?.size || 0;
+      const hasLocal = !!room.localParticipant;
+      
+      console.log(`🔍 [AUTO-SIGUIENTE-CLIENTE] Check - Remotos: ${remoteCount}, Local: ${hasLocal}`);
+      
+      // Solo proceder si estoy conectado pero sin usuarios remotos (modelo)
+      if (remoteCount === 0 && hasLocal) {
+        
+        if (!autoNextTimer) {
+          console.log('⚠️ [AUTO-SIGUIENTE-CLIENTE] Sala vacía detectada - Timer de 30s');
+          
+          // Warning a los 20 segundos
+          warningTimer = setTimeout(() => {
+            if (isActive && !modeloWentNext) {
+              addNotification('warning', 'Modelo Desconectada', 
+                'Cambiando en 10 segundos...');
+            }
+          }, 20000);
+          
+          // Auto-next a los 30 segundos
+          autoNextTimer = setTimeout(() => {
+            if (isActive) {
+              executeAutoNext();
+            }
+          }, 30000);
+        }
+        
+      } else if (remoteCount > 0) {
+        // Hay usuarios - cancelar timers
+        if (autoNextTimer || warningTimer) {
+          console.log('✅ [AUTO-SIGUIENTE-CLIENTE] Modelo detectada - cancelando');
+          cleanupTimers();
+        }
+      }
+    };
+
+    // ✅ VERIFICACIÓN INICIAL
+    checkEmptyRoom();
+    
+    // ✅ INTERVALO DE VERIFICACIÓN CADA 10 SEGUNDOS (menos frecuente)
+    checkInterval = setInterval(() => {
+      if (isActive) {
+        checkEmptyRoom();
+      }
+    }, 10000);
+
+    // ✅ LISTENERS DE PARTICIPANTES
+    const handleParticipantConnected = () => {
+      console.log('👥 [AUTO-SIGUIENTE-CLIENTE] Participante conectado');
+      setTimeout(checkEmptyRoom, 2000);
+    };
+
+    const handleParticipantDisconnected = () => {
+      console.log('👋 [AUTO-SIGUIENTE-CLIENTE] Participante desconectado');
+      setTimeout(checkEmptyRoom, 2000);
+    };
+
+    if (room) {
+      room.on('participantConnected', handleParticipantConnected);
+      room.on('participantDisconnected', handleParticipantDisconnected);
+    }
+
+    // ✅ CLEANUP FUNCTION DEFINITIVO
+    return () => {
+      console.log('🧹 [AUTO-SIGUIENTE-CLIENTE] Cleanup definitivo');
+      isActive = false;
+      cleanupTimers();
+      
+      if (room) {
+        room.off('participantConnected', handleParticipantConnected);
+        room.off('participantDisconnected', handleParticipantDisconnected);
+      }
+    };
+
+  // ✅ DEPENDENCIAS MÍNIMAS Y ESTABLES PARA CLIENTE
+  }, [room?.state, connected, modeloWentNext, isProcessingLeave]); 
+
+  useEffect(() => {
+    // Función de emergencia disponible globalmente
+    window.emergencyExitClient = () => {
+      console.log('🚨 SALIDA DE EMERGENCIA CLIENTE ACTIVADA');
+      
+      // Detener todos los timers
+      for (let i = 1; i < 9999; i++) {
+        clearTimeout(i);
+        clearInterval(i);
+      }
+      
+      // Desconectar LiveKit si existe
+      if (window.livekitRoom) {
+        window.livekitRoom.disconnect().catch(() => {});
+      }
+      
+      // Navegar inmediatamente
+      window.location.href = '/usersearch?role=cliente&action=emergency&from=manual';
+    };
+    
+    return () => {
+      delete window.emergencyExitClient;
+    };
+  }, []);
   useEffect(() => {
     if (roomName && connected && !isMonitoringBalance) {
       console.log('🟢 [CLIENTE] Iniciando monitoreo de saldo...');
@@ -1741,120 +2603,6 @@ useEffect(() => {
   }, [roomName, connected, isMonitoringBalance]);
 
   useEffect(() => {
-    if (!isMonitoringBalance) return;
-
-    console.log('🔄 [CLIENTE] Iniciando loop de monitoreo automático...');
-    
-    let intervalId;
-    let timeoutId;
-    let isActive = true;
-
-    const executeBalanceCheck = async () => {
-      if (!isActive || !isMonitoringBalance) {
-        console.log('🛑 [CLIENTE] Monitoreo inactivo - saliendo');
-        return;
-      }
-
-      try {
-        const authToken = localStorage.getItem('token');
-        
-        if (!authToken) {
-          console.warn('⚠️ [CLIENTE] No hay token - deteniendo monitoreo');
-          setIsMonitoringBalance(false);
-          return;
-        }
-
-        console.log('🔍 [CLIENTE] Ejecutando verificación de saldo...');
-        
-        const response = await fetch(`${API_BASE_URL}/api/client-balance/my-balance/quick`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!response.ok) {
-          console.warn('❌ [CLIENTE] Error en verificación:', response.status);
-          return;
-        }
-
-        const data = await response.json();
-        
-        if (!data.success) {
-          console.warn('⚠️ [CLIENTE] Respuesta sin datos válidos');
-          return;
-        }
-
-        const totalCoins = data.total_coins;
-        const remainingMinutes = data.remaining_minutes;
-        
-        console.log('💰 [CLIENTE] Estado actual:', {
-          coins: totalCoins,
-          minutes: remainingMinutes,
-          shouldEnd: totalCoins <= 25 || remainingMinutes <= 2
-        });
-
-        // Actualizar estados
-        setUserBalance(totalCoins);
-        setRemainingMinutes(remainingMinutes);
-        
-        // Verificar condición de finalización
-        if (totalCoins <= 25 || remainingMinutes <= 2) {
-          console.log('🚨 [CLIENTE] ¡SALDO CRÍTICO! Finalizando sesión automáticamente...');
-          
-          // Detener monitoreo inmediatamente
-          isActive = false;
-          setIsMonitoringBalance(false);
-          
-          // Clear intervals
-          if (intervalId) clearInterval(intervalId);
-          if (timeoutId) clearTimeout(timeoutId);
-          
-          // Ejecutar finalización con delay mínimo
-          setTimeout(() => {
-            console.log('🔚 [CLIENTE] Ejecutando finalizarChat(true)...');
-            finalizarChat(true);
-          }, 500);
-          
-          return;
-        }
-        
-        // Advertencia si está cerca
-        if (totalCoins <= 50 || remainingMinutes <= 5) {
-          console.log('⚠️ [CLIENTE] Advertencia - saldo bajo');
-        }
-        
-      } catch (error) {
-        console.error('❌ [CLIENTE] Error en monitoreo:', error);
-      }
-    };
-
-    // Iniciar verificación inmediata
-    timeoutId = setTimeout(() => {
-      if (isActive && isMonitoringBalance) {
-        executeBalanceCheck();
-        
-        // Luego establecer intervalo regular
-        intervalId = setInterval(() => {
-          if (isActive && isMonitoringBalance) {
-            executeBalanceCheck();
-          }
-        }, 8000); // Cada 8 segundos
-      }
-    }, 3000); // Esperar solo 3 segundos inicial
-
-    // Cleanup
-    return () => {
-      console.log('🧹 [CLIENTE] Limpiando monitoreo de saldo');
-      isActive = false;
-      if (intervalId) clearInterval(intervalId);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [isMonitoringBalance, finalizarChat]);
-
-  // Efecto para timer legacy
-  useEffect(() => {
     const intervalo = setInterval(() => setTiempo((prev) => prev + 1), 1000);
     
     return () => {
@@ -1862,7 +2610,6 @@ useEffect(() => {
     };
   }, []);
 
-  // Efecto para verificar favoritos
   useEffect(() => {
     if (otherUser?.id) {
       checkIfFavorite(otherUser.id);
@@ -1905,17 +2652,37 @@ useEffect(() => {
     }
   }, [roomName, userName]);
 
-  // 🔥 RENDER CONDICIONAL PARA ESTADOS DE DESCONEXIÓN
-  if (modeloDisconnected || modeloWentNext) {
-    return (
-      <DisconnectionScreenImproved
-        disconnectionType={disconnectionType}
-        disconnectionReason={disconnectionReason}
-        redirectCountdown={redirectCountdown}
-        t={t}
-      />
-    );
+
+
+// 🔥 NUEVA FUNCIÓN: Verificación de balance en tiempo real
+const checkBalanceRealTime = useCallback(async () => {
+  try {
+    const authToken = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/livekit/balance-check`, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && !data.can_continue) {
+      console.warn('⚠️ CLIENTE - Saldo insuficiente detectado');
+      
+      addNotification('error', 'Saldo Insuficiente', 'Recarga monedas para continuar');
+      
+      setTimeout(() => {
+        finalizarChat(true);
+      }, 3000);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('❌ Error verificando balance:', error);
+    return null;
   }
+}, [finalizarChat, addNotification]);
 
   // 🔥 RENDER PRINCIPAL
   return (
@@ -2006,8 +2773,18 @@ useEffect(() => {
             </div>
           </div>
         )}
-        
-        {!loading && !error && token && (
+
+        {(modeloWentNext || modeloDisconnected) && (
+          <DisconnectionScreenImprovedClient
+            disconnectionType={disconnectionType}
+            disconnectionReason={disconnectionReason}
+            redirectCountdown={redirectCountdown}
+            t={t}
+          />
+        )}
+      
+
+    {!loading && !error && token && !modeloWentNext && !modeloDisconnected && (
           <LiveKitRoom
             video={cameraEnabled}
             audio={micEnabled}
@@ -2034,7 +2811,6 @@ useEffect(() => {
                 userRole={userData.role}
                 roomName={memoizedRoomName}
                 onMessageReceived={handleMessageReceived}
-                onGiftReceived={handleGiftReceived}
                 onUserLoaded={handleUserLoadedFromChat}
                 onParticipantsUpdated={(participants) => {
                   console.log('👥 Todos los participantes:', participants);
@@ -2046,8 +2822,11 @@ useEffect(() => {
             <MediaControlsImprovedClient 
               micEnabled={micEnabled}
               cameraEnabled={cameraEnabled}
+              volumeEnabled={volumeEnabled} // ← AGREGADO
               setMicEnabled={setMicEnabled}
               setCameraEnabled={setCameraEnabled}
+              setVolumeEnabled={setVolumeEnabled} // ← AGREGADO (opcional)
+              userData={userData} // ← AGREGADO (opcional)
             />
             
             <div className="p-2 sm:p-4">
@@ -2131,8 +2910,8 @@ useEffect(() => {
               {/* DESKTOP - Layout principal */}
               <div className="hidden lg:flex flex-col lg:flex-row lg:gap-6 mx-4">
                 {/* ZONA VIDEO */}
-                <div className="flex-1 bg-[#1f2125] rounded-xl lg:rounded-2xl overflow-hidden relative flex items-center justify-center h-[500px]">
-                  <VideoDisplayImprovedClient 
+                <div className="flex-1 bg-[#1f2125] rounded-xl lg:rounded-2xl overflow-hidden relative flex items-center justify-center video-main-container">
+                    <VideoDisplayImprovedClient 
                     onCameraSwitch={cambiarCamara}
                     mainCamera={camaraPrincipal}
                     connected={connected}
