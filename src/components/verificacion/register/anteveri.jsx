@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
 import logoproncipal from "../../imagenes/logoprincipal.png";
 import { ProtectedPage } from '../../hooks/usePageAccess';
+import ModalDocumentacion from "./ModalDocumentacion"; // importa el nuevo modal
 
 export default function InicioVerificacion() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [aceptaCompania, setAceptaCompania] = useState(false);
   const [errorCheckbox, setErrorCheckbox] = useState(false);
+  const [mostrarModalDocs, setMostrarModalDocs] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -68,7 +70,7 @@ export default function InicioVerificacion() {
         {/* Botones principales */}
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <button
-            onClick={abrirDocumentacion}
+            onClick={() => setMostrarModalDocs(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition transform hover:scale-105 flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,6 +95,11 @@ export default function InicioVerificacion() {
           <p className="mb-2">💡 Recomendamos leer la documentación antes de continuar</p>
           <p>🔒 Tu información está segura y protegida</p>
         </div>
+
+        <ModalDocumentacion 
+          isOpen={mostrarModalDocs} 
+          onClose={() => setMostrarModalDocs(false)} 
+        />
 
         {/* Modal mejorado */}
         {mostrarModal && (

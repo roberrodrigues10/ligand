@@ -621,6 +621,142 @@ export default function ChatPrivado() {
     console.log(`✅ Conversación abierta y marcada como vista`);
   }, [cargarMensajes, isMobile, marcarComoVisto]);
 
+  
+  // 🔥 AGREGAR ESTOS DOS useEffect A TU ChatPrivado.jsx
+  // Agrégalos después de la línea: const hasOpenedSpecificChat = useRef(false);
+
+  // 1️⃣ MANEJO DE openChatWith (desde la navegación del header)
+  useEffect(() => {
+    if (openChatWith && conversaciones.length > 0 && !hasOpenedSpecificChat.current) {
+      console.log('🎯 Procesando apertura de chat específico:', openChatWith);
+      
+      // Buscar conversación existente por room_name (más confiable)
+      let conversacionExistente = null;
+      
+      if (openChatWith.room_name) {
+        conversacionExistente = conversaciones.find(conv => 
+          conv.room_name === openChatWith.room_name
+        );
+        console.log('🔍 Búsqueda por room_name:', openChatWith.room_name, 'Encontrada:', !!conversacionExistente);
+      }
+      
+      // Si no se encuentra por room_name, buscar por other_user_id
+      if (!conversacionExistente && openChatWith.other_user_id) {
+        conversacionExistente = conversaciones.find(conv => 
+          conv.other_user_id === openChatWith.other_user_id
+        );
+        console.log('🔍 Búsqueda por other_user_id:', openChatWith.other_user_id, 'Encontrada:', !!conversacionExistente);
+      }
+      
+      if (conversacionExistente) {
+        console.log('✅ Conversación existente encontrada, abriendo...');
+        abrirConversacion(conversacionExistente);
+      } else {
+        console.log('📝 Conversación no encontrada, creando entrada local...');
+        
+        // Crear nueva conversación localmente usando los datos recibidos
+        const nuevaConversacion = {
+          id: openChatWith.id || Date.now(),
+          other_user_id: openChatWith.other_user_id,
+          other_user_name: openChatWith.other_user_name,
+          other_user_role: openChatWith.other_user_role || 'modelo',
+          room_name: openChatWith.room_name,
+          last_message: "Conversación iniciada - Envía tu primer mensaje",
+          last_message_time: new Date().toISOString(),
+          last_message_sender_id: null,
+          unread_count: 0,
+          session_status: 'waiting',
+          avatar: `https://i.pravatar.cc/40?u=${openChatWith.other_user_id}`
+        };
+        
+        console.log('📋 Nueva conversación creada:', nuevaConversacion);
+        
+        // Agregar al inicio de la lista de conversaciones
+        setConversaciones(prev => {
+          // Verificar que no exista duplicada
+          const exists = prev.some(conv => 
+            conv.room_name === nuevaConversacion.room_name ||
+            conv.other_user_id === nuevaConversacion.other_user_id
+          );
+          
+          if (exists) {
+            console.log('⚠️ Conversación ya existe, no agregando duplicado');
+            return prev;
+          }
+          
+          console.log('➕ Agregando nueva conversación a la lista');
+          return [nuevaConversacion, ...prev];
+        });
+        
+        // Abrir la nueva conversación
+        setTimeout(() => {
+          abrirConversacion(nuevaConversacion);
+        }, 100);
+      }
+      
+      // Marcar como procesado
+      hasOpenedSpecificChat.current = true;
+      
+      // Limpiar el state para futuras navegaciones
+      setTimeout(() => {
+        navigate('/message', { replace: true, state: {} });
+      }, 500);
+    }
+  }, [openChatWith, conversaciones, abrirConversacion, navigate]);
+
+  // 2️⃣ MANEJO DE PARÁMETROS URL (fallback para compatibilidad)
+  useEffect(() => {
+    // Manejar parámetros URL como fallback (para compatibilidad)
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('userId');
+    const userName = urlParams.get('userName');
+    
+    if (userId && userName && !hasOpenedSpecificChat.current && conversaciones.length > 0) {
+      console.log('🔗 Procesando parámetros URL:', { userId, userName });
+      
+      // Buscar conversación existente
+      const conversacionExistente = conversaciones.find(conv => 
+        conv.other_user_id === parseInt(userId)
+      );
+      
+      if (conversacionExistente) {
+        console.log('✅ Conversación encontrada via URL params');
+        abrirConversacion(conversacionExistente);
+      } else {
+        console.log('📝 Creando conversación desde URL params...');
+        
+        // Generar room_name usando la misma lógica del backend
+        const currentUserId = usuario.id;
+        const otherUserId = parseInt(userId);
+        const ids = [currentUserId, otherUserId].sort();
+        const roomName = `chat_user_${ids[0]}_${ids[1]}`;
+        
+        const nuevaConversacion = {
+          id: Date.now(),
+          other_user_id: otherUserId,
+          other_user_name: decodeURIComponent(userName),
+          other_user_role: 'modelo',
+          room_name: roomName,
+          last_message: "Conversación iniciada - Envía tu primer mensaje",
+          last_message_time: new Date().toISOString(),
+          last_message_sender_id: null,
+          unread_count: 0,
+          avatar: `https://i.pravatar.cc/40?u=${otherUserId}`
+        };
+        
+        setConversaciones(prev => [nuevaConversacion, ...prev]);
+        setTimeout(() => abrirConversacion(nuevaConversacion), 100);
+      }
+      
+      hasOpenedSpecificChat.current = true;
+      
+      // Limpiar URL
+      setTimeout(() => {
+        navigate('/message', { replace: true });
+      }, 500);
+    }
+  }, [usuario.id, conversaciones, abrirConversacion, navigate]);
+
   // 🔥 FUNCIONES DE LLAMADAS SIMPLIFICADAS
   const iniciarLlamadaReal = useCallback(async (otherUserId, otherUserName) => {
     try {

@@ -7,7 +7,7 @@ import {
   Settings, 
   DollarSign, 
   Menu, 
-  X, 
+  X,
   Coins,
   Search, 
   Play,
@@ -20,6 +20,7 @@ import LanguageSelector from "../../components/languageSelector";
 import { getUser } from "../../utils/auth";
 import UnifiedPaymentModal from '../../components/payments/UnifiedPaymentModal';
 import StoriesModal from './StoriesModal';
+import SearchModelsModal from './SearchModelsModal'; // 👈 IMPORTAR EL MODAL DE BÚSQUEDA
 import { useAppNotifications } from '../../contexts/NotificationContext';
 
 export default function HeaderCliente() {
@@ -31,7 +32,9 @@ export default function HeaderCliente() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   
+  // ESTADOS PARA MODALES
   const [showStoriesModal, setShowStoriesModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false); // 👈 NUEVO ESTADO
   const [currentUser, setCurrentUser] = useState(null);
   
   const menuRef = useRef(null);
@@ -39,9 +42,8 @@ export default function HeaderCliente() {
   const mobileMenuRef = useRef(null);
   const { t, i18n } = useTranslation();
   const notifications = useAppNotifications();
-  
 
-  // 🔥 CARGAR USUARIO AL INICIALIZAR
+  // CARGAR USUARIO AL INICIALIZAR
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -56,47 +58,105 @@ export default function HeaderCliente() {
     loadUser();
   }, []);
 
-  // 🎨 COMPONENTE PARA EL AVATAR
-  const UserAvatar = ({ size = "w-10 h-10", textSize = "text-sm" }) => {
-    if (currentUser?.avatar_url) {
-      return (
-        <img 
-          src={currentUser.avatar_url} 
-          alt="Avatar" 
-          className={`${size} rounded-full object-cover border-2 border-white/20 hover:border-white/40 transition`}
-          onError={(e) => {
-            console.error('Error cargando avatar:', e);
-            e.target.style.display = 'none';
-            e.target.nextSibling.style.display = 'flex';
-          }}
-        />
-      );
-    }
-    
-    // Avatar por defecto con inicial o icono
-    const displayName = currentUser?.display_name || currentUser?.name || 'Usuario';
-    const initial = displayName.charAt(0).toUpperCase();
-    
-    return (
-      <div className={`${size} rounded-full bg-gradient-to-br from-[#ff007a] to-[#cc0062] text-white font-bold ${textSize} hover:scale-105 transition flex items-center justify-center border-2 border-white/20 hover:border-white/40`}>
-        {initial}
-      </div>
-    );
-  };
-
+  // FUNCIÓN PARA ABRIR MODAL DE HISTORIAS
   const handleOpenStories = () => {
     console.log('🎬 Abriendo modal de historias...');
     setShowStoriesModal(true);
   };
 
+  // FUNCIÓN PARA CERRAR MODAL DE HISTORIAS
   const handleCloseStories = () => {
     console.log('🚪 Cerrando modal de historias...');
     setShowStoriesModal(false);
   };
 
+  // 👈 FUNCIÓN PARA ABRIR MODAL DE BÚSQUEDA
   const handleOpenSearch = () => {
-    console.log('🔍 Búsqueda de usuarios...');
-    notifications.info('Funcionalidad de búsqueda próximamente');
+    console.log('🔍 Abriendo modal de búsqueda...');
+    setShowSearchModal(true);
+  };
+
+  // 👈 FUNCIÓN PARA CERRAR MODAL DE BÚSQUEDA
+  const handleCloseSearch = () => {
+    console.log('🚪 Cerrando modal de búsqueda...');
+    setShowSearchModal(false);
+  };
+
+  // 👈 FUNCIÓN PARA MANEJAR MENSAJES DESDE LA BÚSQUEDA
+  const handleMessageFromSearch = async (modelId, modelName) => {
+    console.log('📩 Iniciando conversación con:', { modelId, modelName });
+    
+    try {
+      // Obtener el token
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.error('❌ No hay token de autenticación');
+        notifications.error('Error de autenticación');
+        return;
+      }
+
+      // Llamar al backend para iniciar/encontrar conversación
+      const response = await fetch('http://localhost:8000/api/chat/start-conversation', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          other_user_id: modelId
+        })
+      });
+
+      const data = await response.json();
+      console.log('📡 Respuesta del servidor:', data);
+
+      if (data.success) {
+        console.log('✅ Conversación iniciada/encontrada:', data.conversation);
+        
+        // Navegar al chat con toda la información necesaria
+        navigate('/message', { 
+          state: { 
+            openChatWith: {
+              id: data.conversation.id,
+              room_name: data.conversation.room_name,
+              other_user_id: modelId,
+              other_user_name: modelName,
+              other_user_role: data.conversation.other_user_role,
+              session_id: data.session_id
+            }
+          }
+        });
+        
+        notifications.success(`Abriendo chat con ${modelName}`);
+      } else {
+        console.error('❌ Error del servidor:', data.error);
+        
+        // Manejar errores específicos
+        if (data.error === 'blocked_by_you') {
+          notifications.error('Has bloqueado a este usuario');
+        } else if (data.error === 'blocked_by_them') {
+          notifications.error('Este usuario te ha bloqueado');
+        } else {
+          notifications.error(data.message || 'Error iniciando conversación');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error de conexión:', error);
+      notifications.error('Error de conexión. Inténtalo de nuevo.');
+    }
+  };
+
+  // 👈 FUNCIÓN PARA MANEJAR LLAMADAS DESDE LA BÚSQUEDA
+  const handleCallFromSearch = (modelId, modelName) => {
+    console.log('📞 Iniciando llamada con:', { modelId, modelName });
+    // Aquí puedes implementar la lógica de llamadas
+    // Por ejemplo, abrir un modal de llamada o redirigir a una página de llamada
+    notifications.info(`Iniciando llamada con ${modelName}...`);
+    
+    // Ejemplo de navegación a una página de llamada:
+    // navigate(`/call?userId=${modelId}&userName=${encodeURIComponent(modelName)}`);
   };
 
   // ✅ FUNCIONES CORREGIDAS PARA COMPRAS
@@ -154,36 +214,111 @@ export default function HeaderCliente() {
         <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-lg">
           <LanguageSelector />
           
+          {/* 👈 ICONO DE BÚSQUEDA DE USUARIOS - AHORA FUNCIONAL */}
           <button
             onClick={handleOpenSearch}
             className="hover:scale-110 transition p-2"
-            title="Buscar usuarios"
+            title={t('searchUsers') || 'Buscar Usuarios'}
           >
             <Search size={24} className="text-[#ff007a]" />
           </button>
 
+          {/* ICONO DE HISTORIAS - ABRE EL MODAL */}
           <button
             onClick={handleOpenStories}
             className="hover:scale-110 transition p-2"
-            title="Ver historias"
+            title={t('viewStories') || 'Ver Historias'}
           >
             <Play size={24} className="text-[#ff007a]" />
           </button>
           
-          {/* ✅ BOTÓN DE COMPRAS DESKTOP CORREGIDO */}
-          <button
-            onClick={abrirModalCompraMonedas}
-            className="hover:scale-110 transition p-2 relative"
-            title="Comprar monedas"
-          >
-            <Coins size={24} strokeWidth={2.5} className="text-[#ff007a]" />
-            <div className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-          </button>
+          {/* ICONO DE COMPRAS DESKTOP */}
+          <div ref={comprasRef} className="relative">
+            <button
+              onClick={toggleCompras}
+              className="hover:scale-110 transition p-2 relative"
+              title={t('buyCoins') || 'Comprar Monedas'}
+            >
+              <Coins size={24} strokeWidth={2.5} className="text-[#ff007a]" />
+              <div className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            </button>
+
+            {/* MODAL DE OFERTAS DESKTOP */}
+            {comprasAbierto && (
+              <div className="absolute right-0 mt-2 w-80 bg-[#1f2125] rounded-xl shadow-xl border border-[#ff007a]/30 z-50 overflow-hidden">
+                <div className="text-white text-sm p-4 border-b border-[#ff007a]/20 font-semibold bg-[#1f2125] flex items-center gap-2">
+                  <span className="text-lg">🪙</span>
+                  {t('coinPackages')}
+                </div>
+
+                <div className="p-4 space-y-3 bg-[#1f2125]">
+                  <button
+                    onClick={() => {
+                      setComprasAbierto(false);
+                      abrirModalCompraMonedas();
+                    }}
+                    className="w-full bg-[#2b2d31] hover:bg-[#36393f] rounded-lg p-4 transition text-left border border-gray-600"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="text-white font-bold text-lg">100 monedas</div>
+                        <div className="text-sm text-gray-400">{t('videoMinutes10')}</div>
+                      </div>
+                      <div className="text-[#ff007a] font-bold text-xl">$2.99</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setComprasAbierto(false);
+                      abrirModalCompraMonedas();
+                    }}
+                    className="w-full bg-[#2b2d31] hover:bg-[#36393f] rounded-lg p-4 transition text-left border border-[#ff007a]/40 relative"
+                  >
+                    <div className="absolute top-3 right-3">
+                      <span className="bg-[#ff007a] text-white text-xs px-2 py-1 rounded-full font-semibold">
+                        {t('popular')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="text-white font-bold text-lg">300 monedas</div>
+                        <div className="text-sm text-gray-400">{t('videoMinutes30')}</div>
+                      </div>
+                      <div className="text-[#ff007a] font-bold text-xl">$5.99</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setComprasAbierto(false);
+                      abrirModalCompraMonedas();
+                    }}
+                    className="w-full bg-[#2b2d31] hover:bg-[#36393f] rounded-lg p-4 transition text-left border border-gray-600"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="text-white font-bold text-lg">800 monedas</div>
+                        <div className="text-sm text-gray-400">{t('videoMinutes80')}</div>
+                      </div>
+                      <div className="text-[#ff007a] font-bold text-xl">$11.99</div>
+                    </div>
+                  </button>
+                </div>
+
+                <div className="p-4 border-t border-[#ff007a]/20 bg-[#1f2125]">
+                  <div className="text-center text-sm text-gray-400">
+                    <span className="text-lg">🔒</span>{t('securePayment')}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           
           <button
             className="hover:scale-110 transition p-2"
             onClick={() => navigate("/homecliente")}
-            title="Inicio"
+            title={t('home')}
           >
             <Home className="text-[#ff007a]" size={24} />
           </button>
@@ -191,7 +326,7 @@ export default function HeaderCliente() {
           <button
             className="hover:scale-110 transition p-2"
             onClick={() => navigate("/message")}
-            title="Mensajes"
+            title={t('messages')}
           >
             <MessageSquare className="text-[#ff007a]" size={24} />
           </button>
@@ -199,50 +334,33 @@ export default function HeaderCliente() {
           <button
             className="hover:scale-110 transition p-2"
             onClick={() => navigate("/favoritesboy")}
-            title="Favoritos"
+            title={t('favoritesHome')}
           >
             <Star className="text-[#ff007a]" size={24} />
           </button>
 
-          {/* 🔥 BOTÓN DE PERFIL DESKTOP CON AVATAR DINÁMICO */}
+          {/* Botón de perfil desktop */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={toggleMenu}
-              className="hover:scale-105 transition flex items-center justify-center"
-              title={`Perfil de ${currentUser?.display_name || currentUser?.name || 'Usuario'}`}
+              className="w-10 h-10 rounded-full bg-[#ff007a] text-white font-bold text-sm hover:scale-105 transition flex items-center justify-center"
+              title={t('accountMenu')}
             >
-              <UserAvatar />
+              C
             </button>
 
             {/* Menú desplegable desktop */}
             {menuAbierto && (
-              <div className="absolute right-0 mt-2 w-64 bg-[#1f2125] rounded-xl shadow-lg border border-[#ff007a]/30 z-50 overflow-hidden">
-                {/* 🔥 HEADER DEL MENÚ CON INFO DEL USUARIO */}
-                <div className="px-4 py-3 border-b border-[#ff007a]/20 bg-gradient-to-r from-[#ff007a]/10 to-transparent">
-                  <div className="flex items-center gap-3">
-                    <UserAvatar size="w-8 h-8" textSize="text-xs" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white font-medium text-sm truncate">
-                        {currentUser?.display_name || currentUser?.name || 'Usuario'}
-                      </div>
-                      {currentUser?.nickname && (
-                        <div className="text-white/60 text-xs truncate">
-                          {currentUser.name}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
+              <div className="absolute right-0 mt-2 w-48 bg-[#1f2125] rounded-xl shadow-lg border border-[#ff007a]/30 z-50 overflow-hidden">
                 <button
                   onClick={() => {
-                    navigate("/settings");
+                    navigate("/configuracion");
                     setMenuAbierto(false);
                   }}
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
                   <Settings size={16} className="mr-3 text-[#ff007a]" />
-                  Configuración
+                  {t('settingsHome')}
                 </button>
                 <button
                   onClick={() => {
@@ -252,7 +370,7 @@ export default function HeaderCliente() {
                   className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
                   <LogOut size={16} className="mr-3 text-[#ff007a]" />
-                  Cerrar sesión
+                  {t('logout')}
                 </button>
               </div>
             )}
@@ -261,11 +379,12 @@ export default function HeaderCliente() {
 
         {/* Botón menú móvil - solo visible en móvil */}
         <div className="md:hidden flex items-center gap-2">
+        
           <div className="relative" ref={mobileMenuRef}>
             <button
               onClick={toggleMobileMenu}
               className="w-10 h-10 rounded-full bg-[#ff007a] text-white hover:scale-105 transition flex items-center justify-center"
-              title="Menú"
+              title={t('header.menu')}
             >
               {mobileMenuAbierto ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -273,28 +392,13 @@ export default function HeaderCliente() {
             {/* Menú móvil desplegable */}
             {mobileMenuAbierto && (
               <div className="absolute right-0 mt-2 w-72 bg-[#1f2125] rounded-xl shadow-xl border border-[#ff007a]/30 z-50 overflow-hidden">
-                {/* 🔥 HEADER DEL MENÚ MÓVIL CON AVATAR */}
-                <div className="px-4 py-3 border-b border-[#ff007a]/20 bg-gradient-to-r from-[#ff007a]/10 to-transparent">
-                  <div className="flex items-center gap-3 mb-3">
-                    <UserAvatar size="w-10 h-10" textSize="text-sm" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white font-medium truncate">
-                        {currentUser?.display_name || currentUser?.name || 'Usuario'}
-                      </div>
-                      {currentUser?.nickname && (
-                        <div className="text-white/60 text-xs truncate">
-                          {currentUser.name}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Selector de idioma móvil */}
-                  <div className="text-xs text-gray-400 mb-2">Idioma</div>
+                {/* Selector de idioma móvil */}
+                <div className="px-4 py-3 border-b border-[#ff007a]/20">
+                  <div className="text-xs text-gray-400 mb-2">{t('idioma')}</div>
                   <LanguageSelector />
                 </div>
 
-                {/* Opciones móviles para historias y búsqueda */}
+                {/* 👈 OPCIONES MÓVILES PARA HISTORIAS Y BÚSQUEDA */}
                 <div className="py-2 border-b border-[#ff007a]/20">
                   <button
                     onClick={() => {
@@ -304,7 +408,7 @@ export default function HeaderCliente() {
                     className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                   >
                     <Search size={18} className="mr-3 text-[#ff007a]"/>
-                    Buscar usuarios
+                    {t('searchUsers') || 'Buscar Usuarios'}
                   </button>
                   
                   <button
@@ -315,25 +419,62 @@ export default function HeaderCliente() {
                     className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                   >
                     <Play size={18} className="mr-3 text-[#ff007a]"/>
-                    Ver historias
+                    {t('viewStories') || 'Ver Historias'}
                   </button>
                 </div>
 
-                {/* ✅ SECCIÓN DE COMPRAS MÓVIL CORREGIDA */}
+                {/* Sección de compras móvil */}
+                <div className="px-4 py-3 border-b border-[#ff007a]/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Coins size={18} className="text-[#ff007a]" strokeWidth={2.5} />
+                      <span className="text-white font-semibold">🪙 {t('coinPackages')}</span>
+                    </div>
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  </div>
+                </div>
+
+                {/* Paquetes de monedas móvil */}
                 <div className="py-2 border-b border-[#ff007a]/20">
                   <button
                     onClick={() => {
                       abrirModalCompraMonedas();
+                    }}
+                    className="flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
+                  >
+                    <div>
+                      <div className="font-semibold">100 monedas</div>
+                      <div className="text-xs text-gray-400">{t('videoMinutes10')}</div>
+                    </div>
+                    <span className="text-[#ff007a] font-bold">$2.99</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
                       setMobileMenuAbierto(false);
                     }}
                     className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                   >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-3">
-                        <Coins size={18} className="text-[#ff007a]" strokeWidth={2.5} />
-                        <span>Comprar monedas</span>
+                    <div>
+                      <div className="font-semibold flex items-center gap-2">
+                        300 monedas
+                        <span className="bg-[#ff007a] text-white text-xs px-1.5 py-0.5 rounded-full">{t('popular')}</span>
                       </div>
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <div className="text-xs text-gray-400">{t('videoMinutes30')}</div>
+                    </div>
+                    <span className="text-[#ff007a] font-bold">$5.99</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setMobileMenuAbierto(false);
+                      abrirModalCompraMonedas();
+                    }}
+                    className="flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
+                  >
+                    <div>
+                      <div className="font-semibold">800 monedas</div>
+                      <div className="text-xs text-gray-400">{t('videoMinutes80')}</div>
                     </div>
                   </button>
                 </div>
@@ -348,18 +489,18 @@ export default function HeaderCliente() {
                     className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                   >
                     <Home size={18} className="mr-3 text-[#ff007a]"/>
-                    Inicio
+                    {t('home')}
                   </button>
                   
                   <button
                     onClick={() => {
-                      navigate("/message");
+                      navigate("/messageclient");
                       setMobileMenuAbierto(false);
                     }}
                     className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                   >
                     <MessageSquare size={18} className="mr-3 text-[#ff007a]"/>
-                    Mensajes
+                    {t('messages')}
                   </button>
                   
                   <button
@@ -370,7 +511,7 @@ export default function HeaderCliente() {
                     className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                   >
                     <Star size={18} className="mr-3 text-[#ff007a]"/>
-                    Favoritos
+                    {t('favoritesHome')}
                   </button>
                 </div>
 
@@ -384,7 +525,7 @@ export default function HeaderCliente() {
                     className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                   >
                     <Settings size={18} className="mr-3 text-[#ff007a]"/>
-                    Configuración
+                    {t('settingsHome')}
                   </button>
                   
                   <button
@@ -395,7 +536,7 @@ export default function HeaderCliente() {
                     className="flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                   >
                     <LogOut size={18} className="mr-3 text-[#ff007a]"/>
-                    Cerrar sesión
+                    {t('logout')}
                   </button>
                 </div>
               </div>
@@ -404,17 +545,20 @@ export default function HeaderCliente() {
         </div>
       </header>
 
-      {/* Modal de historias integrado */}
+      {/* 👈 MODAL DE BÚSQUEDA DE MODELOS */}
+      <SearchModelsModal 
+        isOpen={showSearchModal}
+        onClose={handleCloseSearch}
+        onMessage={handleMessageFromSearch}
+        onCall={handleCallFromSearch}
+      />
+
+      {/* MODAL DE HISTORIAS INTEGRADO */}
       <StoriesModal 
         isOpen={showStoriesModal}
         onClose={handleCloseStories}
         currentUser={currentUser}
       />
-      
-      {/* ✅ MODAL DE COMPRAS CORREGIDO */}
-      {showBuyCoins && (
-        <UnifiedPaymentModal onClose={cerrarModalCompraMonedas} />
-      )}
 
       {/* Modal de confirmación */}
       {showConfirmModal && confirmAction && (
