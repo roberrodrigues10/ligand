@@ -675,7 +675,7 @@ const parseGiftData = useCallback((msg) => {
          <div className="flex-1 relative">
           <div 
             ref={messagesContainerRef}
-            className="flex-1 messages-container p-3 space-y-3 overflow-y-auto custom-scroll"
+            className="flex-1 max-h-[48vh] p-3 space-y-3 overflow-y-auto custom-scroll"
           >
             {stableMessages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
@@ -1391,9 +1391,6 @@ const parseGiftData = useCallback((msg) => {
             width: 320px;
             min-width: 320px;
             max-width: 320px;
-          }
-          .messages-container {
-            max-height: 400px;
           }
           .avatar-size {
             width: 40px;

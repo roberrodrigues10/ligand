@@ -137,27 +137,30 @@ export default function HeaderCliente() {
     setShowSearchModal(false);
   };
 
-  // 👈 FUNCIÓN PARA MANEJAR MENSAJES DESDE LA BÚSQUEDA
+
   const handleMessageFromSearch = async (modelId, modelName) => {
+    console.log('🎯 HEADER - Creando conversación en backend PRIMERO');
+    console.log('📥 Modelo seleccionado:', { modelId, modelName });
+    
     if (isBlocked) {
       handleBlockedNavigation('Mensajes desde búsqueda');
       return;
     }
 
-    console.log('📩 Iniciando conversación con:', { modelId, modelName });
-    
     try {
-      // Obtener el token
+      // 🔥 PASO 1: CREAR/OBTENER CONVERSACIÓN EN EL BACKEND
       const token = localStorage.getItem('token');
-      
       if (!token) {
         console.error('❌ No hay token de autenticación');
         notifications.error('Error de autenticación');
         return;
       }
 
-      // Llamar al backend para iniciar/encontrar conversación
-      const response = await fetch('http://localhost:8000/api/chat/start-conversation', {
+      console.log('📡 Creando conversación en el backend...');
+      
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${API_BASE_URL}/api/chat/start-conversation`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -165,43 +168,72 @@ export default function HeaderCliente() {
           'Accept': 'application/json'
         },
         body: JSON.stringify({
-          other_user_id: modelId
+          other_user_id: parseInt(modelId)
         })
       });
 
-      const data = await response.json();
-      console.log('📡 Respuesta del servidor:', data);
+      console.log('📡 Respuesta del backend:', response.status);
 
-      if (data.success) {
-        console.log('✅ Conversación iniciada/encontrada:', data.conversation);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Conversación creada/encontrada en backend:', data);
         
-        // Navegar al chat con toda la información necesaria
-        navigate('/message', { 
-          state: { 
-            openChatWith: {
-              id: data.conversation.id,
-              room_name: data.conversation.room_name,
-              other_user_id: modelId,
-              other_user_name: modelName,
-              other_user_role: data.conversation.other_user_role,
-              session_id: data.session_id
-            }
-          }
-        });
+        if (data.success && data.conversation) {
+          // 🔥 USAR DATOS REALES DEL BACKEND
+          const conversationData = {
+            id: data.conversation.id,
+            room_name: data.conversation.room_name,
+            other_user_id: parseInt(modelId),
+            other_user_name: modelName,
+            other_user_role: 'modelo',
+            last_message: data.conversation.last_message || "Conversación iniciada - Envía tu primer mensaje",
+            last_message_time: data.conversation.last_message_time || new Date().toISOString(),
+            last_message_sender_id: data.conversation.last_message_sender_id,
+            unread_count: data.conversation.unread_count || 0,
+            session_status: 'active',
+            avatar: `https://i.pravatar.cc/40?u=${modelId}`,
+            // 🔥 MARCAR COMO DEL BACKEND (no local)
+            fromBackend: true,
+            createdAt: new Date().toISOString()
+          };
+          
+          console.log('📦 Datos preparados del backend:', conversationData);
+
+          // 🔥 PASO 2: NAVEGAR CON DATOS REALES
+          console.log('🚀 Navegando con conversación real del backend...');
+          
+          navigate('/message', {
+            state: {
+              openChatWith: conversationData,
+              fromSearch: true,
+              fromBackend: true, // 🔥 IMPORTANTE: Marcar que viene del backend
+              timestamp: Date.now()
+            },
+            replace: false
+          });
+          
+          console.log('✅ Navegación ejecutada con datos del backend');
+          notifications.success(`Abriendo chat con ${modelName}`);
+          
+        } else {
+          console.error('❌ Respuesta del backend sin conversación:', data);
+          notifications.error(data.message || 'Error creando conversación');
+        }
         
-        notifications.success(`Abriendo chat con ${modelName}`);
       } else {
-        console.error('❌ Error del servidor:', data.error);
+        const errorData = await response.json();
+        console.error('❌ Error del backend:', errorData);
         
         // Manejar errores específicos
-        if (data.error === 'blocked_by_you') {
+        if (errorData.error === 'blocked_by_you') {
           notifications.error('Has bloqueado a este usuario');
-        } else if (data.error === 'blocked_by_them') {
+        } else if (errorData.error === 'blocked_by_them') {
           notifications.error('Este usuario te ha bloqueado');
         } else {
-          notifications.error(data.message || 'Error iniciando conversación');
+          notifications.error(errorData.message || 'Error iniciando conversación');
         }
       }
+      
     } catch (error) {
       console.error('❌ Error de conexión:', error);
       notifications.error('Error de conexión. Inténtalo de nuevo.');
@@ -336,90 +368,7 @@ export default function HeaderCliente() {
           >
             <Play size={24} className="text-[#ff007a]" />
           </button>
-          
-          {/* ICONO DE COMPRAS DESKTOP */}
-          <div ref={comprasRef} className="relative">
-            <button
-              onClick={toggleCompras}
-              className={`hover:scale-110 transition p-2 relative ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title={t('buyCoins') || 'Comprar Monedas'}
-              disabled={isBlocked}
-            >
-              <Coins size={24} strokeWidth={2.5} className="text-[#ff007a]" />
-              <div className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            </button>
-
-            {/* MODAL DE OFERTAS DESKTOP */}
-            {comprasAbierto && !isBlocked && (
-              <div className="absolute right-0 mt-2 w-80 bg-[#1f2125] rounded-xl shadow-xl border border-[#ff007a]/30 z-50 overflow-hidden">
-                <div className="text-white text-sm p-4 border-b border-[#ff007a]/20 font-semibold bg-[#1f2125] flex items-center gap-2">
-                  <span className="text-lg">🪙</span>
-                  {t('coinPackages')}
-                </div>
-
-                <div className="p-4 space-y-3 bg-[#1f2125]">
-                  <button
-                    onClick={() => {
-                      setComprasAbierto(false);
-                      abrirModalCompraMonedas();
-                    }}
-                    className="w-full bg-[#2b2d31] hover:bg-[#36393f] rounded-lg p-4 transition text-left border border-gray-600"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="text-white font-bold text-lg">100 monedas</div>
-                        <div className="text-sm text-gray-400">{t('videoMinutes10')}</div>
-                      </div>
-                      <div className="text-[#ff007a] font-bold text-xl">$2.99</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setComprasAbierto(false);
-                      abrirModalCompraMonedas();
-                    }}
-                    className="w-full bg-[#2b2d31] hover:bg-[#36393f] rounded-lg p-4 transition text-left border border-[#ff007a]/40 relative"
-                  >
-                    <div className="absolute top-3 right-3">
-                      <span className="bg-[#ff007a] text-white text-xs px-2 py-1 rounded-full font-semibold">
-                        {t('popular')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="text-white font-bold text-lg">300 monedas</div>
-                        <div className="text-sm text-gray-400">{t('videoMinutes30')}</div>
-                      </div>
-                      <div className="text-[#ff007a] font-bold text-xl">$5.99</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setComprasAbierto(false);
-                      abrirModalCompraMonedas();
-                    }}
-                    className="w-full bg-[#2b2d31] hover:bg-[#36393f] rounded-lg p-4 transition text-left border border-gray-600"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="text-white font-bold text-lg">800 monedas</div>
-                        <div className="text-sm text-gray-400">{t('videoMinutes80')}</div>
-                      </div>
-                      <div className="text-[#ff007a] font-bold text-xl">$11.99</div>
-                    </div>
-                  </button>
-                </div>
-
-                <div className="p-4 border-t border-[#ff007a]/20 bg-[#1f2125]">
-                  <div className="text-center text-sm text-gray-400">
-                    <span className="text-lg">🔒</span>{t('securePayment')}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+        
           
           <button
             className={`hover:scale-110 transition p-2 ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -563,54 +512,6 @@ export default function HeaderCliente() {
                     </div>
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   </div>
-                </div>
-
-                {/* Paquetes de monedas móvil */}
-                <div className="py-2 border-b border-[#ff007a]/20">
-                  <button
-                    onClick={() => {
-                      abrirModalCompraMonedas();
-                    }}
-                    className={`flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={isBlocked}
-                  >
-                    <div>
-                      <div className="font-semibold">100 monedas</div>
-                      <div className="text-xs text-gray-400">{t('videoMinutes10')}</div>
-                    </div>
-                    <span className="text-[#ff007a] font-bold">$2.99</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      if (!isBlocked) setMobileMenuAbierto(false);
-                    }}
-                    className={`flex items-center w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={isBlocked}
-                  >
-                    <div>
-                      <div className="font-semibold flex items-center gap-2">
-                        300 monedas
-                        <span className="bg-[#ff007a] text-white text-xs px-1.5 py-0.5 rounded-full">{t('popular')}</span>
-                      </div>
-                      <div className="text-xs text-gray-400">{t('videoMinutes30')}</div>
-                    </div>
-                    <span className="text-[#ff007a] font-bold">$5.99</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      setMobileMenuAbierto(false);
-                      abrirModalCompraMonedas();
-                    }}
-                    className={`flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={isBlocked}
-                  >
-                    <div>
-                      <div className="font-semibold">800 monedas</div>
-                      <div className="text-xs text-gray-400">{t('videoMinutes80')}</div>
-                    </div>
-                  </button>
                 </div>
                 
                 {/* Navegación móvil */}

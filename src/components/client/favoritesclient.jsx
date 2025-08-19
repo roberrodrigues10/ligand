@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./headercliente";
+import { useTranslation } from 'react-i18next';
 
 // 🔥 IMPORTAR COMPONENTES DE LLAMADA (como en mensajes)
 import CallingSystem from '../CallingOverlay';
@@ -31,6 +32,7 @@ export default function Favoritos() {
   const [error, setError] = useState(null);
   const [opcionesAbiertas, setOpcionesAbiertas] = useState(null);
   const [processingAction, setProcessingAction] = useState(null);
+  const { t } = useTranslation();
   
   // 🔥 ESTADOS PARA SISTEMA ONLINE/OFFLINE (como en mensajes)
   const [onlineUsers, setOnlineUsers] = useState(new Set());
@@ -98,7 +100,6 @@ export default function Favoritos() {
         const data = await response.json();
         if (data.success) {
           setUsuariosBloqueados(data.blocked_users || []);
-          console.log('✅ Usuarios bloqueados cargados:', data.blocked_users.length);
         }
       }
     } catch (error) {
@@ -126,7 +127,6 @@ export default function Favoritos() {
       if (data.success) {
         // Remover de la lista local
         setUsuariosBloqueados(prev => prev.filter(user => user.id !== blockedUserId));
-        console.log('✅ Chica desbloqueado:', nombre);
         
         // 🔥 RECARGAR FAVORITOS POR SI ERA UN FAVORITO BLOQUEADO
         loadFavorites();
@@ -163,7 +163,6 @@ export default function Favoritos() {
           });
           setUltimaConexion(ultimaConexionMap);
           
-          console.log('🟢 Usuarios online actualizados:', Array.from(onlineIds));
         }
       }
     } catch (error) {
@@ -174,7 +173,7 @@ export default function Favoritos() {
   // 🔥 FUNCIÓN PARA OBTENER ESTADO DE CONEXIÓN DETALLADO
   const obtenerEstadoConexion = (usuarioId) => {
     if (onlineUsers.has(usuarioId)) {
-      return { estado: 'online', texto: 'En línea', color: 'text-green-400' };
+      return { estado: 'online', texto: t('favorites.status.online'), color: 'text-green-400' };
     }
     
     const ultimaVez = ultimaConexion[usuarioId];
@@ -187,32 +186,31 @@ export default function Favoritos() {
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
       if (diffMinutes < 5) {
-        return { estado: 'recent', texto: 'Hace un momento', color: 'text-yellow-400' };
+        return { estado: 'recent', texto: t('favorites.status.recentlyOnline'), color: 'text-yellow-400' };
       } else if (diffMinutes < 60) {
-        return { estado: 'minutes', texto: `Hace ${diffMinutes}min`, color: 'text-orange-400' };
+        return { estado: 'minutes', texto: t('favorites.status.minutesAgo', { minutes: 'número' }), color: 'text-orange-400' };
       } else if (diffHours < 24) {
-        return { estado: 'hours', texto: `Hace ${diffHours}h`, color: 'text-orange-500' };
+        return { estado: 'hours', texto: t('favorites.status.hoursAgo', { hours: 'número' }), color: 'text-orange-500' };
       } else if (diffDays < 7) {
-        return { estado: 'days', texto: `Hace ${diffDays}d`, color: 'text-red-400' };
+        return { estado: 'days', texto: t('favorites.status.daysAgo', { days: 'número' }), color: 'text-red-400' };
       } else {
-        return { estado: 'offline', texto: 'Desconectado', color: 'text-gray-500' };
+        return { estado: 'offline', texto: t('favorites.status.offline'), color: 'text-gray-500' };
       }
     }
     
-    return { estado: 'unknown', texto: 'Desconocido', color: 'text-gray-500' };
+    return { estado: 'unknown', texto: t('favorites.status.unknown'), color: 'text-gray-500' };
   };
 
   // 🔥 FUNCIÓN PARA INICIAR LLAMADA REAL CON VERIFICACIÓN DE BLOQUEO
   const iniciarLlamadaReal = async (otherUserId, otherUserName) => {
     try {
-      console.log('📞 Verificando bloqueo antes de llamar a:', otherUserName);
       // 🔒 Verificar si YO lo he bloqueado
       const yoLoBloquee = usuariosBloqueados.some((user) => user.id === otherUserId);
       if (yoLoBloquee) {
         setConfirmAction({
           type: 'blocked',
-          title: 'No disponible',
-          message: `Has bloqueado a ${otherUserName}. Debes desbloquearlo para poder llamarlo.`,
+          title: t('favorites.calls.notAvailable'),
+          message: t('favorites.calls.blockedByUser', { name: 'nombre' }),
           confirmText: 'Entendido',
           action: () => setShowConfirmModal(false)
         });
@@ -236,8 +234,8 @@ export default function Favoritos() {
           // Mostrar modal de bloqueo en lugar de console
           setConfirmAction({
             type: 'blocked',
-            title: 'No disponible',
-            message: `${otherUserName} te ha bloqueado. No puedes realizar llamadas a este chica.`,
+            title: t('favorites.calls.notAvailable'),
+            message: t('favorites.calls.userBlocked', { name: 'nombre' }),
             confirmText: 'Entendido',
             action: () => setShowConfirmModal(false)
           });
@@ -247,7 +245,6 @@ export default function Favoritos() {
       }
 
       // Si no está bloqueado, continuar con la llamada
-      console.log('📞 Iniciando llamada a:', otherUserName);
       
       setCurrentCall({
         id: otherUserId,
@@ -268,7 +265,6 @@ export default function Favoritos() {
       const data = await response.json();
       
       if (data.success) {
-        console.log('✅ Llamada iniciada:', data);
         setCurrentCall({
           id: otherUserId,
           name: otherUserName,
@@ -282,9 +278,9 @@ export default function Favoritos() {
         if (data.error && (data.error.includes('bloqueado') || data.error.includes('blocked'))) {
           setConfirmAction({
             type: 'blocked',
-            title: 'No disponible',
+            title: t('favorites.calls.notAvailable'),
             message: `No puedes llamar a ${otherUserName}. Este chica te ha bloqueado.`,
-            confirmText: 'Entendido',
+            confirmText: t('favorites.calls.understood'),
             action: () => setShowConfirmModal(false)
           });
           setShowConfirmModal(true);
@@ -293,7 +289,7 @@ export default function Favoritos() {
             type: 'error',
             title: 'Error en llamada',
             message: data.error || 'No se pudo iniciar la llamada',
-            confirmText: 'Entendido',
+            confirmText: t('favorites.calls.understood'),
             action: () => setShowConfirmModal(false)
           });
           setShowConfirmModal(true);
@@ -310,7 +306,7 @@ export default function Favoritos() {
       setConfirmAction({
         type: 'error',
         title: 'Error de conexión',
-        message: 'No se pudo conectar para iniciar la llamada',
+        message: t('favorites.calls.cannotCall'),
         confirmText: 'Entendido',
         action: () => setShowConfirmModal(false)
       });
@@ -342,13 +338,13 @@ export default function Favoritos() {
             setCallPollingInterval(null);
             setIsCallActive(false);
             setCurrentCall(null);
-            alert('La llamada fue rechazada');
+            alert(t('favorites.calls.rejected'));
           } else if (callStatus === 'cancelled') {
             clearInterval(interval);
             setCallPollingInterval(null);
             setIsCallActive(false);
             setCurrentCall(null);
-            alert('La llamada expiró sin respuesta');
+            alert(t('favorites.calls.expired'));
           }
         }
       } catch (error) {
@@ -418,7 +414,7 @@ export default function Favoritos() {
 
       const authToken = localStorage.getItem('token');
       if (!authToken) {
-        setError('No hay sesión activa');
+        setError(t('favorites.noSession'));
         return;
       }
 
@@ -437,13 +433,12 @@ export default function Favoritos() {
 
       if (data.success) {
         setFavoritos(data.favorites || []);
-        console.log('✅ Favoritos cargados:', data.favorites.length);
       } else {
-        throw new Error(data.error || 'Error cargando favoritas');
+        throw new Error(data.error || t('favorites.errorLoading'));
       }
 
     } catch (err) {
-      console.error('❌ Error cargando favoritas:', err);
+      console.error(t('favorites.errorLoading'), err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -473,7 +468,6 @@ export default function Favoritos() {
         // Remover de la lista local
         setFavoritos(prev => prev.filter(fav => fav.id !== favoriteId));
         setOpcionesAbiertas(null);
-        console.log('✅ Favorito eliminado:', nombre);
       } else {
         console.error('Error eliminando favorito:', data.error);
       }
@@ -507,7 +501,6 @@ export default function Favoritos() {
     if (data.success) {
       setFavoritos(prev => prev.filter(fav => fav.id !== favoriteId));
       setOpcionesAbiertas(null);
-      console.log('✅ Chica bloqueado y removido de favoritas:', nombre);
       
       if (showBloqueadosModal) {
         cargarUsuariosBloqueados();
@@ -529,12 +522,12 @@ export default function Favoritos() {
     if (!isOpen || !userData) return null;
   
     const reasons = [
-      "Comportamiento inapropiado",
-      "Contenido ofensivo",
-      "Spam o acoso",
-      "Solicitudes inapropiadas",
-      "Violación de términos",
-      "Otro motivo"
+      t('favorites.blocking.reasons.inappropriate'),
+      t('favorites.blocking.reasons.offensive'),
+      t('favorites.blocking.reasons.spam'),
+      t('favorites.blocking.reasons.requests'),
+      t('favorites.blocking.reasons.terms'),
+      t('favorites.blocking.reasons.other')
     ];
   
     return (
@@ -548,12 +541,12 @@ export default function Favoritos() {
                 <Ban size={24} className="text-[#ff007a]" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Bloquear Chica</h3>
+                <h3 className="text-lg font-bold text-white">{t('favorites.blocking.title')}</h3>
                 <p className="text-[#ff007a] text-sm">{userData.name}</p>
               </div>
             </div>
             <p className="text-white/70 text-sm">
-              ¿Estás seguro que quieres bloquear a este chica?
+              {t('favorites.blocking.confirmMessage')}
             </p>
           </div>
   
@@ -561,7 +554,7 @@ export default function Favoritos() {
           <div className="p-6">
             <div className="mb-4">
               <label className="block text-white text-sm font-medium mb-3">
-                Selecciona el motivo:
+                {t('favorites.blocking.selectReason')}
               </label>
               <div className="space-y-2">
                 {reasons.map((reason) => (
@@ -582,12 +575,12 @@ export default function Favoritos() {
   
             {/* Consecuencias */}
             <div className="bg-[#ff007a]/10 border border-[#ff007a]/30 rounded-lg p-3 mb-4">
-              <h4 className="text-[#ff007a] font-medium text-sm mb-2">Al bloquear este chica:</h4>
+              <h4 className="text-[#ff007a] font-medium text-sm mb-2">{t('favorites.blocking.consequences')}</h4>
               <ul className="text-[#ff007a]/90 text-xs space-y-1">
-                <li>• No podrá enviarte mensajes</li>
-                <li>• No podrá realizarte llamadas</li>
-                <li>• Será removido de tus favoritas</li>
-                <li>• No verá cuando estés en línea</li>
+                <li>• {t('favorites.blocking.consequencesList.noMessages')}</li>
+                <li>• {t('favorites.blocking.consequencesList.noCalls')}</li>
+                <li>• {t('favorites.blocking.consequencesList.removedFromFavorites')}</li>
+                <li>• {t('favorites.blocking.consequencesList.noOnlineStatus')}</li>
               </ul>
             </div>
           </div>
@@ -599,7 +592,7 @@ export default function Favoritos() {
               disabled={loading}
               className="flex-1 bg-[#1e1e25] hover:bg-[#2c2c33] text-white px-4 py-3 rounded-xl transition-colors disabled:opacity-50 font-medium"
             >
-              Cancelar
+              {t('favorites.actions.cancel')}
             </button>
             <button
               onClick={() => onConfirm(blockReason)}
@@ -609,12 +602,12 @@ export default function Favoritos() {
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Bloqueando...
+                  {t('favorites.blocking.blocking')}
                 </>
               ) : (
                 <>
                   <Ban size={16} />
-                  Bloquear Chica
+                   {t('favorites.blocking.title')}
                 </>
               )}
             </button>
@@ -642,7 +635,7 @@ export default function Favoritos() {
       
     } catch (error) {
       console.error('❌ Error iniciando chat:', error);
-      alert('Error de conexión');
+      alert(t('favorites.calls.connectionError'));
     } finally {
       setProcessingAction(null);
     }
@@ -657,10 +650,10 @@ export default function Favoritos() {
     const diffTime = Math.abs(ahora - fecha);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
-    if (diffDays === 1) return 'Agregado hace 1 día';
-    if (diffDays < 7) return `Agregado hace ${diffDays} días`;
-    if (diffDays < 30) return `Agregado hace ${Math.floor(diffDays / 7)} semanas`;
-    return `Agregado ${fecha.toLocaleDateString()}`;
+    if (diffDays === 1) return t('favorites.dates.addedDays', { days: 1 });
+    if (diffDays < 7) return t('favorites.dates.addedDaysPlural', { days: 'número' });
+    if (diffDays < 30) return t('favorites.dates.addedWeeks', { weeks: 'número' });
+    return t('favorites.dates.addedOn', { date: 'fecha' });
   };
 
   // 🔥 CERRAR OPCIONES AL HACER CLIC FUERA
@@ -692,7 +685,7 @@ export default function Favoritos() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ff007a] mx-auto mb-4"></div>
-            <p className="text-gray-400">Cargando favoritas...</p>
+            <p className="text-gray-400">{t('favorites.loading')}</p>
           </div>
         </div>
       </div>
@@ -714,7 +707,7 @@ export default function Favoritos() {
               className="bg-[#ff007a] hover:bg-[#e6006e] px-6 py-2 rounded-lg flex items-center gap-2 mx-auto"
             >
               <RefreshCw size={16} />
-              Reintentar
+              {t('favorites.refresh')}
             </button>
           </div>
         </div>
@@ -732,10 +725,10 @@ export default function Favoritos() {
         <div>
           <h2 className="text-2xl font-bold text-[#ff007a] flex items-center gap-2">
             <Heart size={24} />
-            Tus Favoritos
+            {t('favorites.title')}
           </h2>
           <p className="text-gray-400 text-sm mt-1">
-            {favoritas.length} {favoritas.length === 1 ? 'favorito' : 'favoritas'}
+            {favoritas.length} {favoritas.length === 1 ? t('favorites.count') : t('favorites.countPlural')}
           </p>
         </div>
         
@@ -749,7 +742,7 @@ export default function Favoritos() {
             className="bg-[#2b2d31] hover:bg-[#373a40] text-red-400 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
           >
             <Ban size={16} />
-            Chicas Bloqueadas
+            {t('favorites.blockedUsers.title')}
           </button>
           
           <button
@@ -758,7 +751,7 @@ export default function Favoritos() {
             className="bg-[#2b2d31] hover:bg-[#373a40] px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            Actualizar
+             {t('favorites.updating')}
           </button>
         </div>
       </div>
@@ -767,14 +760,14 @@ export default function Favoritos() {
       {favoritas.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">💝</div>
-          <h3 className="text-xl font-bold mb-2">No tienes favoritas aún</h3>
-          <p className="text-gray-400 mb-6">Cuando agregues chicas como favoritas, aparecerán aquí</p>
+          <h3 className="text-xl font-bold mb-2">{t('favorites.noFavorites')}</h3>
+          <p className="text-gray-400 mb-6">{t('favorites.noFavoritesDesc')}</p>
           <button
             onClick={() => navigate('/esperandocall')}
             className="bg-[#ff007a] hover:bg-[#e6006e] px-6 py-3 rounded-lg flex items-center gap-2 mx-auto"
           >
             <Users size={16} />
-            Buscar chicas
+            {t('favorites.searchUsers')}
           </button>
         </div>
       ) : (
@@ -840,7 +833,7 @@ export default function Favoritos() {
                         className="flex items-center w-full px-4 py-2 gap-2 hover:bg-[#373a40] text-sm text-red-400 rounded-t-xl"
                       >
                         <Ban size={16} />
-                        Bloquear
+                        {t('favorites.actions.block')}
                       </button>
 
                         <button
@@ -851,7 +844,7 @@ export default function Favoritos() {
                           className="flex items-center w-full px-4 py-2 gap-2 hover:bg-[#373a40] text-sm rounded-b-xl"
                         >
                           <Trash2 size={16} />
-                          Eliminar de favoritas
+                          {t('favorites.actions.removeFromFavorites')}
                         </button>
                       </div>
                     )}
@@ -883,7 +876,7 @@ export default function Favoritos() {
                     ) : (
                       <>
                         <MessageSquare size={14} />
-                        Chatear
+                        {t('favorites.actions.chat')}
                       </>
                     )}
                   </button>
@@ -894,7 +887,7 @@ export default function Favoritos() {
                     disabled={processingAction === fav.id}
                   >
                     <Video size={14} />
-                    Llamar
+                    {t('favorites.actions.call')}
                   </button>
                 </div>
               </div>
@@ -914,8 +907,6 @@ export default function Favoritos() {
       <IncomingCallOverlay
         isVisible={isReceivingCall}
         callData={incomingCall}
-        onAnswer={() => console.log('Responder llamada')}
-        onDecline={() => console.log('Rechazar llamada')}
       />
 
       {/* 🔥 MODAL DE USUARIOS BLOQUEADOS */}
@@ -928,9 +919,9 @@ export default function Favoritos() {
                 <div className="flex items-center gap-3">
                   <Ban size={24} className="text-[#ff007a]" />
                   <div>
-                    <h3 className="text-lg font-bold text-white">Chicas Bloqueadas</h3>
+                    <h3 className="text-lg font-bold text-white">{t('favorites.blockedUsers.title')}</h3>
                     <p className="text-gray-400 text-sm mt-1">
-                      {usuariosBloqueados.length} {usuariosBloqueados.length === 1 ? 'chica bloqueado' : 'chicos bloqueados'}
+                      {usuariosBloqueados.length} {usuariosBloqueados.length === 1 ? t('favorites.blockedUsers.count') : t('favorites.blockedUsers.countPlural')}
                     </p>
                   </div>
                 </div>
@@ -955,8 +946,8 @@ export default function Favoritos() {
               ) : usuariosBloqueados.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">🛡️</div>
-                  <h4 className="text-xl font-bold mb-2">No has bloqueado a ningún chica</h4>
-                  <p className="text-gray-400">Los chicos que bloquees desde el chat aparecerán aquí</p>
+                  <h4 className="text-xl font-bold mb-2">{t('favorites.blockedUsers.noBlocked')}</h4>
+                  <p className="text-gray-400">{t('favorites.blockedUsers.noBlockedDesc')}</p>
                 </div>
               ) : (
                 <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3">
@@ -988,7 +979,7 @@ export default function Favoritos() {
                       {/* Motivo */}
                       {user.reason && (
                         <div className="bg-[#1a1c20] p-3 rounded-lg mb-3 border border-[#ff007a]/10">
-                          <p className="text-[#ff007a] text-xs font-medium mb-1">Motivo del bloqueo:</p>
+                          <p className="text-[#ff007a] text-xs font-medium mb-1">{t('favorites.blockedUsers.blockedReason')}</p>
                           <p className="text-white/70 text-sm italic">"{user.reason}"</p>
                         </div>
                       )}
@@ -1004,7 +995,7 @@ export default function Favoritos() {
                           const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
                           const diffMinutes = Math.ceil(diffTime / (1000 * 60));
                           
-                          if (diffMinutes < 60) return `Bloqueado hace ${diffMinutes}min`;
+                          if (diffMinutes < 60) return t('favorites.blockedUsers.blockedAgo', { time: 'tiempo' });
                           if (diffHours < 24) return `Bloqueado hace ${diffHours}h`;
                           if (diffDays < 7) return `Bloqueado hace ${diffDays}d`;
                           return `Bloqueado ${fecha.toLocaleDateString()}`;
@@ -1020,12 +1011,12 @@ export default function Favoritos() {
                         {processingAction === user.id ? (
                           <>
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            Desbloqueando...
+                            {t('favorites.blocking.unblocking')}
                           </>
                         ) : (
                           <>
                             <Shield size={14} />
-                            Desbloquear chica
+                            {t('favorites.blockedUsers.unblockSuccess')}
                           </>
                         )}
                       </button>
@@ -1039,8 +1030,7 @@ export default function Favoritos() {
             {usuariosBloqueados.length > 0 && (
               <div className="p-4 border-t border-[#ff007a]/20 bg-[#1a1c20]">
                 <p className="text-gray-400 text-xs">
-                  💡 <strong>Tip:</strong> Los chicos bloqueados no pueden enviarte mensajes ni llamarte. 
-                  Puedes desbloquearlos cuando quieras.
+                  {t('favorites.blockedUsers.tip')}
                 </p>
               </div>
             )}
@@ -1061,7 +1051,7 @@ export default function Favoritos() {
                   onClick={() => setShowConfirmModal(false)}
                   className="flex-1 bg-[#2b2d31] hover:bg-[#373a40] text-white px-4 py-2 rounded-lg transition-colors"
                 >
-                  Cancelar
+                  {t('favorites.actions.cancel')}
                 </button>
                 {confirmAction.type !== 'blocked' && confirmAction.type !== 'error' && (
                   <button

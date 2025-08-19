@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Gift, Sparkles, Send, MessageSquare, Heart } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export const GiftsModal = ({
   isOpen,
@@ -14,6 +15,7 @@ export const GiftsModal = ({
   userBalance = 0,   // Saldo del usuario
   loading = false
 }) => {
+  const { t } = useTranslation();
   const [selectedGift, setSelectedGift] = useState(null);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,14 +36,14 @@ export const GiftsModal = ({
       // Validar que gift.id existe
       if (!giftId) {
         console.error('❌ ERROR: gift.id está vacío:', gift.id);
-        alert('Error: ID de regalo inválido');
+        alert(t('gifts.invalidGiftId'));
         return;
       }
 
       // Validar que recipientId es un número válido
       if (isNaN(recipientIdNumber)) {
         console.error('❌ ERROR: recipientId inválido:', recipientId);
-        alert('Error: ID de destinatario inválido');
+        alert(t('gifts.invalidRecipientId'));
         return;
       }
 
@@ -67,10 +69,10 @@ export const GiftsModal = ({
         );
 
         if (result.success) {
-          alert(`¡Solicitud de ${gift.name} enviada a ${recipientName}! 🎁`);
+          alert(t('gifts.requestSent', { giftName: gift.name, recipientName: recipientName }));
           onClose();
         } else {
-          alert(`Error: ${result.error}`);
+          alert(`${t('error')}: ${result.error}`);
         }
 
       } else if (userRole === 'cliente') {
@@ -79,16 +81,19 @@ export const GiftsModal = ({
         
         // Verificar saldo suficiente
         if (userBalance < gift.price) {
-          alert(`No tienes suficientes monedas. Necesitas ${gift.price} pero tienes ${userBalance}.`);
+          alert(t('gifts.insufficientBalance', { required: gift.price, current: userBalance }));
           setIsLoading(false);
           return;
         }
 
         // Confirmación antes de enviar
         const confirmSend = window.confirm(
-          `¿Enviar ${gift.name} a ${recipientName}?\n` +
-          `Costo: ${gift.price} monedas\n` +
-          `Tu saldo actual: ${userBalance} monedas`
+          t('gifts.confirmSend', {
+            giftName: gift.name,
+            recipientName: recipientName,
+            price: gift.price,
+            balance: userBalance
+          })
         );
 
         if (!confirmSend) {
@@ -104,16 +109,16 @@ export const GiftsModal = ({
         );
 
         if (result.success) {
-          alert(`¡${gift.name} enviado a ${recipientName}! 🎉`);
+          alert(t('gifts.giftSent', { giftName: gift.name, recipientName: recipientName }));
           onClose();
         } else {
-          alert(`Error: ${result.error}`);
+          alert(`${t('error')}: ${result.error}`);
         }
       }
 
     } catch (error) {
       console.error('❌ Error en handleGiftSelect:', error);
-      alert('Error al procesar el regalo');
+      alert(t('gifts.processingError'));
     }
     
     setIsLoading(false);
@@ -127,15 +132,23 @@ export const GiftsModal = ({
 
   if (!isOpen) return null;
 
-  // 🎯 TÍTULOS DINÁMICOS SEGÚN EL ROL
-  const title = userRole === 'modelo' ? 'Pedir Regalo' : 'Enviar Regalo';
+  // 🎯 TÍTULOS DINÁMICOS TRADUCIDOS
+  const title = userRole === 'modelo' ? t('gifts.requestGift') : t('gifts.sendGift');
   const subtitle = userRole === 'modelo' 
-    ? `Solicitar a ${recipientName}` 
-    : `Para ${recipientName}`;
+    ? t('gifts.requestFrom', { name: recipientName })
+    : t('gifts.forRecipient', { name: recipientName });
   
   const buttonText = userRole === 'modelo' 
-    ? 'Haz clic para pedir' 
-    : 'Haz clic para enviar';
+    ? t('gifts.clickToRequest')
+    : t('gifts.clickToSend');
+
+  const messagePlaceholder = userRole === 'modelo'
+    ? t('gifts.placeholderRequest')
+    : t('gifts.placeholderGift');
+
+  const messageLabel = userRole === 'modelo'
+    ? t('gifts.optionalRequestMessage')
+    : t('gifts.optionalMessage');
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex items-center justify-center p-2 sm:p-4">
@@ -162,7 +175,7 @@ export const GiftsModal = ({
                 <p className="text-[#ff007a] text-xs sm:text-sm">{subtitle}</p>
                 {userRole === 'cliente' && (
                   <p className="text-yellow-400 text-xs">
-                    💰 Tu saldo: {userBalance} monedas
+                    {t('gifts.yourBalance', { balance: userBalance })}
                   </p>
                 )}
               </div>
@@ -179,19 +192,13 @@ export const GiftsModal = ({
         {/* Mensaje opcional */}
         <div className="p-4 sm:p-6 border-b border-[#ff007a]/10">
           <label className="block text-white text-sm font-medium mb-2">
-            {userRole === 'modelo' 
-              ? 'Mensaje opcional (aparecerá con tu solicitud):' 
-              : 'Mensaje opcional para acompañar tu regalo:'
-            }
+            {messageLabel}
           </label>
           <div className="relative">
             <MessageSquare className="absolute left-3 top-2.5 h-4 w-4 text-white/50" />
             <input
               type="text"
-              placeholder={userRole === 'modelo' 
-                ? "Ej: ¡Por favor! 🥺" 
-                : "Ej: ¡Eres increíble! 💖"
-              }
+              placeholder={messagePlaceholder}
               className="w-full pl-10 pr-4 py-2 bg-[#1a1c20] text-white placeholder-white/60 rounded-lg outline-none focus:ring-2 focus:ring-[#ff007a]/50"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -199,7 +206,7 @@ export const GiftsModal = ({
             />
           </div>
           <p className="text-xs text-white/50 mt-1">
-            {message.length}/100 caracteres
+            {t('gifts.characters', { current: message.length, max: 100 })}
           </p>
         </div>
 
@@ -266,7 +273,7 @@ export const GiftsModal = ({
                     {/* Indicador de saldo insuficiente */}
                     {userRole === 'cliente' && !canAfford && (
                       <div className="mt-1 text-xs text-red-400">
-                        Faltan {gift.price - userBalance}
+                        {t('gifts.insufficient', { amount: gift.price - userBalance })}
                       </div>
                     )}
                   </div>
@@ -280,10 +287,10 @@ export const GiftsModal = ({
         <div className="p-3 sm:p-4 border-t border-[#ff007a]/20 bg-[#1a1c20]/50">
           <div className="flex items-center justify-center text-xs sm:text-sm text-white/60">
             <span>
-              ✨ {gifts.length} regalos disponibles - {buttonText}
+              ✨ {t('gifts.giftsAvailable', { count: gifts.length })} - {buttonText}
               {userRole === 'cliente' && (
                 <span className="ml-2 text-yellow-400">
-                  💰 Saldo: {userBalance} monedas
+                  💰 {t('gifts.yourBalance', { balance: userBalance })}
                 </span>
               )}
             </span>
@@ -296,7 +303,7 @@ export const GiftsModal = ({
             <div className="bg-[#0a0d10] border border-[#ff007a]/30 rounded-lg p-6 flex items-center gap-3">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#ff007a]"></div>
               <span className="text-white font-medium">
-                {userRole === 'modelo' ? 'Enviando solicitud...' : 'Enviando regalo...'}
+                {userRole === 'modelo' ? t('gifts.sendingRequest') : t('gifts.sendingGift')}
               </span>
             </div>
           </div>

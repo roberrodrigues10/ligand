@@ -795,7 +795,7 @@ const playAlternativeGiftSound = useCallback(async () => {
       <div className="flex-1 relative">
         <div 
           ref={messagesContainerRef}
-          className="flex-1 max-h-[350px] p-3 space-y-3 overflow-y-auto custom-scroll"
+          className="flex-1 max-h-[48vh] p-3 space-y-3 overflow-y-auto custom-scroll"
         >
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">

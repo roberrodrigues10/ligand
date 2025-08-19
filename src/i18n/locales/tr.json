@@ -84,6 +84,134 @@
   "blockedOn": "{{date}} tarihinde engellendi",
   "blockTip": "Engellenen erkekler size mesaj gönderemez veya arayamaz. İstediğiniz zaman engellerini kaldırabilirsiniz.",
   "cancel": "İptal",
+  "forgotPassword": {
+    "title": "Şifrenizi mi unuttunuz?",
+    "emailStepDescription": "E-postanızı girin, şifrenizi sıfırlamak için size bir kod göndereceğiz",
+    "emailLabel": "E-posta Adresi",
+    "emailPlaceholder": "sizin@email.com",
+    "sendCodeButton": "Kod Gönder",
+    "sending": "Gönderiliyor...",
+    "linkSentTitle": "Bağlantı Gönderildi",
+    "linkSentDescription": "Hesabınıza bir sıfırlama bağlantısı gönderdik",
+    "checkInboxInstruction": "Gelen kutunuzu kontrol edin ve bağlantıya tıklayın",
+    "understood": "Anlaşıldı",
+    "resendLink": "Bağlantıyı almadınız mı? Tekrar gönder",
+    "newPasswordTitle": "Yeni Şifre",
+    "newPasswordDescription": "Yeni şifrenizi girin",
+    "newPasswordLabel": "Yeni Şifre",
+    "passwordPlaceholder": "En az 8 karakter",
+    "confirmPasswordLabel": "Şifreyi Onayla",
+    "confirmPasswordPlaceholder": "Şifrenizi tekrarlayın",
+    "changePasswordButton": "Şifreyi Değiştir",
+    "changing": "Değiştiriliyor...",
+    "passwordChangedTitle": "Şifre Değiştirildi!",
+    "passwordChangedDescription": "Şifreniz başarıyla güncellendi.",
+    "closing": "Kapatılıyor...",
+    "passwordMismatch": "Şifreler eşleşmiyor",
+    "passwordTooShort": "Şifre en az 8 karakter olmalıdır"
+  },
+  "searchClients": {
+    "title": "Müşteri Ara",
+    "searchPlaceholder": "Müşterileri isme göre ara...",
+    "loading": "Yükleniyor...",
+    "noClientsFound": "Bu isimle müşteri bulunamadı",
+    "noClientsAvailable": "Müşteri mevcut değil",
+    "tryDifferentSearch": "Farklı bir arama terimi deneyin",
+    "online": "Çevrimiçi",
+    "offline": "Çevrimdışı",
+    "message": "Mesaj",
+    "call": "Ara",
+    "sendMessage": "Mesaj gönder",
+    "makeCall": "Arama yap",
+    "clientFound": "müşteri bulundu",
+    "clientsFound": "müşteri bulundu",
+    "authTokenError": "Hata: Kimlik doğrulama token'ı bulunamadı",
+    "invalidTokenError": "Hata: Geçersiz kimlik doğrulama token'ı",
+    "endpointNotFoundError": "Hata: Uç nokta bulunamadı"
+  },
+  "clientInterface": {
+    "greeting": "Merhaba! {{name}} Bir sonraki bağlantınız için hazır mısınız?",
+    "mainDescription": "Online bir kızla rastgele görüntülü arama başlatmak için aşağıdaki düğmeye tıklayın veya mevcut kızlardan herhangi birini doğrudan arayın.",
+    "checkingBalance": "Bakiye kontrol ediliyor...",
+    "startCall": "Görüntülü Aramayı Başlat",
+    "buyCoins": "Jeton Satın Al",
+    "tipOfTheDay": "💡 Günün ipucu:",
+    "dailyTip": "Otantik olun. En iyi bağlantılar gerçek bir gülümsemeden doğar.",
+    "activeGirls": "Aktif Kızlar",
+    "loadingGirls": "Kızlar yükleniyor...",
+    "noActiveGirls": "Aktif kız yok",
+    "girlsWillAppear": "Mevcut kızlar online olduklarında burada görünecek",
+    "online": "Çevrimiçi",
+    "callInProgress": "Arama devam ediyor",
+    "callThisGirl": "Bu kızı ara",
+    "messageThisGirl": "Bu kıza mesaj",
+    "yourHistory": "Geçmişiniz",
+    "yourBalance": "Bakiyeniz",
+    "total": "Toplam:",
+    "minutes": "Dakika:",
+    "status": "Durum:",
+    "insufficientBalance": "❌ Yetersiz",
+    "minimumBalance": "⚠️ Minimum",
+    "stableBalance": "✅ Kararlı",
+    "insufficientBalanceTitle": "Yetersiz Bakiye",
+    "insufficientBalanceMessage": "Görüntülü arama başlatmak için en az 30 jetona (3 dakika) ihtiyacınız var.",
+    "currentStatus": "Mevcut durum:",
+    "totalCoins": "Toplam jeton:",
+    "minimumRequired": "Minimum gerekli:",
+    "rechargeNow": "Şimdi Yükle",
+    "cancel": "İptal",
+    "notAvailable": "Mevcut değil",
+    "youBlockedUser": "{{name}}'i engellediniz. Onu arayabilmek için engelini kaldırmalısınız.",
+    "userBlockedYou": "{{name}} sizi engelledi. Bu kızı arayamazsınız.",
+    "understood": "Anlaşıldı",
+    "callError": "Arama hatası",
+    "callFailed": "Arama tamamlanamadı",
+    "callRejected": "Kız aramayı reddetti",
+    "callExpired": "Arama yanıtsız süresi doldu",
+    "timeoutExpired": "Bekleme süresi doldu",
+    "errorStartingCall": "Arama başlatma hatası"
+  },
+  "storiesModal": {
+    "loadingStories": "Hikayeler yükleniyor...",
+    "noStoriesAvailable": "Şu anda hikaye mevcut değil",
+    "errorLoadingStories": "Hikayeler yüklenirken hata",
+    "likedStory": "❤️ Bu hikayeyi beğendin",
+    "errorProcessingReaction": "Tepki işlenirken hata",
+    "callingUser": "{{name}} aranıyor...",
+    "cannotCallUser": "Bu kullanıcıyı arayamazsınız",
+    "callStartError": "Arama başlatılamadı",
+    "errorStartingCall": "Arama başlatılırken hata",
+    "callRejected": "Arama reddedildi",
+    "callExpired": "Arama yanıtsız süresi doldu",
+    "timeoutExpired": "Bekleme süresi doldu",
+    "noStoriesTitle": "Hikaye yok",
+    "noStoriesMessage": "Şu anda hikaye mevcut değil.",
+    "close": "Kapat",
+    "user": "Kullanıcı",
+    "next": "Sonraki",
+    "restart": "Yeniden başlat",
+    "storyViewed": "Hikaye görüntülendi",
+    "tapNextToContinue": "Devam etmek için \"Sonraki\"ye dokunun",
+    "couldNotVerifyLike": "Beğeni durumu doğrulanamadı",
+    "errorRegisteringView": "Görüntüleme kaydedilirken hata:"
+  },
+  "searchModels": {
+    "title": "Model Ara",
+    "searchPlaceholder": "İsime göre ara...",
+    "loading": "Yükleniyor...",
+    "noModelsFound": "Bu isimle model bulunamadı",
+    "noModelsAvailable": "Model mevcut değil",
+    "tryDifferentSearch": "Farklı bir arama terimi deneyin",
+    "online": "Çevrimiçi",
+    "offline": "Çevrimdışı",
+    "message": "Mesaj",
+    "call": "Ara",
+    "sendMessage": "Mesaj gönder",
+    "makeCall": "Arama yap",
+    "modelFound": "model bulundu",
+    "modelsFound": "model bulundu",
+    "avatar": "Avatar"
+  },
   "genero": {
     "femenino": "Kadın",
     "masculino": "Erkek"
@@ -442,20 +570,20 @@
   },
   "chat": {
     "title": "Özel Sohbet",
-    "searchPlaceholder": "Konuşma ara...",
+    "searchPlaceholder": "Sohbetleri ara...",
     "loading": "Yükleniyor...",
-    "noConversations": "Konuşma yok",
-    "selectConversation": "Bir konuşma seçin",
-    "selectConversationDesc": "Mesajları görmek için bir konuşma seçin",
+    "noConversations": "Sohbet yok",
+    "selectConversation": "Bir sohbet seçin",
+    "selectConversationDesc": "Mesajları görüntülemek için bir sohbet seçin",
     "noMessages": "Henüz mesaj yok",
     "messagePlaceholder": "Bir mesaj yazın...",
     "send": "Gönder",
-    "videochat": "Video sohbet",
+    "videochat": "Görüntülü sohbet",
     "calling": "Aranıyor...",
     "blocked": "Engellendi",
-    "online": "Online",
+    "online": "Çevrimiçi",
     "offline": "Çevrimdışı",
-    "you": "Siz:",
+    "you": "Sen:",
     "typing": "yazıyor...",
     "lastSeen": "Son görülme",
     "today": "bugün",
@@ -464,40 +592,35 @@
       "translation": "Çeviri",
       "translationActive": "Aktif",
       "translationInactive": "Pasif",
-      "addFavorite": "Favori Ekle",
-      "removeFavorite": "Favoriyi Kaldır",
+      "addFavorite": "Favorilere Ekle",
+      "removeFavorite": "Favorilerden Çıkar",
       "changeNickname": "Takma adı değiştir",
       "block": "Engelle",
-      "unblock": "Engeli kaldır",
+      "unblock": "Engeli Kaldır",
       "settings": "Ayarlar"
     },
     "status": {
-      "blockedByYou": "Sizin tarafınızdan engellendi",
-      "blockedYou": "Sizi engelledi",
-      "mutualBlock": "Karşılıklı engel",
-      "userBlocked": "Kullanıcı Engellendi",
-      "userBlockedDesc": "{{name}}'i engellediniz. Size mesaj gönderemez veya arayamaz.",
+      "blockedByYou": "Senin tarafından engellendi",
+      "blockedYou": "Seni engelledi",
+      "mutualBlock": "Karşılıklı engelleme",
+      "userBlocked": "🚫 Kullanıcı Engellendi",
+      "userBlockedDesc": "{{name}}'i engelledin. Size mesaj gönderemez veya arayamaz.",
       "unblockUser": "Kullanıcının Engelini Kaldır",
       "unblocking": "Engel kaldırılıyor...",
       "confirmUnblock": "{{name}}'in engelini kaldır?",
-      "cannotSendBlocked": "Kullanıcı engellendi - mesaj gönderemezsiniz",
+      "cannotSendBlocked": "Kullanıcı engellendi - mesaj gönderilemiyor",
       "userBlockedYou": "Bu kullanıcı sizi engelledi",
-      "cannotSendGiftsBlocked": "Kullanıcı engellendi - Hediye veya emoji gönderemezsiniz",
-      "userBlockedYouGifts": "Bu kullanıcı sizi engelledi - Hediye veya emoji gönderemezsiniz",
-      "notAvailableBlocked": "Mevcut değil - kullanıcı engellendi"
+      "cannotSendGiftsBlocked": "Kullanıcı engellendi - Hediye veya emoji gönderilemiyor",
+      "userBlockedYouGifts": "Bu kullanıcı sizi engelledi - Hediye veya emoji gönderilemiyor",
+      "notAvailableBlocked": "Kullanılamaz - kullanıcı engellendi"
     },
     "gifts": {
-      "requestGift": "Hediye İste",
-      "sendingRequest": "İstek gönderiliyor...",
-      "requestSent": "İstek Gönderildi",
-      "requestSentDesc": "Hediye isteğiniz başarıyla gönderildi",
-      "giftRequest": "Hediye İsteği",
+      "requestGift": "Hediye İsteği",
       "giftReceived": "Hediye Alındı!",
       "giftSent": "Hediye Gönderildi",
       "specialGift": "Özel Hediye",
-      "coins": "coin",
-      "sentBy": "size bu hediyeyi gönderdi",
-      "debugRequest": "🔍 Hata Ayıklama İsteği"
+      "coins": "jeton",
+      "sentBy": "size bu hediyeyi gönderdi"
     },
     "nickname": {
       "title": "Takma Adı Değiştir",
@@ -509,10 +632,12 @@
       "placeholder": "Bir takma ad yazın..."
     },
     "calls": {
-      "startCall": "Video sohbet başlat",
+      "startCall": "Görüntülü sohbet başlat",
       "inCall": "Arama devam ediyor",
-      "unavailable": "Mevcut değil",
-      "callActive": "Arama aktif"
+      "unavailable": "Kullanılamaz",
+      "callActive": "Arama aktif",
+      "requestGifts": "Hediye iste",
+      "notAvailableBlocked": "Kullanılamaz - kullanıcı engellendi"
     },
     "notifications": {
       "newMessage": "{{name}}'den yeni mesaj",
@@ -522,30 +647,30 @@
       "giftSentDesc": "Hediyeniz başarıyla gönderildi"
     },
     "errors": {
-      "loadingConversations": "Konuşmalar yüklenirken hata",
+      "loadingConversations": "Sohbetler yüklenirken hata",
       "loadingMessages": "Mesajlar yüklenirken hata",
       "sendingMessage": "Mesaj gönderilirken hata",
       "sendingGift": "Hediye gönderilirken hata",
       "savingNickname": "Takma ad kaydedilirken hata",
-      "addingFavorite": "Favori eklenirken hata",
+      "addingFavorite": "Favorilere eklenirken hata",
       "blocking": "Kullanıcı engellenirken hata",
       "startingCall": "Arama başlatılırken hata",
       "connectionError": "Bağlantı hatası",
-      "tryAgain": "Tekrar deneyin"
+      "tryAgain": "Tekrar dene"
     },
     "actions": {
-      "retry": "Tekrar dene",
+      "retry": "Yeniden dene",
       "cancel": "İptal",
       "confirm": "Onayla",
       "close": "Kapat",
       "back": "Geri",
-      "understood": "Anladım"
+      "understood": "Anlaşıldı"
     },
     "time": {
-      "justNow": "Az önce",
-      "minutesAgo": "{{minutes}} dk",
-      "hoursAgo": "{{hours}} sa",
-      "daysAgo": "{{days}} gün"
+      "justNow": "Şimdi",
+      "minutesAgo": "{{minutes}}dk önce",
+      "hoursAgo": "{{hours}}sa önce",
+      "daysAgo": "{{days}}g önce"
     }
   },
   "earnings": {
@@ -823,5 +948,225 @@
       "fileTooLarge": "Dosyalar çok büyük. Lütfen video boyutunu küçültün.",
       "genericError": "Doğrulama gönderilirken hata oluştu. Lütfen tekrar deneyin."
     }
+  },"paymentMethods": {
+    "errorLoadingMethods": "Ödeme yöntemleri yüklenirken hata",
+    "noMethodsAvailable": "Ödeme Yöntemleri Mevcut Değil",
+    "noMethodsDescription": "Şu anda yapılandırılmış ödeme yöntemi bulunmamaktadır. Lütfen destek ile iletişime geçin.",
+    "selectPaymentMethod": "Ödeme Yönteminizi Seçin",
+    "choosePreferredMethod": "Jetolarınızı satın almak için tercih ettiğiniz ödeme yöntemini seçin",
+    "idealFor": "İDEAL",
+    "buyCoins": "Jeton Satın Al",
+    "loadingMethods": "Ödeme yöntemleri yükleniyor...",
+    "allPaymentsSecure": "Tüm Ödemeler %100 Güvenli",
+    "securityDescription": "En güvenilir ve güvenli ödeme platformlarını kullanıyoruz. Mali verileriniz banka düzeyinde şifreleme ile korunmaktadır.",
+    "quickComparison": "Hızlı Karşılaştırma",
+    "coinbase": {
+      "description": "100'den fazla kripto para ile güvenli ödeme yapın",
+      "cryptos": "Bitcoin, Ethereum, USDC ve daha fazlası",
+      "noVolatility": "Volatilite yok (otomatik dönüşüm)",
+      "instantConfirmation": "Anında onay",
+      "cryptoUsers": "Kripto para kullanıcıları",
+      "internationalPayments": "Uluslararası ödemeler",
+      "maxPrivacy": "Maksimum gizlilik",
+      "payWithCrypto": "Kripto ile Öde"
+    },
+    "wompi": {
+      "description": "Uluslararası kartlar, PSE, Nequi ve diğer yöntemlerle ödeyin",
+      "cards": "Visa, Mastercard, banka kartı",
+      "pse": "PSE - Tüm Kolombiya bankaları",
+      "otherMethods": "Nequi, Bancolombia Transfer",
+      "colombianUsers": "Kolombiya'daki kullanıcılar",
+      "internationalCards": "Uluslararası kartlar",
+      "bankTransfers": "PSE banka transferleri",
+      "payWithWompi": "Wompi ile Öde"
+    },
+    "comparison": {
+      "cryptocurrencies": "Kripto paralar",
+      "international": "Uluslararası",
+      "noBanks": "Banka yok",
+      "traditionalCards": "Geleneksel kartlar",
+      "pseColombia": "PSE Kolombiya",
+      "colombianPesos": "Kolombiya pesoları"
+    }
+  },
+  "buttons": {
+    "buyCoins": "Jeton Satın Al",
+    "rechargeNow": "Şimdi Yükle",
+    "cancel": "İptal"
+  },
+  "balance": {
+    "yourBalance": "Bakiyeniz",
+    "total": "Toplam",
+    "totalCoins": "Toplam jeton:",
+    "minutes": "Dakika:",
+    "status": "Durum",
+    "insufficient": "Yetersiz",
+    "minimum": "Minimum",
+    "stable": "Stabil",
+    "currentStatus": "Mevcut durum:",
+    "minimumRequired": "Minimum gerekli:"
+  },
+  "modals": {
+    "insufficientBalanceTitle": "Yetersiz Bakiye",
+    "insufficientBalanceMessage": "Video arama başlatmak için daha fazla jetona ihtiyacınız var."
+  },
+  "tips": {
+    "tipOfTheDay": "💡 Günün ipucu",
+    "dailyTip": "Kesintisiz keyif almak için her zaman pozitif bakiye bulundurun."
+  },"wompi": {
+    "loading": "Wompi yükleniyor...",
+    "poweredBy": "Powered by Wompi - Kolombiya'da güvenli ödemeler",
+    "payWithWompi": "Wompi ile Öde",
+    "title": {
+      "buyMinutes": "Dakika Satın Al",
+      "sendGifts": "Hediye Gönder"
+    },
+    "errors": {
+      "configurationError": "Yapılandırma hatası. Daha sonra tekrar deneyin.",
+      "createPayment": "Ödeme oluşturulurken hata",
+      "connectionError": "Bağlantı hatası. Tekrar deneyin."
+    },
+    "notifications": {
+      "purchaseCompleted": "Satın alma tamamlandı! {{coins}} jeton eklendi (Sandbox)",
+      "paymentCreated": "Ödeme oluşturuldu. Birkaç saniye içinde Wompi'ye yönlendirileceksiniz.",
+      "paymentCompleted": "Ödeme tamamlandı! {{coins}} jeton hesabınıza eklendi"
+    },
+    "balances": {
+      "currentBalance": "Mevcut bakiyeniz",
+      "availableForVideochat": "video sohbet için mevcut",
+      "availableForGifts": "Hediye göndermek için mevcut"
+    },
+    "status": {
+      "completed": "Tamamlandı",
+      "pending": "Beklemede",
+      "failed": "Başarısız"
+    },
+    "features": {
+      "cardsAndPSE": "Kartlar ve PSE",
+      "cardsDescription": "Visa, Mastercard, PSE ve tüm bankalar",
+      "colombian": "100% Kolombiyalı",
+      "colombianDescription": "Dijital ödemelerde lider platform",
+      "securePayment": "Güvenli Ödeme",
+      "secureDescription": "PCI DSS sertifikası ve şifreleme",
+      "quickConfirmation": "Hızlı Onay",
+      "quickDescription": "Jetonlarınızı anında alın"
+    },
+    "history": {
+      "recentPurchases": "Son Satın Almalar (Wompi)"
+    },
+    "country": {
+      "colombia": "Kolombiya"
+    },
+    "verification": {
+      "title": "Ödeme Doğrulama",
+      "totalToPay": "Ödenecek toplam",
+      "alreadyCompleted": "Ödemeyi zaten tamamladınız mı?",
+      "autoChecking": "Her 3 saniyede otomatik kontrol...",
+      "coinsWillAppear": "Jetonlar otomatik olarak görünecek veya manuel kontrol edebilirsiniz:",
+      "checking": "Kontrol ediliyor...",
+      "checkNow": "Şimdi Kontrol Et"
+    },
+    "redirect": {
+      "preparingPayment": "Ödemeniz hazırlanıyor",
+      "autoRedirect": "Otomatik olarak Wompi'ye yönlendirileceksiniz",
+      "payNow": "Şimdi öde",
+      "redirectedToWompi": "Wompi'ye yönlendirildi!",
+      "newWindowOpened": "Ödeme checkout'unuzla yeni bir pencere açıldı.",
+      "openWompiAgain": "Wompi'yi tekrar aç"
+    },
+    "process": {
+      "whatHappensNow": "Şimdi ne oluyor?",
+      "step1": "Sizi güvenli Wompi checkout'una yönlendiriyoruz",
+      "step2": "Kart, PSE veya Nequi ile ödemenizi tamamlayın",
+      "step3": "Jetonlar otomatik olarak hesabınıza eklenir"
+    },
+    "paymentMethods": {
+      "title": "Wompi'de Ödeme Yöntemleri",
+      "cards": {
+        "title": "Kartlar",
+        "description": "Visa, Mastercard"
+      },
+      "pse": {
+        "title": "PSE",
+        "description": "Kolombiya Bankaları"
+      },
+      "nequi": {
+        "title": "Nequi",
+        "description": "Mobil ödeme"
+      },
+      "bancolombia": {
+        "title": "Bancolombia",
+        "description": "Transfer"
+      }
+    }
+  },
+  "packages": {
+    "mostPopular": "EN POPÜLER",
+    "free": "ücretsiz",
+    "videochatTime": "video sohbet",
+    "perCoin": "jeton başına",
+    "bonusCoins": "Bonus jetonlar"
+  },
+  "balance": {
+    "purchased": "Satın alınan",
+    "giftMinutes": "Hediye (dakika)",
+    "giftCoins": "hediye jetonları",
+    "received": "Alınan",
+    "sent": "Gönderilen"
+  },
+  "buttons": {
+    "buy": "Satın Al",
+    "send": "Gönder",
+    "back": "Geri"
+  },
+  "common": {
+    "coins": "jeton",
+    "minutes": "Dakika",
+    "gifts": "Hediyeler"
+  },
+  "gifts": {
+      "sendGift": "Hediye Gönder",
+      "requestGift": "Hediye İste", 
+      "forRecipient": "{{name}} için",
+      "requestFrom": "{{name}}'den iste",
+      "clickToSend": "Göndermek için tıklayın",
+      "clickToRequest": "İstemek için tıklayın",
+      "yourBalance": "Bakiyeniz: {{balance}} jeton",
+      "optionalMessage": "Hediyeniz için isteğe bağlı mesaj:",
+      "optionalRequestMessage": "İsteğe bağlı mesaj (isteğinizle birlikte görünecek):",
+      "placeholderGift": "Örn: Harikasın! 💖",
+      "placeholderRequest": "Örn: Lütfen! 🥺",
+      "characters": "{{current}}/{{max}} karakter",
+      "giftsAvailable": "{{count}} hediye mevcut",
+      "insufficient": "{{amount}} eksik",
+      "confirmSend": "{{giftName}} hediyesini {{recipientName}}'e gönder?\nMaliyet: {{price}} jeton\nMevcut bakiyeniz: {{balance}} jeton",
+      "giftSent": "{{giftName}} {{recipientName}}'e gönderildi! 🎉",
+      "requestSent": "{{giftName}} isteği {{recipientName}}'e gönderildi! 🎁",
+      "sendingGift": "Hediye gönderiliyor...",
+      "sendingRequest": "İstek gönderiliyor...",
+      "invalidGiftId": "Hata: Geçersiz hediye ID'si",
+      "invalidRecipientId": "Hata: Geçersiz alıcı ID'si", 
+      "insufficientBalance": "Yetersiz jeton. {{required}} gerekli ama {{current}} var.",
+      "processingError": "Hediye işlenirken hata"
+    },"disconnect": {
+      "modelSkippedYou": "Model bir sonrakine geçti",
+      "searchedOtherClient": "Başka bir müşteri aradı",
+      "modelDisconnected": "Model bağlantıyı kesti",
+      "endedVideoCall": "Görüntülü aramayı sonlandırdı",
+      "modelLeft": "Model odayı terk etti",
+      "leftSession": "Oturumdan ayrıldı",
+      "balanceExhausted": "Bakiye tükendi",
+      "ranOutOfCoins": "Jetolarınız bitti",
+      "sessionEnded": "Oturum sona erdi",
+      "connectionLost": "Bağlantı kesildi",
+      "details": "Detaylar",
+      "dontWorryClient": "Merak etme!",
+      "connectingWithOther": "Başka bir modelle bağlantı kuruluyor...",
+      "inSeconds": "{{seconds}} saniye içinde",
+      "connecting": "Bağlanıyor...",
+      "keepSufficientCoins": "Yeterli jeton bulundur",
+      "beRespectful": "Her zaman saygılı ol",
+      "eachConnectionUnique": "Her bağlantı benzersizdir"
+    }
   }
-}
+  

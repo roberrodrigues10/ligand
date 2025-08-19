@@ -14,6 +14,7 @@ import {
   Loader,
   ExternalLink
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 // Importar componentes independientes
 import CoinbaseCommerceBuyCoins from './CoinbaseCommerceBuyCoins';
@@ -22,6 +23,7 @@ import WompiPayment from './WompiPayment';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function UnifiedPaymentModal({ onClose }) {
+  const { t } = useTranslation();
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paymentMethods, setPaymentMethods] = useState({
@@ -79,7 +81,7 @@ export default function UnifiedPaymentModal({ onClose }) {
 
     } catch (error) {
       console.error('Error inicializando métodos de pago:', error);
-      showNotification('Error cargando métodos de pago', 'error');
+      showNotification(t('paymentMethods.errorLoadingMethods'), 'error');
     } finally {
       setLoading(false);
     }
@@ -144,16 +146,16 @@ export default function UnifiedPaymentModal({ onClose }) {
         <div className="text-center py-12">
           <AlertCircle className="text-red-400 mx-auto mb-4" size={48} />
           <h3 className="text-xl font-bold text-white mb-2">
-            Métodos de Pago No Disponibles
+            {t('paymentMethods.noMethodsAvailable')}
           </h3>
           <p className="text-white/60 mb-6">
-            Actualmente no hay métodos de pago configurados. Por favor contacta soporte.
+            {t('paymentMethods.noMethodsDescription')}
           </p>
           <button
             onClick={onClose}
             className="bg-gray-600 hover:bg-gray-500 text-white py-2 px-6 rounded-lg font-medium transition-colors"
           >
-            Cerrar
+            {t('common.close')}
           </button>
         </div>
       );
@@ -168,11 +170,11 @@ export default function UnifiedPaymentModal({ onClose }) {
               <Coins size={24} className="text-white" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">
-              Selecciona tu Método de Pago
+              {t('paymentMethods.selectPaymentMethod')}
             </h1>
           </div>
           <p className="text-white/70">
-            Elige el método de pago que prefieras para comprar tus monedas
+            {t('paymentMethods.choosePreferredMethod')}
           </p>
         </div>
 
@@ -192,50 +194,53 @@ export default function UnifiedPaymentModal({ onClose }) {
                 
                 <h3 className="text-xl font-bold text-white mb-2">Coinbase Commerce</h3>
                 <p className="text-white/60 text-sm mb-4">
-                  Paga con más de 100 criptomonedas de forma segura
+                  {t('paymentMethods.coinbase.description')}
                 </p>
 
                 {/* Características */}
                 <div className="space-y-2 mb-6">
                   <div className="flex items-center gap-2 text-sm text-white/70">
                     <Bitcoin size={16} className="text-orange-400" />
-                    <span>Bitcoin, Ethereum, USDC y más</span>
+                    <span>{t('paymentMethods.coinbase.cryptos')}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-white/70">
                     <Shield size={16} className="text-green-400" />
-                    <span>Sin volatilidad (conversión automática)</span>
+                    <span>{t('paymentMethods.coinbase.noVolatility')}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-white/70">
                     <Check size={16} className="text-blue-400" />
-                    <span>Confirmación instantánea</span>
+                    <span>{t('paymentMethods.coinbase.instantConfirmation')}</span>
                   </div>
                 </div>
 
                 {/* Ventajas */}
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4">
-                  <div className="text-xs text-blue-400 font-semibold mb-1">IDEAL PARA:</div>
+                  <div className="text-xs text-blue-400 font-semibold mb-1">
+                    {t('paymentMethods.idealFor')}:
+                  </div>
                   <div className="text-xs text-white/80">
-                    • Usuarios con criptomonedas<br/>
-                    • Pagos internacionales<br/>
-                    • Máxima privacidad
+                    • {t('paymentMethods.coinbase.cryptoUsers')}<br/>
+                    • {t('paymentMethods.coinbase.internationalPayments')}<br/>
+                    • {t('paymentMethods.coinbase.maxPrivacy')}
                   </div>
                 </div>
 
                 {/* Badge del ambiente */}
                 {coinbase.config?.sandbox && (
                   <div className="inline-block bg-yellow-500/20 border border-yellow-500/30 rounded-full px-3 py-1 mb-4">
-                    <span className="text-yellow-400 text-xs font-medium">MODO SANDBOX</span>
+                    <span className="text-yellow-400 text-xs font-medium">
+                      {t('common.sandboxMode')}
+                    </span>
                   </div>
                 )}
 
                 <button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2">
                   <Wallet size={18} />
-                  Pagar con Crypto
+                  {t('paymentMethods.coinbase.payWithCrypto')}
                 </button>
               </div>
             </div>
           )}
-
           {/* Wompi */}
           {wompi.available && (
             <div
@@ -249,45 +254,49 @@ export default function UnifiedPaymentModal({ onClose }) {
                 
                 <h3 className="text-xl font-bold text-white mb-2">Wompi</h3>
                 <p className="text-white/60 text-sm mb-4">
-                  Paga con tarjetas, PSE, Nequi y más métodos colombianos
+                  {t('paymentMethods.wompi.description')}
                 </p>
 
                 {/* Características */}
                 <div className="space-y-2 mb-6">
                   <div className="flex items-center gap-2 text-sm text-white/70">
                     <CreditCard size={16} className="text-blue-400" />
-                    <span>Visa, Mastercard, débito</span>
+                    <span>{t('paymentMethods.wompi.cards')}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-white/70">
                     <MapPin size={16} className="text-green-400" />
-                    <span>PSE - Todos los bancos colombianos</span>
+                    <span>{t('paymentMethods.wompi.pse')}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-white/70">
                     <Check size={16} className="text-yellow-400" />
-                    <span>Nequi, Bancolombia Transfer</span>
+                    <span>{t('paymentMethods.wompi.otherMethods')}</span>
                   </div>
                 </div>
 
                 {/* Ventajas */}
                 <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 mb-4">
-                  <div className="text-xs text-green-400 font-semibold mb-1">IDEAL PARA:</div>
+                  <div className="text-xs text-green-400 font-semibold mb-1">
+                    {t('paymentMethods.idealFor')}:
+                  </div>
                   <div className="text-xs text-white/80">
-                    • Usuarios en Colombia<br/>
-                    • Pagos con tarjetas tradicionales<br/>
-                    • Transferencias bancarias PSE
+                    • {t('paymentMethods.wompi.colombianUsers')}<br/>
+                    • {t('paymentMethods.wompi.internationalCards')}<br/>
+                    • {t('paymentMethods.wompi.bankTransfers')}
                   </div>
                 </div>
 
                 {/* Badge del ambiente */}
                 {wompi.config?.sandbox && (
                   <div className="inline-block bg-yellow-500/20 border border-yellow-500/30 rounded-full px-3 py-1 mb-4">
-                    <span className="text-yellow-400 text-xs font-medium">MODO SANDBOX</span>
+                    <span className="text-yellow-400 text-xs font-medium">
+                      {t('common.sandboxMode')}
+                    </span>
                   </div>
                 )}
 
                 <button className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2">
                   <CreditCard size={18} />
-                  Pagar con Wompi
+                  {t('paymentMethods.wompi.payWithWompi')}
                 </button>
               </div>
             </div>
@@ -299,11 +308,10 @@ export default function UnifiedPaymentModal({ onClose }) {
           <div className="bg-[#1a1c20] rounded-lg p-4 border border-gray-600">
             <h4 className="text-white font-semibold mb-2 flex items-center justify-center gap-2">
               <Shield className="text-blue-400" size={18} />
-              Todos los Pagos son 100% Seguros
+              {t('paymentMethods.allPaymentsSecure')}
             </h4>
             <p className="text-white/60 text-sm">
-              Utilizamos las plataformas de pago más confiables y seguras. 
-              Tus datos financieros están protegidos con cifrado de nivel bancario.
+              {t('paymentMethods.securityDescription')}
             </p>
           </div>
         </div>
@@ -312,22 +320,24 @@ export default function UnifiedPaymentModal({ onClose }) {
         {coinbase.available && wompi.available && (
           <div className="mt-6">
             <div className="bg-[#1a1c20] rounded-lg p-4 border border-gray-600">
-              <h4 className="text-white font-semibold mb-3 text-center">Comparación Rápida</h4>
+              <h4 className="text-white font-semibold mb-3 text-center">
+                {t('paymentMethods.quickComparison')}
+              </h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="text-center">
                   <div className="text-blue-400 font-semibold mb-1">Coinbase Commerce</div>
                   <div className="text-white/60">
-                    ✓ Criptomonedas<br/>
-                    ✓ Internacional<br/>
-                    ✓ Sin bancos
+                    ✓ {t('paymentMethods.comparison.cryptocurrencies')}<br/>
+                    ✓ {t('paymentMethods.comparison.international')}<br/>
+                    ✓ {t('paymentMethods.comparison.noBanks')}
                   </div>
                 </div>
                 <div className="text-center">
                   <div className="text-green-400 font-semibold mb-1">Wompi</div>
                   <div className="text-white/60">
-                    ✓ Tarjetas tradicionales<br/>
-                    ✓ PSE Colombia<br/>
-                    ✓ Pesos colombianos
+                    ✓ {t('paymentMethods.comparison.traditionalCards')}<br/>
+                    ✓ {t('paymentMethods.comparison.pseColombia')}<br/>
+                    ✓ {t('paymentMethods.comparison.colombianPesos')}
                   </div>
                 </div>
               </div>
@@ -343,7 +353,7 @@ export default function UnifiedPaymentModal({ onClose }) {
       <div className="min-h-[500px] flex items-center justify-center">
         <div className="text-center">
           <Loader className="animate-spin text-[#ff007a] mx-auto mb-4" size={48} />
-          <p className="text-white/70">Cargando métodos de pago...</p>
+          <p className="text-white/70">{t('paymentMethods.loadingMethods')}</p>
         </div>
       </div>
     );
@@ -368,7 +378,7 @@ export default function UnifiedPaymentModal({ onClose }) {
               {selectedMethod ? (
                 selectedMethod === 'coinbase' ? 'Coinbase Commerce' : 'Wompi'
               ) : (
-                'Comprar Monedas'
+                t('paymentMethods.buyCoins')
               )}
             </h2>
           </div>

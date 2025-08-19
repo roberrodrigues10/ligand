@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
-import { getUser, reclamarSesion } from "../../../utils/auth";
-import instance from "../../../api/axios";
+import { checkAuthStatus, rechazarNuevaSesion, allowNewSession } from "../../../utils/auth";
 
 const VerificarSesionActiva = () => {
   const yaPreguntado = useRef(false);
@@ -10,53 +9,47 @@ const VerificarSesionActiva = () => {
   const popupAbierto = useRef(false);
   const navigate = useNavigate();
 
-  // Función para mostrar el popup de sesión duplicada
-  const mostrarPopupSesionDuplicada = async () => {
+  // Función para mostrar popup simple
+  const mostrarPopupSesionDuplicada = async (sessionInfo = null) => {
     if (popupAbierto.current || yaPreguntado.current) return;
 
     yaPreguntado.current = true;
     popupAbierto.current = true;
 
-    // Limpiar intervalo INMEDIATAMENTE
+    // Limpiar intervalo
     if (intervaloRef.current) {
       clearInterval(intervaloRef.current);
       intervaloRef.current = null;
     }
 
-    console.log("🔥 Mostrando popup de sesión duplicada");
+    console.log("🔥 Mostrando popup simple a Usuario A");
 
     try {
       const resultado = await Swal.fire({
-        title: "Sesión iniciada en otro dispositivo",
-        text: "¿Deseas continuar aquí y cerrar la sesión en el otro dispositivo?",
+        title: "¡Alguien entró a tu cuenta!",
+        text: "¿Qué deseas hacer?",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonText: "Sí, continuar aquí",
-        cancelButtonText: "No, cerrar sesión",
+        confirmButtonText: "Mantener mi sesión",
+        cancelButtonText: "Permitir acceso",
         allowOutsideClick: false,
         allowEscapeKey: false,
         background: "#0a0d10",
         color: "#ffffff",
         iconColor: "#ff007a",
-        confirmButtonColor: "#ff007a",
-        cancelButtonColor: "#333333",
-        customClass: {
-          popup: "rounded-xl shadow-lg",
-          confirmButton: "px-4 py-2 text-white font-semibold",
-          cancelButton: "px-4 py-2 font-semibold",
-        },
+        confirmButtonColor: "#dc3545", // Rojo para mantener
+        cancelButtonColor: "#28a745",  // Verde para permitir
       });
 
       if (resultado.isConfirmed) {
-        console.log("✅ Usuario eligió continuar aquí");
+        // Usuario A mantiene su sesión - expulsa a Usuario B
+        console.log("✅ Usuario A eligió mantener su sesión");
+        await expulsarUsuarioB();
         
-        // Marcar INMEDIATAMENTE que estamos reclamando
-        localStorage.setItem("reclamando_sesion", "true");
-        
-        await manejarReclamacionSesion();
       } else {
-        console.log("❌ Usuario eligió cerrar sesión");
-        cerrarSesionCompleta();
+        // Usuario A permite acceso - se desconecta
+        console.log("🔄 Usuario A eligió permitir acceso");
+        await permitirAcceso();
       }
     } catch (error) {
       console.error("❌ Error al mostrar popup:", error);
@@ -64,51 +57,69 @@ const VerificarSesionActiva = () => {
     }
   };
 
-  // Función separada para manejar la reclamación
-  const manejarReclamacionSesion = async () => {
+  // Función para expulsar Usuario B
+  const expulsarUsuarioB = async () => {
     try {
-      // Marcar que estamos reclamando ANTES de cualquier llamada
-      localStorage.setItem("reclamando_sesion", "true");
+      console.log("🔄 Expulsando Usuario B...");
       
-      console.log("🔄 Iniciando reclamación de sesión...");
-      console.log("🔍 Token antes de reclamar:", localStorage.getItem("token") ? "SÍ" : "NO");
+      const response = await rechazarNuevaSesion();
       
-      const nuevoToken = await reclamarSesion();
-      
-      if (nuevoToken) {
-        console.log("✅ Nuevo token recibido");
-        
-        // Actualizar token en axios
-        instance.defaults.headers.common["Authorization"] = `Bearer ${nuevoToken}`;
-        
-        // Verificar que funciona
-        await getUser();
-        console.log("✅ Token verificado - Sesión reclamada exitosamente");
-        
-        // Limpiar todo y resetear
-        localStorage.removeItem("reclamando_sesion");
-        resetearEstado();
-        
-        // Reiniciar verificación con delay
-        setTimeout(() => {
-          iniciarVerificacion();
-        }, 2000);
-        
-      } else {
-        throw new Error("No se recibió nuevo token");
+      if (response.access_token) {
+        // Usuario A recibe nuevo token
+        localStorage.setItem("token", response.access_token);
+        console.log("✅ Nuevo token recibido para Usuario A");
       }
+      
+      await Swal.fire({
+        title: "¡Usuario expulsado!",
+        text: "Has recuperado el control de tu cuenta",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+        background: "#0a0d10",
+        color: "#ffffff",
+        iconColor: "#28a745"
+      });
+      
+      resetearEstado();
+      setTimeout(() => iniciarVerificacion(), 3000);
+      
     } catch (error) {
-      console.error("❌ Error al reclamar sesión:", error);
-      cerrarSesionCompleta();
+      console.error("❌ Error expulsando usuario:", error);
+      resetearEstado();
     }
   };
 
-  // Función para cerrar sesión completa
-  const cerrarSesionCompleta = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("reclamando_sesion");
-    resetearEstado();
-    navigate("/home?auth=login", { replace: true });
+  // Función para permitir acceso
+  const permitirAcceso = async () => {
+    try {
+      console.log("🔄 Permitiendo acceso...");
+      
+      await allowNewSession();
+      
+      await Swal.fire({
+        title: "Acceso permitido",
+        text: "Serás redirigido al login",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+        background: "#0a0d10",
+        color: "#ffffff",
+        iconColor: "#28a745"
+      });
+      
+      // Limpiar y redirigir
+      localStorage.removeItem("token");
+      resetearEstado();
+      
+      setTimeout(() => {
+        navigate("/home?auth=login", { replace: true });
+      }, 2000);
+      
+    } catch (error) {
+      console.error("❌ Error permitiendo acceso:", error);
+      resetearEstado();
+    }
   };
 
   // Función para resetear estado
@@ -121,46 +132,29 @@ const VerificarSesionActiva = () => {
     }
   };
 
-  // Verificación principal - MÁS SIMPLE Y DIRECTA
+  // Verificación principal
   const verificar = async () => {
-    // Saltar verificación en casos específicos
     if (deberíaSaltarVerificacion()) {
       return;
     }
 
     const token = localStorage.getItem("token");
     if (!token) {
-      console.log("🔍 No hay token - Usuario no autenticado");
       return;
     }
 
-    console.log("🔍 Verificando sesión activa...");
-
     try {
-      await getUser();
-      console.log("✅ Usuario autenticado correctamente");
-      // Todo bien, no hacer nada
-    } catch (error) {
-      console.log("❌ Error al verificar usuario:", error);
+      const response = await checkAuthStatus();
       
-      const status = error?.response?.status;
-      const codigo = error?.response?.data?.code;
-      const mensaje = error?.response?.data?.message || "";
-
-      // 🔥 DETECCIÓN ESPECÍFICA DE SESIÓN DUPLICADA
-      if (status === 401 && codigo === 'SESSION_DUPLICATED') {
-        console.log("🔥 SESIÓN DUPLICADA CONFIRMADA - Mostrando popup");
+      if (response.authenticated && response.code === 'SESSION_DUPLICATED') {
+        console.log("🔥 DETECTADA SESIÓN DUPLICADA - Mostrando popup");
         
-        // Mostrar popup INMEDIATAMENTE
         setTimeout(() => {
-          mostrarPopupSesionDuplicada();
+          mostrarPopupSesionDuplicada(response.pending_session_info);
         }, 100);
-      } 
-      // Si es otro tipo de error 401/403, cerrar sesión
-      else if (status === 401 || status === 403) {
-        console.log("❌ Error de autenticación general - Cerrando sesión");
-        cerrarSesionCompleta();
       }
+    } catch (error) {
+      console.log("❌ ERROR en verificar:", error);
     }
   };
 
@@ -169,39 +163,21 @@ const VerificarSesionActiva = () => {
     const pathname = window.location.pathname;
     const searchParams = new URLSearchParams(window.location.search);
     const isAuthLogin = pathname === "/home" && searchParams.get("auth") === "login";
-    const estamosReclamando = localStorage.getItem("reclamando_sesion") === "true";
     const popupYaMostrado = popupAbierto.current || yaPreguntado.current;
 
-    if (isAuthLogin) {
-      console.log("🔍 Saltando verificación - Usuario en login");
-      return true;
-    }
-
-    if (estamosReclamando) {
-      console.log("🔍 Saltando verificación - Reclamando sesión");
-      return true;
-    }
-
-    if (popupYaMostrado) {
-      console.log("🔍 Saltando verificación - Popup ya mostrado");
-      return true;
-    }
-
-    return false;
+    return isAuthLogin || popupYaMostrado;
   };
 
   // Función para iniciar verificación
   const iniciarVerificacion = () => {
     console.log("🚀 Iniciando verificación de sesión");
     
-    // Verificación inmediata
     setTimeout(() => {
       verificar();
-    }, 500); // Reducido de 1000ms a 500ms
+    }, 500);
     
-    // Intervalo cada 8 segundos (reducido de 10)
     if (!intervaloRef.current) {
-      intervaloRef.current = setInterval(verificar, 8000);
+      intervaloRef.current = setInterval(verificar, 10000);
     }
   };
 
@@ -212,10 +188,6 @@ const VerificarSesionActiva = () => {
       if (intervaloRef.current) {
         clearInterval(intervaloRef.current);
         intervaloRef.current = null;
-      }
-      // Limpiar bandera solo si no estamos reclamando
-      if (localStorage.getItem("reclamando_sesion") !== "true") {
-        localStorage.removeItem("reclamando_sesion");
       }
     };
   }, [navigate]);

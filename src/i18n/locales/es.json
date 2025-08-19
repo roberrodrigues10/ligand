@@ -88,6 +88,134 @@
     "femenino": "Femenino",
     "masculino": "Masculino"
   },
+  "forgotPassword": {
+    "title": "¿Olvidaste tu contraseña?",
+    "emailStepDescription": "Ingresa tu email y te enviaremos un código para restablecer tu contraseña",
+    "emailLabel": "Correo Electrónico",
+    "emailPlaceholder": "tu@email.com",
+    "sendCodeButton": "Enviar Código",
+    "sending": "Enviando...",
+    "linkSentTitle": "Enlace Enviado",
+    "linkSentDescription": "Hemos enviado un enlace para restablecer tu cuenta a",
+    "checkInboxInstruction": "Revisa tu bandeja de entrada y haz clic en el enlace",
+    "understood": "Entendido",
+    "resendLink": "¿No recibiste el enlace? Enviar de nuevo",
+    "newPasswordTitle": "Nueva Contraseña",
+    "newPasswordDescription": "Ingresa tu nueva contraseña",
+    "newPasswordLabel": "Nueva Contraseña",
+    "passwordPlaceholder": "Mínimo 8 caracteres",
+    "confirmPasswordLabel": "Confirmar Contraseña",
+    "confirmPasswordPlaceholder": "Repite tu contraseña",
+    "changePasswordButton": "Cambiar Contraseña",
+    "changing": "Cambiando...",
+    "passwordChangedTitle": "¡Contraseña Cambiada!",
+    "passwordChangedDescription": "Tu contraseña ha sido actualizada exitosamente.",
+    "closing": "Cerrando...",
+    "passwordMismatch": "Las contraseñas no coinciden",
+    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres"
+  },
+  "searchClients": {
+    "title": "Buscar Clientes",
+    "searchPlaceholder": "Buscar clientes por nombre...",
+    "loading": "Cargando...",
+    "noClientsFound": "No se encontraron clientes con ese nombre",
+    "noClientsAvailable": "No hay clientes disponibles",
+    "tryDifferentSearch": "Intenta con un término de búsqueda diferente",
+    "online": "En línea",
+    "offline": "Desconectado",
+    "message": "Mensaje",
+    "call": "Llamar",
+    "sendMessage": "Enviar mensaje",
+    "makeCall": "Hacer llamada",
+    "clientFound": "cliente encontrado",
+    "clientsFound": "clientes encontrados",
+    "authTokenError": "Error: No se encontró token de autenticación",
+    "invalidTokenError": "Error: Token de autenticación inválido",
+    "endpointNotFoundError": "Error: Endpoint no encontrado"
+  },
+  "clientInterface": {
+    "greeting": "¡Hola! {{name}} ¿Listo para tu próxima conexión?",
+    "mainDescription": "Da click en el botón de abajo para comenzar una videollamada aleatoria con una chica en línea, o llama directamente a alguna de las chicas disponibles.",
+    "checkingBalance": "Verificando saldo...",
+    "startCall": "Iniciar llamada",
+    "buyCoins": "Comprar Monedas",
+    "tipOfTheDay": "💡 Consejo del día:",
+    "dailyTip": "Sé auténtico. Las mejores conexiones nacen de una sonrisa genuina.",
+    "activeGirls": "Chicas Activas",
+    "loadingGirls": "Cargando chicas...",
+    "noActiveGirls": "No hay chicas activas",
+    "girlsWillAppear": "Las chicas disponibles aparecerán aquí cuando estén en línea",
+    "online": "En línea",
+    "callInProgress": "Llamada en curso",
+    "callThisGirl": "Llamar a esta chica",
+    "messageThisGirl": "Mensaje a esta chica",
+    "yourHistory": "Tu Historial",
+    "yourBalance": "Tu Saldo",
+    "total": "Total:",
+    "minutes": "Minutos:",
+    "status": "Estado:",
+    "insufficientBalance": "❌ Insuficiente",
+    "minimumBalance": "⚠️ Mínimo",
+    "stableBalance": "✅ Estable",
+    "insufficientBalanceTitle": "Saldo Insuficiente",
+    "insufficientBalanceMessage": "Necesitas al menos 30 monedas (3 minutos) para iniciar una videollamada.",
+    "currentStatus": "Estado actual:",
+    "totalCoins": "Total monedas:",
+    "minimumRequired": "Mínimo requerido:",
+    "rechargeNow": "Recargar Ahora",
+    "cancel": "Cancelar",
+    "notAvailable": "No disponible",
+    "youBlockedUser": "Has bloqueado a {{name}}. Debes desbloquearla para poder llamarla.",
+    "userBlockedYou": "{{name}} te ha bloqueado. No puedes realizar llamadas a esta chica.",
+    "understood": "Entendido",
+    "callError": "Error de llamada",
+    "callFailed": "No se pudo completar la llamada",
+    "callRejected": "La chica rechazó la llamada",
+    "callExpired": "La llamada expiró sin respuesta",
+    "timeoutExpired": "Tiempo de espera agotado",
+    "errorStartingCall": "Error al iniciar llamada"
+  },
+  "storiesModal": {
+    "loadingStories": "Cargando historias...",
+    "noStoriesAvailable": "No hay historias disponibles en este momento",
+    "errorLoadingStories": "Error al cargar las historias",
+    "likedStory": "❤️ Te gustó esta historia",
+    "errorProcessingReaction": "Error al procesar la reacción",
+    "callingUser": "Llamando a {{name}}...",
+    "cannotCallUser": "No puedes llamar a este usuario",
+    "callStartError": "No se pudo iniciar la llamada",
+    "errorStartingCall": "Error al iniciar llamada",
+    "callRejected": "La llamada fue rechazada",
+    "callExpired": "La llamada expiró sin respuesta",
+    "timeoutExpired": "Tiempo de espera agotado",
+    "noStoriesTitle": "No hay historias",
+    "noStoriesMessage": "No hay historias disponibles en este momento.",
+    "close": "Cerrar",
+    "user": "Usuario",
+    "next": "Siguiente",
+    "restart": "Reiniciar",
+    "storyViewed": "Historia vista",
+    "tapNextToContinue": "Toca \"Siguiente\" para continuar",
+    "couldNotVerifyLike": "No se pudo verificar el estado del like",
+    "errorRegisteringView": "Error registrando vista:"
+  },
+  "searchModels": {
+    "title": "Buscar Modelos",
+    "searchPlaceholder": "Buscar por nombre...",
+    "loading": "Cargando...",
+    "noModelsFound": "No se encontraron modelos con ese nombre",
+    "noModelsAvailable": "No hay modelos disponibles",
+    "tryDifferentSearch": "Intenta con un término de búsqueda diferente",
+    "online": "En línea",
+    "offline": "Desconectado",
+    "message": "Mensaje",
+    "call": "Llamar",
+    "sendMessage": "Enviar mensaje",
+    "makeCall": "Hacer llamada",
+    "modelFound": "modelo encontrado",
+    "modelsFound": "modelos encontrados",
+    "avatar": "Avatar"
+  },
   "chicasRelevantes": "¡Chicas Relevantes!",
   "frasePrincipal": "¡Habla con extraños!",
   "login": {
@@ -458,7 +586,7 @@
     "offline": "Desconectado",
     "you": "Tú:",
     "typing": "escribiendo...",
-    "lastSeen": "Visto por última vez",
+    "lastSeen": "Última vez",
     "today": "hoy",
     "yesterday": "ayer",
     "menu": {
@@ -476,7 +604,7 @@
       "blockedByYou": "Bloqueado por ti",
       "blockedYou": "Te bloqueó",
       "mutualBlock": "Bloqueo mutuo",
-      "userBlocked": "Usuario Bloqueado",
+      "userBlocked": "🚫 Usuario Bloqueado",
       "userBlockedDesc": "Has bloqueado a {{name}}. No pueden enviarte mensajes ni llamarte.",
       "unblockUser": "Desbloquear Usuario",
       "unblocking": "Desbloqueando...",
@@ -488,17 +616,12 @@
       "notAvailableBlocked": "No disponible - usuario bloqueado"
     },
     "gifts": {
-      "requestGift": "Pedir Regalo",
-      "sendingRequest": "Enviando solicitud...",
-      "requestSent": "Solicitud Enviada",
-      "requestSentDesc": "Tu solicitud de regalo ha sido enviada exitosamente",
-      "giftRequest": "Solicitud de Regalo",
+      "requestGift": "Solicitud de Regalo",
       "giftReceived": "¡Regalo Recibido!",
       "giftSent": "Regalo Enviado",
       "specialGift": "Regalo Especial",
       "coins": "monedas",
-      "sentBy": "te envió este regalo",
-      "debugRequest": "🔍 Depurar Solicitud"
+      "sentBy": "te envió este regalo"
     },
     "nickname": {
       "title": "Cambiar Apodo",
@@ -513,7 +636,9 @@
       "startCall": "Iniciar videochat",
       "inCall": "Llamada en curso",
       "unavailable": "No disponible",
-      "callActive": "Llamada activa"
+      "callActive": "Llamada activa",
+      "requestGifts": "Pedir regalos",
+      "notAvailableBlocked": "No disponible - usuario bloqueado"
     },
     "notifications": {
       "newMessage": "Mensaje nuevo de {{name}}",
@@ -532,21 +657,21 @@
       "blocking": "Error bloqueando usuario",
       "startingCall": "Error iniciando llamada",
       "connectionError": "Error de conexión",
-      "tryAgain": "Intenta nuevamente"
+      "tryAgain": "Inténtalo de nuevo"
     },
     "actions": {
       "retry": "Reintentar",
       "cancel": "Cancelar",
       "confirm": "Confirmar",
       "close": "Cerrar",
-      "back": "Volver",
+      "back": "Atrás",
       "understood": "Entendido"
     },
     "time": {
-      "justNow": "Hace un momento",
-      "minutesAgo": "{{minutes}}min",
-      "hoursAgo": "{{hours}}h", 
-      "daysAgo": "{{days}}d"
+      "justNow": "Ahora mismo",
+      "minutesAgo": "hace {{minutes}}min",
+      "hoursAgo": "hace {{hours}}h",
+      "daysAgo": "hace {{days}}d"
     }
   },
   "earnings": {
@@ -824,5 +949,200 @@
       "fileTooLarge": "Los archivos son demasiado grandes. Por favor reduce el tamaño del video.",
       "genericError": "Error al enviar la verificación. Por favor intenta nuevamente."
     }
-  }
+  },"paymentMethods": {
+    "errorLoadingMethods": "Error cargando métodos de pago",
+    "noMethodsAvailable": "Métodos de Pago No Disponibles",
+    "noMethodsDescription": "Actualmente no hay métodos de pago configurados. Por favor contacta soporte.",
+    "selectPaymentMethod": "Selecciona tu Método de Pago",
+    "choosePreferredMethod": "Elige el método de pago que prefieras para comprar tus monedas",
+    "idealFor": "IDEAL PARA",
+    "buyCoins": "Comprar Monedas",
+    "loadingMethods": "Cargando métodos de pago...",
+    "allPaymentsSecure": "Todos los Pagos son 100% Seguros",
+    "securityDescription": "Utilizamos las plataformas de pago más confiables y seguras. Tus datos financieros están protegidos con cifrado de nivel bancario.",
+    "quickComparison": "Comparación Rápida",
+    "coinbase": {
+      "description": "Paga con más de 100 criptomonedas de forma segura",
+      "cryptos": "Bitcoin, Ethereum, USDC y más",
+      "noVolatility": "Sin volatilidad (conversión automática)",
+      "instantConfirmation": "Confirmación instantánea",
+      "cryptoUsers": "Usuarios con criptomonedas",
+      "internationalPayments": "Pagos internacionales",
+      "maxPrivacy": "Máxima privacidad",
+      "payWithCrypto": "Pagar con Crypto"
+    },
+    "wompi": {
+      "description": "Paga con tarjetas internacionales, PSE, Nequi y más métodos",
+      "cards": "Visa, Mastercard, débito",
+      "pse": "PSE - Todos los bancos colombianos",
+      "otherMethods": "Nequi, Bancolombia Transfer",
+      "colombianUsers": "Usuarios en Colombia",
+      "internationalCards": "Tarjetas internacionales",
+      "bankTransfers": "Transferencias bancarias PSE",
+      "payWithWompi": "Pagar con Wompi"
+    },
+    "comparison": {
+      "cryptocurrencies": "Criptomonedas",
+      "international": "Internacional",
+      "noBanks": "Sin bancos",
+      "traditionalCards": "Tarjetas tradicionales",
+      "pseColombia": "PSE Colombia",
+      "colombianPesos": "Pesos colombianos"
+    }
+  },
+  "wompi": {
+    "loading": "Cargando Wompi...",
+    "poweredBy": "Powered by Wompi - Pagos seguros en Colombia",
+    "payWithWompi": "Pagar con Wompi",
+    "title": {
+      "buyMinutes": "Comprar Minutos",
+      "sendGifts": "Enviar Regalos"
+    },
+    "errors": {
+      "configurationError": "Error de configuración. Intenta más tarde.",
+      "createPayment": "Error creando el pago",
+      "connectionError": "Error de conexión. Intenta nuevamente."
+    },
+    "notifications": {
+      "purchaseCompleted": "¡Compra completada! Se agregaron {{coins}} monedas (Sandbox)",
+      "paymentCreated": "Pago creado. Serás redirigido a Wompi en unos segundos.",
+      "paymentCompleted": "¡Pago completado! Se agregaron {{coins}} monedas a tu cuenta"
+    },
+    "balances": {
+      "currentBalance": "Tu balance actual",
+      "availableForVideochat": "disponibles para videochat",
+      "availableForGifts": "Disponibles para enviar regalos"
+    },
+    "status": {
+      "completed": "Completado",
+      "pending": "Pendiente",
+      "failed": "Fallido"
+    },
+    "features": {
+      "cardsAndPSE": "Tarjetas y PSE",
+      "cardsDescription": "Visa, Mastercard, PSE y todos los bancos",
+      "colombian": "100% Colombiano",
+      "colombianDescription": "Plataforma líder en pagos digitales",
+      "securePayment": "Pago Seguro",
+      "secureDescription": "Certificación PCI DSS y cifrado",
+      "quickConfirmation": "Confirmación Rápida",
+      "quickDescription": "Recibe tus monedas al instante"
+    },
+    "history": {
+      "recentPurchases": "Compras Recientes (Wompi)"
+    },
+    "country": {
+      "colombia": "Colombia"
+    },
+    "verification": {
+      "title": "Verificación de Pago",
+      "totalToPay": "Total a pagar",
+      "alreadyCompleted": "¿Ya completaste el pago?",
+      "autoChecking": "Verificando automáticamente cada 3 segundos...",
+      "coinsWillAppear": "Las monedas aparecerán automáticamente, o puedes verificar manualmente:",
+      "checking": "Verificando...",
+      "checkNow": "Verificar Ahora"
+    },
+    "redirect": {
+      "preparingPayment": "Preparando tu pago",
+      "autoRedirect": "Serás redirigido automáticamente a Wompi",
+      "payNow": "Ir a pagar ahora",
+      "redirectedToWompi": "¡Redirigido a Wompi!",
+      "newWindowOpened": "Se abrió una nueva ventana con tu checkout de pago.",
+      "openWompiAgain": "Abrir Wompi nuevamente"
+    },
+    "process": {
+      "whatHappensNow": "¿Qué sucede ahora?",
+      "step1": "Te redirigimos al checkout seguro de Wompi",
+      "step2": "Completas tu pago con tarjeta, PSE o Nequi",
+      "step3": "Las monedas se agregan automáticamente a tu cuenta"
+    },
+    "paymentMethods": {
+      "title": "Métodos de Pago en Wompi",
+      "cards": {
+        "title": "Tarjetas",
+        "description": "Visa, Mastercard"
+      },
+      "pse": {
+        "title": "PSE",
+        "description": "Bancos Colombia"
+      },
+      "nequi": {
+        "title": "Nequi",
+        "description": "Pago móvil"
+      },
+      "bancolombia": {
+        "title": "Bancolombia",
+        "description": "Transferencia"
+      }
+    }
+  },
+  "packages": {
+    "mostPopular": "MÁS POPULAR",
+    "free": "gratis",
+    "videochatTime": "de videochat",
+    "perCoin": "por moneda",
+    "bonusCoins": "Monedas bonus"
+  },
+  "balance": {
+    "purchased": "Compradas",
+    "giftMinutes": "Regalo (minutos)",
+    "giftCoins": "monedas regalo",
+    "received": "Recibidos",
+    "sent": "Enviados"
+  },
+  "buttons": {
+    "buy": "Comprar",
+    "send": "Enviar",
+    "back": "Regresar"
+  },
+  "common": {
+    "coins": "monedas",
+    "minutes": "Minutos",
+    "gifts": "Regalos"
+  },
+    "gifts": {
+      "sendGift": "Enviar Regalo",
+      "requestGift": "Pedir Regalo", 
+      "forRecipient": "Para {{name}}",
+      "requestFrom": "Solicitar a {{name}}",
+      "clickToSend": "Haz clic para enviar",
+      "clickToRequest": "Haz clic para pedir",
+      "yourBalance": "Tu saldo: {{balance}} monedas",
+      "optionalMessage": "Mensaje opcional para acompañar tu regalo:",
+      "optionalRequestMessage": "Mensaje opcional (aparecerá con tu solicitud):",
+      "placeholderGift": "Ej: ¡Eres increíble! 💖",
+      "placeholderRequest": "Ej: ¡Por favor! 🥺",
+      "characters": "{{current}}/{{max}} caracteres",
+      "giftsAvailable": "{{count}} regalos disponibles",
+      "insufficient": "Faltan {{amount}}",
+      "confirmSend": "¿Enviar {{giftName}} a {{recipientName}}?\nCosto: {{price}} monedas\nTu saldo actual: {{balance}} monedas",
+      "giftSent": "¡{{giftName}} enviado a {{recipientName}}! 🎉",
+      "requestSent": "¡Solicitud de {{giftName}} enviada a {{recipientName}}! 🎁",
+      "sendingGift": "Enviando regalo...",
+      "sendingRequest": "Enviando solicitud...",
+      "invalidGiftId": "Error: ID de regalo inválido",
+      "invalidRecipientId": "Error: ID de destinatario inválido", 
+      "insufficientBalance": "No tienes suficientes monedas. Necesitas {{required}} pero tienes {{current}}.",
+      "processingError": "Error al procesar el regalo"
+    },"disconnect": {
+   "modelSkippedYou": "La modelo pasó al siguiente",
+   "searchedOtherClient": "Buscó a otro cliente",
+   "modelDisconnected": "La modelo se desconectó",
+   "endedVideoCall": "Finalizó la videollamada",
+   "modelLeft": "La modelo abandonó la sala",
+   "leftSession": "Salió de la sesión",
+   "balanceExhausted": "Saldo agotado",
+   "ranOutOfCoins": "Te has quedado sin monedas",
+   "sessionEnded": "Sesión finalizada",
+   "connectionLost": "Se perdió la conexión",
+   "details": "Detalles",
+   "dontWorryClient": "¡No te preocupes!",
+   "connectingWithOther": "Conectando con otra modelo...",
+   "inSeconds": "En {{seconds}}s",
+   "connecting": "Conectando...",
+   "keepSufficientCoins": "Mantén monedas suficientes",
+   "beRespectful": "Sé respetuoso siempre",
+   "eachConnectionUnique": "Cada conexión es única"
+ }
 }

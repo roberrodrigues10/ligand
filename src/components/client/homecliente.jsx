@@ -8,6 +8,7 @@ import CallingSystem from '../../components/CallingOverlay';
 import IncomingCallOverlay from '../../components/IncomingCallOverlay';
 import { useState, useEffect } from "react";
 import UnifiedPaymentModal from '../../components/payments/UnifiedPaymentModal';
+import { useTranslation } from 'react-i18next';
 
 
 export default function InterfazCliente() {
@@ -35,7 +36,6 @@ export default function InterfazCliente() {
   const consultarSaldoUsuario = async () => {
     try {
       setLoadingBalance(true);
-      console.log('💰 Consultando saldo del usuario...');
       
       const response = await fetch(`${API_BASE_URL}/api/videochat/coins/balance`, {
         method: 'GET',
@@ -44,7 +44,6 @@ export default function InterfazCliente() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Saldo obtenido:', data);
         
         if (data.success) {
           setUserBalance(data.balance);
@@ -69,7 +68,6 @@ export default function InterfazCliente() {
 
   const validarSaldoYRedireccionar = async () => {
     try {
-      console.log('🔍 Validando saldo antes de iniciar videollamada...');
       
       const response = await fetch(`${API_BASE_URL}/api/videochat/coins/balance`, {
         method: 'GET',
@@ -78,16 +76,13 @@ export default function InterfazCliente() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('📊 Resultado validación:', data);
         
         if (data.success && data.can_start_call) {
           // ✅ TIENE SALDO - REDIRIGIR DIRECTAMENTE SIN MODAL
-          console.log('✅ Saldo suficiente, redirigiendo directamente...');
           navigate("/esperandocallcliente");
           
         } else {
           // ❌ No puede iniciar - mostrar modal de recarga
-          console.log('❌ Saldo insuficiente:', data);
           setBalanceDetails(data);
           setShowNoBalanceModal(true);
         }
@@ -105,7 +100,6 @@ export default function InterfazCliente() {
    const validarSaldoYRedireccionarConLoading = async () => {
     try {
       setLoadingBalance(true); // ✅ Mostrar loading en el botón
-      console.log('🔍 Validando saldo antes de iniciar videollamada...');
       
       const response = await fetch(`${API_BASE_URL}/api/videochat/coins/balance`, {
         method: 'GET',
@@ -114,16 +108,13 @@ export default function InterfazCliente() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('📊 Resultado validación:', data);
         
         if (data.success && data.can_start_call) {
           // ✅ TIENE SALDO - REDIRIGIR DIRECTAMENTE
-          console.log('✅ Saldo suficiente, redirigiendo directamente...');
           navigate("/esperandocallcliente");
           
         } else {
           // ❌ No puede iniciar - mostrar modal de recarga
-          console.log('❌ Saldo insuficiente:', data);
           setBalanceDetails(data);
           setShowNoBalanceModal(true);
         }
@@ -165,6 +156,8 @@ export default function InterfazCliente() {
     { nombre: "ValentinaXX", accion: "Agregada a favoritos", hora: "Ayer, 9:30 PM" },
   ];
 
+  const { t } = useTranslation();
+
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TOKEN
   const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
@@ -188,7 +181,6 @@ export default function InterfazCliente() {
         setLoadingUsers(true);
       }
       
-      console.log('🔍 Cargando chicas activas...');
       
       const response = await fetch(`${API_BASE_URL}/api/chat/users/my-contacts`, {
         method: 'GET',
@@ -197,7 +189,6 @@ export default function InterfazCliente() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Chicas activas recibidas:', data);
         
         // Filtrar solo modelos (chicas) que están online
         const chicasOnline = (data.contacts || []).filter(contact => 
@@ -209,7 +200,6 @@ export default function InterfazCliente() {
           const prevChicaIds = prevChicas.map(u => u.id).sort();
           
           if (JSON.stringify(newChicaIds) !== JSON.stringify(prevChicaIds)) {
-            console.log('📝 Actualizando lista de chicas activas');
             return chicasOnline;
           }
           
@@ -250,7 +240,6 @@ export default function InterfazCliente() {
       
       if (conversationsResponse.ok) {
         const conversationsData = await conversationsResponse.json();
-        console.log('✅ Usando conversaciones como fuente de chicas activas');
         
         // Solo modelos (chicas) de las conversaciones
         const uniqueChicas = (conversationsData.conversations || [])
@@ -270,7 +259,6 @@ export default function InterfazCliente() {
         throw new Error('No se pudieron cargar conversaciones');
       }
     } catch (fallbackError) {
-      console.log('🔧 Usando datos de ejemplo de chicas...');
       const exampleChicas = [
         {
           id: 201,
@@ -307,7 +295,6 @@ export default function InterfazCliente() {
 
   // 🔥 FUNCIÓN PARA NAVEGAR A CHAT CON CHICA ESPECÍFICA
   const abrirChatConChica = (chica) => {
-    console.log('📩 Abriendo chat con chica:', chica.name);
     
     navigate('/messageclient', {
       state: {
@@ -323,7 +310,6 @@ export default function InterfazCliente() {
   // 🔥 NUEVA FUNCIÓN: INICIAR LLAMADA A CHICA
   const iniciarLlamadaAChica = async (chica) => {
     try {
-      console.log('📞 Iniciando llamada a chica:', chica.name);
       
       // 🔥 VARIABLES CORRECTAS PARA LA VALIDACIÓN
       const otherUserId = chica.id;
@@ -334,9 +320,9 @@ export default function InterfazCliente() {
       if (yoLaBloquee) {
         setConfirmAction({
           type: 'blocked',
-          title: 'No disponible',
-          message: `Has bloqueado a ${otherUserName}. Debes desbloquearla para poder llamarla.`,
-          confirmText: 'Entendido',
+          title: t('clientInterface.notAvailable'),
+          message: t('clientInterface.youBlockedUser', { name: 'nombre' }),
+          confirmText: t('clientInterface.understood'),
           action: () => setShowConfirmModal(false)
         });
         setShowConfirmModal(true);
@@ -357,9 +343,9 @@ export default function InterfazCliente() {
         if (blockData.success && blockData.is_blocked_by_them) {
           setConfirmAction({
             type: 'blocked',
-            title: 'No disponible',
-            message: `${otherUserName} te ha bloqueado. No puedes realizar llamadas a esta chica.`,
-            confirmText: 'Entendido',
+            title: t('clientInterface.notAvailable'),
+            message: t('clientInterface.userBlockedYou', { name: 'nombre' }),
+            confirmText: t('clientInterface.understood'),
             action: () => setShowConfirmModal(false)
           });
           setShowConfirmModal(true);
@@ -390,7 +376,6 @@ export default function InterfazCliente() {
       const data = await response.json();
       
       if (data.success) {
-        console.log('✅ Llamada iniciada a chica:', data);
         setCurrentCall({
           ...chica,
           callId: data.call_id,
@@ -406,9 +391,9 @@ export default function InterfazCliente() {
         // Mostrar error específico
         setConfirmAction({
           type: 'error',
-          title: 'Error de llamada',
-          message: data.error || 'No se pudo completar la llamada',
-          confirmText: 'Entendido',
+          title: t('clientInterface.callError'),
+          message: data.error || t('clientInterface.callFailed'),
+          confirmText: t('clientInterface.understood'),
           action: () => setShowConfirmModal(false)
         });
         setShowConfirmModal(true);
@@ -417,7 +402,7 @@ export default function InterfazCliente() {
       console.error('❌ Error:', error);
       setIsCallActive(false);
       setCurrentCall(null);
-      alert('Error al iniciar llamada');
+      alert(t('clientInterface.errorStartingCall'));
     }
   };
 
@@ -425,7 +410,6 @@ export default function InterfazCliente() {
   const cargarUsuariosBloqueados = async () => {
     try {
       setLoadingBloqueados(true);
-      console.log('🚫 Cargando usuarios bloqueados...');
 
       const response = await fetch(`${API_BASE_URL}/api/blocks/list`, {
         method: 'GET',
@@ -436,7 +420,6 @@ export default function InterfazCliente() {
         const data = await response.json();
         if (data.success) {
           setUsuariosBloqueados(data.blocked_users || []);
-          console.log('✅ Usuarios bloqueados cargados:', data.blocked_users.length);
         }
       } else {
         console.error('❌ Error HTTP cargando bloqueados:', response.status);
@@ -451,15 +434,12 @@ export default function InterfazCliente() {
   // 🔥 FUNCIONES DE AUDIO
   const playIncomingCallSound = async () => {
     try {
-      console.log('🔊 INTENTANDO reproducir sonido...');
       
       if (audioRef.current) {
-        console.log('⚠️ Ya hay audio reproduciéndose');
         return;
       }
       
       const audio = new Audio('/sounds/incoming-call.mp3');
-      console.log('📁 Audio creado, archivo:', audio.src);
       
       audio.loop = true;
       audio.volume = 0.8;
@@ -469,11 +449,9 @@ export default function InterfazCliente() {
       
       try {
         await audio.play();
-        console.log('🎵 AUDIO REPRODUCIÉNDOSE CORRECTAMENTE');
       } catch (playError) {
         console.error('❌ Error al reproducir:', playError);
         if (playError.name === 'NotAllowedError') {
-          console.log('🚫 AUTOPLAY BLOQUEADO - Necesita interacción del usuario');
         }
       }
     } catch (error) {
@@ -483,7 +461,6 @@ export default function InterfazCliente() {
 
   const stopIncomingCallSound = () => {
     if (audioRef.current) {
-      console.log('🔇 Deteniendo sonido de llamada');
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       audioRef.current = null;
@@ -492,7 +469,6 @@ export default function InterfazCliente() {
 
   // 🔥 NUEVA FUNCIÓN: POLLING PARA VERIFICAR ESTADO DE LLAMADA SALIENTE
   const iniciarPollingLlamada = (callId) => {
-    console.log('🔄 Iniciando polling para llamada:', callId);
     
     const interval = setInterval(async () => {
       try {
@@ -510,32 +486,28 @@ export default function InterfazCliente() {
         
         if (data.success) {
           const callStatus = data.call.status;
-          console.log('📊 Estado llamada:', callStatus);
           
           if (callStatus === 'active') {
             // ¡Llamada aceptada por la chica!
-            console.log('🎉 Llamada aceptada por la chica, redirigiendo...');
             clearInterval(interval);
             setCallPollingInterval(null);
             redirigirAVideochat(data.call);
             
           } else if (callStatus === 'rejected') {
             // Llamada rechazada por la chica
-            console.log('❌ Llamada rechazada por la chica');
             clearInterval(interval);
             setCallPollingInterval(null);
             setIsCallActive(false);
             setCurrentCall(null);
-            alert('La chica rechazó la llamada');
+            alert(t('clientInterface.callRejected'));
             
           } else if (callStatus === 'cancelled') {
             // Llamada cancelada por timeout
-            console.log('🛑 Llamada cancelada por timeout');
             clearInterval(interval);
             setCallPollingInterval(null);
             setIsCallActive(false);
             setCurrentCall(null);
-            alert('La llamada expiró sin respuesta');
+            alert(t('clientInterface.callExpired'));
           }
         }
         
@@ -554,7 +526,7 @@ export default function InterfazCliente() {
         if (isCallActive) {
           setIsCallActive(false);
           setCurrentCall(null);
-          alert('Tiempo de espera agotado');
+          alert(t('clientInterface.timeoutExpired'));
         }
       }
     }, 35000);
@@ -563,7 +535,6 @@ export default function InterfazCliente() {
   // 🔥 NUEVA FUNCIÓN: CANCELAR LLAMADA SALIENTE
   const cancelarLlamada = async () => {
     try {
-      console.log('🛑 Cancelando llamada...');
       
       if (currentCall?.callId) {
         const token = localStorage.getItem('token');
@@ -608,31 +579,26 @@ export default function InterfazCliente() {
         const data = await response.json();
         
         if (data.has_incoming && data.incoming_call) {
-          console.log('📞 Llamada entrante de chica detectada:', data.incoming_call);
           
           const isMyOutgoingCall = currentCall && 
                                   currentCall.callId === data.incoming_call.id;
           
           if (isMyOutgoingCall) {
-            console.log('⚠️ Ignorando llamada entrante - es mi propia llamada saliente');
             return;
           }
           
           if (!isReceivingCall && !isCallActive) {
-            console.log('🔊 Reproduciendo sonido de llamada entrante');
             playIncomingCallSound();
             setIncomingCall(data.incoming_call);
             setIsReceivingCall(true);
           }
         } else if (isReceivingCall && !data.has_incoming) {
-          console.log('📞 Llamada entrante ya no disponible');
           stopIncomingCallSound();
           setIsReceivingCall(false);
           setIncomingCall(null);
         }
       }
     } catch (error) {
-      console.log('⚠️ Error verificando llamadas entrantes:', error);
     }
   };
 
@@ -641,7 +607,6 @@ export default function InterfazCliente() {
     if (!incomingCall) return;
     
     try {
-      console.log(`📱 Respondiendo llamada de chica: ${accion}`);
       
       stopIncomingCallSound(); // 🔥 AGREGAR ESTA LÍNEA
       
@@ -662,12 +627,10 @@ export default function InterfazCliente() {
       
       if (response.ok && data.success) {
         if (accion === 'accept') {
-          console.log('✅ Llamada de chica aceptada:', data);
           setIsReceivingCall(false);
           setIncomingCall(null);
           redirigirAVideochat(data);
         } else {
-          console.log('❌ Llamada de chica rechazada');
           setIsReceivingCall(false);
           setIncomingCall(null);
         }
@@ -685,7 +648,6 @@ export default function InterfazCliente() {
 
   // 🔥 NUEVA FUNCIÓN: REDIRIGIR AL VIDEOCHAT CLIENTE
   const redirigirAVideochat = (callData) => {
-    console.log('🚀 Redirigiendo a videochat cliente:', callData);
     
     // Guardar datos de la llamada
     localStorage.setItem('roomName', callData.room_name);
@@ -747,7 +709,6 @@ export default function InterfazCliente() {
   React.useEffect(() => {
     if (!user?.id) return;
 
-    console.log('🔔 Iniciando monitoreo de llamadas entrantes');
     
     verificarLlamadasEntrantes();
     
@@ -755,7 +716,6 @@ export default function InterfazCliente() {
     setIncomingCallPollingInterval(interval);
 
     return () => {
-      console.log('🔔 Deteniendo monitoreo de llamadas entrantes');
       if (interval) {
         clearInterval(interval);
       }
@@ -785,34 +745,34 @@ export default function InterfazCliente() {
             
             {/* Título */}
             <h3 className="text-xl font-bold text-white mb-3">
-              Saldo Insuficiente
+              {t('clientInterface.insufficientBalanceTitle')}
             </h3>
             
             {/* Mensaje */}
             <div className="text-white/70 mb-6 leading-relaxed">
               <p className="mb-3">
-                Necesitas al menos 30 monedas (3 minutos) para iniciar una videollamada.
+                {t('clientInterface.insufficientBalanceMessage')}
               </p>
               
               {/* ✅ MOSTRAR DETALLES DEL SALDO SI ESTÁN DISPONIBLES */}
               {balanceDetails && balanceDetails.balance && (
                 <div className="bg-[#1f2125] rounded-lg p-3 text-sm">
-                  <p className="text-white/50 mb-2">Estado actual:</p>
+                  <p className="text-white/50 mb-2">{t('clientInterface.currentStatus')}</p>
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <span>Total monedas:</span>
+                      <span>{t('clientInterface.totalCoins')}</span>
                       <span className="text-[#ff007a]">
                         {balanceDetails.balance.total_coins || 0}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Minutos:</span>
+                      <span>{t('clientInterface.minutes')}</span>
                       <span className="text-[#ff007a]">
                         {balanceDetails.balance.minutes_available || 0}
                       </span>
                     </div>
                     <div className="flex justify-between border-t border-white/10 pt-2 mt-2">
-                      <span>Mínimo requerido:</span>
+                      <span>{t('clientInterface.minimumRequired')}</span>
                       <span className="text-yellow-400">
                         {balanceDetails.balance.minimum_required || 30}
                       </span>
@@ -831,14 +791,14 @@ export default function InterfazCliente() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                Recargar Ahora
+                {t('clientInterface.rechargeNow')}
               </button>
               
               <button
                 onClick={onClose}
                 className="w-full bg-transparent border border-white/20 hover:border-white/40 text-white/70 hover:text-white px-6 py-2 rounded-lg font-medium transition-colors"
               >
-                Cancelar
+                {t('clientInterface.cancel')}
               </button>
             </div>
           </div>
@@ -853,7 +813,7 @@ export default function InterfazCliente() {
     return (
       <div className="bg-[#2b2d31] rounded-xl p-4 border border-[#ff007a]/20 mb-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-white/60">Tu Saldo</span>
+          <span className="text-sm text-white/60">{t('clientInterface.yourBalance')}</span>
           <button 
             onClick={consultarSaldoUsuario}
             className="text-[#ff007a] hover:text-[#e6006e] text-xs"
@@ -865,14 +825,31 @@ export default function InterfazCliente() {
         
         <div className="space-y-1">
           <div className="flex justify-between text-sm">
-            <span className="text-white/70">Total:</span>
+            <span className="text-white/70">{t('clientInterface.total')}</span>
             <span className="text-[#ff007a] font-semibold">
               {userBalance.total_coins || userBalance.total_available || 0}
             </span>
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-white/50">Minutos:</span>
+            <span className="text-white/50">{t('clientInterface.minutes')}</span>
             <span className="text-white/70">{userBalance.minutes_available || 0}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-white/50">Estado:</span>
+            <span className={
+              (userBalance.total_coins || userBalance.total_available || 0) <= 29
+                ? "text-red-400"
+                : (userBalance.total_coins || userBalance.total_available || 0) <= 39
+                  ? "text-yellow-400"
+                  : "text-green-400"
+            }>
+              {(userBalance.total_coins || userBalance.total_available || 0) <= 29
+                ? "❌ Insuficiente"
+                : (userBalance.total_coins || userBalance.total_available || 0) <= 39
+                  ? "⚠️ Mínimo"
+                  : "Estable"
+              }
+            </span>
           </div>
         </div>
       </div>
@@ -881,17 +858,13 @@ export default function InterfazCliente() {
 
   // 🔥 CONFIGURAR SISTEMA DE AUDIO
   React.useEffect(() => {
-    console.log('🎵 Configurando sistema de audio...');
     
     const enableAudioContext = async () => {
-      console.log('👆 Primera interacción detectada - habilitando audio');
       try {
         const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAAABAABABkAAgAAACAJAAEAAABkYXRhBAAAAAEA');
         silentAudio.volume = 0.01;
         await silentAudio.play();
-        console.log('🔓 Sistema de audio desbloqueado');
       } catch (e) {
-        console.log('⚠️ No se pudo desbloquear audio:', e);
       }
       
       document.removeEventListener('click', enableAudioContext);
@@ -934,11 +907,10 @@ export default function InterfazCliente() {
           {/* Panel central */}
           <main className="lg:col-span-3 bg-[#1f2125] rounded-2xl p-8 shadow-xl flex flex-col items-center">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-6 mt-16">
-              ¡Hola! {user?.name} ¿Listo para tu próxima conexión?
+              {t('clientInterface.greeting', { name: user?.name })}
             </h2>
             <p className="text-center text-white/70 mb-8 max-w-md">
-              Da click en el botón de abajo para comenzar una videollamada aleatoria con una chica en línea, 
-              o llama directamente a alguna de las chicas disponibles.
+              {t('clientInterface.mainDescription')}
             </p>
 
             {/* Botones verticales */}
@@ -951,14 +923,14 @@ export default function InterfazCliente() {
                 {loadingBalance ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    <span>Verificando saldo...</span>
+                    <span>{t('clientInterface.checkingBalance')}</span>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center gap-2">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
-                    Iniciar llamada
+                    {t('clientInterface.startCall')}
                   </div>
                 )}
               </button>
@@ -967,14 +939,14 @@ export default function InterfazCliente() {
                 className="w-full bg-[#ffe4f1] hover:bg-[#ffd1e8] text-[#4b2e35] px-8 py-4 rounded-full text-lg font-semibold shadow-md transition-all duration-200 transform hover:scale-105"
                 onClick={() => setShowBuyMinutes(true)}
               >
-                Comprar Monedas
+                {t('clientInterface.buyCoins')}
               </button>
 
               {/* Consejo del día */}
               <div className="w-full bg-[#2b2d31] border border-[#ff007a]/30 rounded-xl p-4 text-center mt-2">
-                <p className="text-white text-sm mb-1 font-semibold">💡 Consejo del día:</p>
+                <p className="text-white text-sm mb-1 font-semibold">{t('clientInterface.tipOfTheDay')}</p>
                 <p className="text-white/70 text-sm italic">
-                  Sé auténtico. Las mejores conexiones nacen de una sonrisa genuina.
+                  {t('clientInterface.dailyTip')}
                 </p>
               </div>
             </div>
@@ -987,7 +959,7 @@ export default function InterfazCliente() {
             <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg h-[44vh]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-[#ff007a]">
-                  Chicas Activas
+                  {t('clientInterface.activeGirls')}
                 </h3>
                 {chicasActivas.length > 0 && (
                   <span className="text-xs text-white/50 bg-[#ff007a]/20 px-2 py-1 rounded-full">
@@ -1000,7 +972,7 @@ export default function InterfazCliente() {
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#ff007a] border-t-transparent"></div>
                   <span className="ml-3 text-sm text-white/60">
-                    Cargando chicas...
+                    {t('clientInterface.loadingGirls')}
                   </span>
                 </div>
               ) : (
@@ -1028,10 +1000,10 @@ export default function InterfazCliente() {
                     <div className="flex flex-col items-center justify-center h-full text-center py-8">
                       <Users size={32} className="text-white/20 mb-3" />
                       <p className="text-sm text-white/60 font-medium">
-                        No hay chicas activas
+                        {t('clientInterface.noActiveGirls')}
                       </p>
                       <p className="text-xs text-white/40 mt-1">
-                        Las chicas disponibles aparecerán aquí cuando estén en línea
+                        {t('clientInterface.girlsWillAppear')}
                       </p>
                     </div>
                   ) : (
@@ -1054,7 +1026,7 @@ export default function InterfazCliente() {
                                 {chica.name || chica.alias}
                               </div>
                               <div className="text-xs text-green-400">
-                                En línea
+                                {t('clientInterface.online')}
                               </div>
                             </div>
                           </div>
@@ -1069,8 +1041,8 @@ export default function InterfazCliente() {
                               }`}
                               title={
                                 isCallActive || isReceivingCall 
-                                  ? "Llamada en curso" 
-                                  : "Llamar a esta chica"
+                                  ? t('clientInterface.callInProgress')
+                                  : t('clientInterface.callThisGirl')
                               }
                             >
                               <Phone 
@@ -1085,7 +1057,7 @@ export default function InterfazCliente() {
                             <button
                               onClick={() => abrirChatConChica(chica)}
                               className="p-2 rounded-full hover:bg-gray-500/20 transition-colors duration-200"
-                              title="Mensaje a esta chica"
+                              title={t('clientInterface.messageThisGirl')}
                             >
                               <MessageSquare size={16} className="text-gray-400 hover:text-white transition-colors" />
                             </button>
@@ -1098,15 +1070,10 @@ export default function InterfazCliente() {
               )}
             </section>
 
+            {/* Historial */}
             <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg h-[20vh]">
-              <h3 className="text-lg font-bold text-[#ff007a] mb-4 text-center">
-                Tu Historial
-              </h3>
-              <div className="space-y-3 h-[calc(100%-4rem)] overflow-y-auto pr-2 flex flex-col items-center justify-center">
-                <p className="text-gray-400 text-center text-sm">
-                  Próximamente disponible
-                </p>
-              </div>
+              <h3 className="text-lg font-bold text-[#ff007a] mb-4 text-center">Tu Historial</h3>
+            
             </section>
           </aside>
         </div>

@@ -19,10 +19,12 @@ import {
   ArrowLeft,
   Clock
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function WompiPayment({ onClose }) {
+  const { t } = useTranslation();
   const [packages, setPackages] = useState([]);
   const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function WompiPayment({ onClose }) {
         ]);
       } catch (error) {
         console.error('Error inicializando Wompi:', error);
-        showNotification('Error de configuración. Intenta más tarde.', 'error');
+        showNotification(t('wompi.errors.configurationError'), 'error');
       } finally {
         setLoading(false);
       }
@@ -215,7 +217,7 @@ export default function WompiPayment({ onClose }) {
         if (config.sandbox) {
           // SANDBOX: Monedas instantáneas
           showNotification(
-            `¡Compra completada! Se agregaron ${data.total_coins_added} monedas (Sandbox)`,
+            t('wompi.notifications.purchaseCompleted', { coins: data.total_coins_added }),
             'success'
           );
           
@@ -256,18 +258,18 @@ export default function WompiPayment({ onClose }) {
           setRedirectCountdown(3); // Reiniciar countdown
           
           showNotification(
-            'Pago creado. Serás redirigido a Wompi en unos segundos.',
+            t('wompi.notifications.paymentCreated'),
             'success'
           );
         }
         
       } else {
-        showNotification(data.error || 'Error creando el pago', 'error');
+        showNotification(data.error || t('wompi.errors.createPayment'), 'error');
       }
 
     } catch (error) {
       console.error('Error creando pago:', error);
-      showNotification('Error de conexión. Intenta nuevamente.', 'error');
+      showNotification(t('wompi.errors.connectionError'), 'error');
     } finally {
       setProcessing(false);
     }
@@ -287,7 +289,7 @@ export default function WompiPayment({ onClose }) {
       if (data.success && data.purchase.status === 'completed') {
         // Pago completado
         showNotification(
-          `¡Pago completado! Se agregaron ${data.purchase.total_coins} monedas a tu cuenta`,
+          t('wompi.notifications.paymentCompleted', { coins: data.purchase.total_coins }),
           'success'
         );
         
@@ -359,7 +361,7 @@ export default function WompiPayment({ onClose }) {
       <div className="min-h-[400px] flex items-center justify-center">
         <div className="text-center">
           <Loader className="animate-spin text-[#ff007a] mx-auto mb-4" size={48} />
-          <p className="text-white/70">Cargando Wompi...</p>
+          <p className="text-white/70">{t('wompi.loading')}</p>
         </div>
       </div>
     );
@@ -394,7 +396,7 @@ export default function WompiPayment({ onClose }) {
                 <CreditCard size={20} sm:size={24} className="text-white" />
               </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white">
-                {activePackageType === 'minutes' ? 'Comprar Minutos' : 'Enviar Regalos'}
+                {activePackageType === 'minutes' ? t('wompi.title.buyMinutes') : t('wompi.title.sendGifts')}
               </h1>
             </div>
 
@@ -402,32 +404,31 @@ export default function WompiPayment({ onClose }) {
             <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-500/30 rounded-full px-3 py-2 mb-4 sm:mb-6">
               <MapPin size={14} className="text-green-400" />
               <span className="text-green-400 text-xs sm:text-sm font-medium">
-                Powered by Wompi - Pagos seguros en Colombia
+                {t('wompi.poweredBy')}
               </span>
             </div>
-
             {/* Balance */}
             <div className="bg-[#2b2d31] rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 border border-[#ff007a]/20">
               <div className="text-center">
-                <p className="text-white/70 mb-3 text-sm sm:text-base">Tu balance actual</p>
+                <p className="text-white/70 mb-3 text-sm sm:text-base">{t('balances.currentBalance')}</p>
                 
                 {balance && (
                   <>
                     {activePackageType === 'minutes' ? (
                       <>
                         <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#ff007a] mb-2">
-                          {formatCoins(balance.total_coins)} monedas
+                          {formatCoins(balance.total_coins)} {t('common.coins')}
                         </div>
                         <div className="text-base sm:text-lg text-blue-400 mb-3">
-                          ≈ {formatMinutesFromCoins(balance.total_coins)} disponibles para videochat
+                          ≈ {formatMinutesFromCoins(balance.total_coins)} {t('wompi.balances.availableForVideochat')}
                         </div>
                         <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-4 text-sm">
                           <div className="bg-[#1a1c20] rounded-lg p-2 sm:p-3">
-                            <div className="text-white/60 text-xs sm:text-sm">Compradas</div>
+                            <div className="text-white/60 text-xs sm:text-sm">{t('balance.purchased')}</div>
                             <div className="text-green-400 font-bold text-sm sm:text-base">{formatCoins(balance.purchased_coins)}</div>
                           </div>
                           <div className="bg-[#1a1c20] rounded-lg p-2 sm:p-3">
-                            <div className="text-white/60 text-xs sm:text-sm">Regalo (minutos)</div>
+                            <div className="text-white/60 text-xs sm:text-sm">{t('balance.giftMinutes')}</div>
                             <div className="text-yellow-400 font-bold text-sm sm:text-base">{formatCoins(balance.gift_coins)}</div>
                           </div>
                         </div>
@@ -435,18 +436,18 @@ export default function WompiPayment({ onClose }) {
                     ) : (
                       <>
                         <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#ff007a] mb-2">
-                          {formatCoins(balance.gift_balance)} monedas regalo
+                          {formatCoins(balance.gift_balance)} {t('balance.giftCoins')}
                         </div>
                         <div className="text-base sm:text-lg text-yellow-400 mb-3">
-                          Disponibles para enviar regalos
+                          {t('wompi.balances.availableForGifts')}
                         </div>
                         <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-4 text-sm">
                           <div className="bg-[#1a1c20] rounded-lg p-2 sm:p-3">
-                            <div className="text-white/60 text-xs sm:text-sm">Recibidos</div>
+                            <div className="text-white/60 text-xs sm:text-sm">{t('balance.received')}</div>
                             <div className="text-green-400 font-bold text-sm sm:text-base">{formatCoins(balance.total_received_gifts)}</div>
                           </div>
                           <div className="bg-[#1a1c20] rounded-lg p-2 sm:p-3">
-                            <div className="text-white/60 text-xs sm:text-sm">Enviados</div>
+                            <div className="text-white/60 text-xs sm:text-sm">{t('balance.sent')}</div>
                             <div className="text-orange-400 font-bold text-sm sm:text-base">{formatCoins(balance.total_sent_gifts)}</div>
                           </div>
                         </div>
@@ -471,7 +472,7 @@ export default function WompiPayment({ onClose }) {
                   }`}
                 >
                   <CreditCard size={16} />
-                  <span className="hidden sm:inline">Comprar</span> Minutos
+                  <span className="hidden sm:inline">{t('buttons.buy')}</span> {t('common.minutes')}
                 </button>
                 <button
                   onClick={() => setActivePackageType('gifts')}
@@ -482,7 +483,7 @@ export default function WompiPayment({ onClose }) {
                   }`}
                 >
                   <Gift size={16} />
-                  <span className="hidden sm:inline">Enviar</span> Regalos
+                  <span className="hidden sm:inline">{t('buttons.send')}</span> {t('common.gifts')}
                 </button>
               </div>
             </div>
@@ -507,7 +508,7 @@ export default function WompiPayment({ onClose }) {
                     <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                       <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
                         <Star size={12} fill="currentColor" />
-                        MÁS POPULAR
+                        {t('packages.mostPopular')}
                       </div>
                     </div>
                   )}
@@ -517,32 +518,40 @@ export default function WompiPayment({ onClose }) {
 
                     <div className="mb-4">
                       <div className="text-xl sm:text-2xl font-bold text-[#ff007a] mb-1">
-                        {formatCoins(pkg.coins)} monedas
+                        {formatCoins(pkg.coins)} {t('common.coins')}
                       </div>
                       
                       {pkg.bonus_coins > 0 && (
                         <div className="flex items-center justify-center gap-1 text-yellow-400 text-xs sm:text-sm">
                           <Gift size={12} />
-                          +{formatCoins(pkg.bonus_coins)} gratis
+                          +{formatCoins(pkg.bonus_coins)} {t('packages.free')}
                         </div>
                       )}
                       
                       {!isGiftPackage && (
                         <div className="text-blue-400 text-xs sm:text-sm mt-1">
-                          ≈ {formatMinutesFromCoins(pkg.total_coins)} de videochat
+                          ≈ {formatMinutesFromCoins(pkg.total_coins)} {t('packages.videochatTime')}
                         </div>
                       )}
                     </div>
 
                     <div className="mb-4">
+                      {/* Precio principal en COP */}
                       <div className="text-lg sm:text-xl font-bold mb-1 text-green-400">
-                        {formatCOP(pkg.price_cop)}
+                        {formatCOP(pkg.price_cop)} COP
                       </div>
+                      
+                      {/* Precio de referencia en USD */}
+                      <div className="text-sm text-white/60 mb-2">
+                        ≈ ${pkg.price_usd} USD
+                      </div>
+                      
+                      {/* Precio por moneda */}
                       <div className="text-xs text-white/40">
-                        {formatCOP(pkg.price_cop / pkg.total_coins)} por moneda
+                        ${(pkg.price_usd / pkg.total_coins).toFixed(3)} {t('packages.perCoin')}
                       </div>
                     </div>
-
+                    
                     <button
                       disabled={processing}
                       className={`w-full py-2 sm:py-3 px-4 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 text-sm sm:text-base ${
@@ -553,7 +562,7 @@ export default function WompiPayment({ onClose }) {
                     >
                       <div className="flex items-center justify-center gap-2">
                         <CreditCard size={16} />
-                        Pagar con Wompi
+                        {t('wompi.payWithWompi')}
                       </div>
                     </button>
                   </div>
@@ -566,30 +575,30 @@ export default function WompiPayment({ onClose }) {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
             <div className="bg-[#2b2d31] rounded-xl p-3 sm:p-6 text-center border border-green-500/20">
               <CreditCard className="text-green-400 mx-auto mb-2 sm:mb-3" size={24} />
-              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">Tarjetas y PSE</h3>
+              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">{t('wompi.features.cardsAndPSE')}</h3>
               <p className="text-white/60 text-xs sm:text-sm">
-                Visa, Mastercard, PSE y todos los bancos
+                {t('wompi.features.cardsDescription')}
               </p>
             </div>
             <div className="bg-[#2b2d31] rounded-xl p-3 sm:p-6 text-center border border-blue-500/20">
               <MapPin className="text-blue-400 mx-auto mb-2 sm:mb-3" size={24} />
-              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">100% Colombiano</h3>
+              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">{t('wompi.features.colombian')}</h3>
               <p className="text-white/60 text-xs sm:text-sm">
-                Plataforma líder en pagos digitales
+                {t('wompi.features.colombianDescription')}
               </p>
             </div>
             <div className="bg-[#2b2d31] rounded-xl p-3 sm:p-6 text-center border border-yellow-500/20">
               <Shield className="text-yellow-400 mx-auto mb-2 sm:mb-3" size={24} />
-              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">Pago Seguro</h3>
+              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">{t('wompi.features.securePayment')}</h3>
               <p className="text-white/60 text-xs sm:text-sm">
-                Certificación PCI DSS y cifrado
+                {t('wompi.features.secureDescription')}
               </p>
             </div>
             <div className="bg-[#2b2d31] rounded-xl p-3 sm:p-6 text-center border border-red-500/20">
               <Check className="text-red-400 mx-auto mb-2 sm:mb-3" size={24} />
-              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">Confirmación Rápida</h3>
+              <h3 className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">{t('wompi.features.quickConfirmation')}</h3>
               <p className="text-white/60 text-xs sm:text-sm">
-                Recibe tus monedas al instante
+                {t('wompi.features.quickDescription')}
               </p>
             </div>
           </div>
@@ -599,7 +608,7 @@ export default function WompiPayment({ onClose }) {
             <div className="bg-[#2b2d31] rounded-xl p-4 sm:p-6 border border-gray-600">
               <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
                 <DollarSign className="text-green-400" size={20} />
-                Compras Recientes (Wompi)
+                {t('wompi.history.recentPurchases')}
               </h3>
               <div className="space-y-3">
                 {purchaseHistory.map((purchase) => (
@@ -609,7 +618,7 @@ export default function WompiPayment({ onClose }) {
                   >
                     <div>
                       <div className="font-medium text-sm sm:text-base">
-                        {formatCoins(purchase.total_coins)} monedas
+                        {formatCoins(purchase.total_coins)} {t('common.coins')}
                       </div>
                       <div className="text-xs sm:text-sm text-white/50">
                         {new Date(purchase.created_at).toLocaleDateString()}
@@ -627,10 +636,10 @@ export default function WompiPayment({ onClose }) {
                           : 'bg-red-500/20 text-red-400'
                       }`}>
                         {purchase.status === 'completed' 
-                          ? 'Completado' 
+                          ? t('wompi.status.completed')
                           : purchase.status === 'pending'
-                          ? 'Pendiente'
-                          : 'Fallido'
+                          ? t('wompi.status.pending')
+                          : t('wompi.status.failed')
                         }
                       </div>
                     </div>
@@ -653,25 +662,25 @@ export default function WompiPayment({ onClose }) {
                   className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
                 >
                   <ArrowLeft size={20} />
-                  <span className="text-sm sm:text-base">Regresar</span>
+                  <span className="text-sm sm:text-base">{t('buttons.back')}</span>
                 </button>
                 <div className="flex items-center gap-2 text-green-400">
                   <MapPin size={18} />
-                  <span className="text-sm">Colombia</span>
+                  <span className="text-sm">{t('wompi.country.colombia')}</span>
                 </div>
               </div>
 
               {/* Resumen del paquete */}
               <div className="bg-[#1a1c20] rounded-lg p-4 sm:p-6 border border-[#ff007a]/30 mb-6">
                 <h3 className="text-lg sm:text-xl font-bold text-white mb-4 text-center">
-                  Verificación de Pago
+                  {t('wompi.verification.title')}
                 </h3>
                 
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-white/70 text-sm sm:text-base">{selectedPackage.name}</span>
                     <span className="text-[#ff007a] font-bold text-sm sm:text-base">
-                      {formatCoins(selectedPackage.coins)} monedas
+                      {formatCoins(selectedPackage.coins)} {t('common.coins')}
                     </span>
                   </div>
                   
@@ -679,7 +688,7 @@ export default function WompiPayment({ onClose }) {
                     <div className="flex justify-between items-center">
                       <span className="text-green-400 text-sm flex items-center gap-1">
                         <Gift size={14} />
-                        Monedas bonus
+                        {t('packages.bonusCoins')}
                       </span>
                       <span className="text-green-400 text-sm">
                         +{formatCoins(selectedPackage.bonus_coins)}
@@ -687,12 +696,16 @@ export default function WompiPayment({ onClose }) {
                     </div>
                   )}
                   
-                  <div className="border-t border-gray-600 pt-3 mt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-white font-semibold text-sm sm:text-base">Total a pagar:</span>
-                      <span className="text-xl sm:text-2xl font-bold text-[#ff007a]">
-                        {formatCOP(selectedPackage.price_cop)}
-                      </span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-white font-semibold text-sm sm:text-base">{t('wompi.verification.totalToPay')}:</span>
+                    <div className="text-right">
+                      <div className="text-xl sm:text-2xl font-bold text-[#ff007a]">
+                        {formatCOP(selectedPackage.price_cop)} COP
+                      </div>
+                      <div className="text-xs text-white/50 flex items-center gap-1">
+                        <DollarSign size={10} />
+                        ≈ ${selectedPackage.price_usd} USD
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -705,7 +718,7 @@ export default function WompiPayment({ onClose }) {
                     <div className="flex items-center justify-center gap-3 mb-4">
                       <Clock className="text-blue-400 animate-pulse" size={24} />
                       <h3 className="text-lg sm:text-xl font-bold text-white">
-                        Preparando tu pago
+                        {t('wompi.redirect.preparingPayment')}
                       </h3>
                     </div>
                     
@@ -714,7 +727,7 @@ export default function WompiPayment({ onClose }) {
                         {redirectCountdown}
                       </div>
                       <p className="text-white/70 text-sm sm:text-base">
-                        Serás redirigido automáticamente a Wompi
+                        {t('wompi.redirect.autoRedirect')}
                       </p>
                     </div>
                     
@@ -729,7 +742,7 @@ export default function WompiPayment({ onClose }) {
                       onClick={handleManualRedirect}
                       className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 sm:py-3 sm:px-6 rounded-lg font-semibold transition-colors text-sm sm:text-base"
                     >
-                      Ir a pagar ahora
+                      {t('wompi.redirect.payNow')}
                     </button>
                   </div>
                 ) : (
@@ -737,12 +750,12 @@ export default function WompiPayment({ onClose }) {
                     <div className="flex items-center justify-center gap-3 mb-4">
                       <ExternalLink className="text-green-400" size={24} />
                       <h3 className="text-lg sm:text-xl font-bold text-white">
-                        ¡Redirigido a Wompi!
+                        {t('wompi.redirect.redirectedToWompi')}
                       </h3>
                     </div>
                     
                     <p className="text-white/70 mb-4 text-sm sm:text-base">
-                      Se abrió una nueva ventana con tu checkout de pago.
+                      {t('wompi.redirect.newWindowOpened')}
                     </p>
                     
                     <button
@@ -750,30 +763,28 @@ export default function WompiPayment({ onClose }) {
                       className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 sm:py-3 sm:px-6 rounded-lg font-semibold transition-colors text-sm sm:text-base flex items-center gap-2 mx-auto"
                     >
                       <ExternalLink size={16} />
-                      Abrir Wompi nuevamente
+                      {t('wompi.redirect.openWompiAgain')}
                     </button>
                   </div>
                 )}
-              </div>
-
-              {/* Información del proceso */}
+              </div>{/* Información del proceso */}
               <div className="bg-[#1a1c20] rounded-lg p-4 sm:p-6 border border-blue-500/20 mb-6">
                 <h4 className="text-white font-semibold mb-3 flex items-center gap-2 text-sm sm:text-base">
                   <Shield className="text-blue-400" size={18} />
-                  ¿Qué sucede ahora?
+                  {t('wompi.process.whatHappensNow')}
                 </h4>
                 <div className="space-y-2 text-white/70 text-sm sm:text-base">
                   <div className="flex items-start gap-2">
                     <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold mt-0.5">1</div>
-                    <span>Te redirigimos al checkout seguro de Wompi</span>
+                    <span>{t('wompi.process.step1')}</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold mt-0.5">2</div>
-                    <span>Completas tu pago con tarjeta, PSE o Nequi</span>
+                    <span>{t('wompi.process.step2')}</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold mt-0.5">3</div>
-                    <span>Las monedas se agregan automáticamente a tu cuenta</span>
+                    <span>{t('wompi.process.step3')}</span>
                   </div>
                 </div>
               </div>
@@ -782,19 +793,19 @@ export default function WompiPayment({ onClose }) {
               <div className="bg-[#1a1c20] rounded-lg p-4 sm:p-6 border border-yellow-500/20 mb-6">
                 <h4 className="text-white font-semibold mb-3 flex items-center gap-2 text-sm sm:text-base">
                   <AlertCircle className="text-yellow-400" size={18} />
-                  ¿Ya completaste el pago?
+                  {t('wompi.verification.alreadyCompleted')}
                 </h4>
                 
                 {/* Indicador de verificación automática */}
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4">
                   <div className="flex items-center gap-2 text-blue-400 text-xs sm:text-sm">
                     <RefreshCw className="animate-spin" size={14} />
-                    <span>Verificando automáticamente cada 3 segundos...</span>
+                    <span>{t('wompi.verification.autoChecking')}</span>
                   </div>
                 </div>
                 
                 <p className="text-white/70 mb-4 text-xs sm:text-sm">
-                  Las monedas aparecerán automáticamente, o puedes verificar manualmente:
+                  {t('wompi.verification.coinsWillAppear')}
                 </p>
                 
                 <button
@@ -805,12 +816,12 @@ export default function WompiPayment({ onClose }) {
                   {checkingStatus ? (
                     <>
                       <Loader className="animate-spin" size={16} />
-                      Verificando...
+                      {t('wompi.verification.checking')}
                     </>
                   ) : (
                     <>
                       <RefreshCw size={16} />
-                      Verificar Ahora
+                      {t('wompi.verification.checkNow')}
                     </>
                   )}
                 </button>
@@ -820,24 +831,24 @@ export default function WompiPayment({ onClose }) {
               <div className="bg-[#1a1c20] rounded-lg p-4 sm:p-6 border border-green-500/20">
                 <h4 className="text-white font-semibold mb-3 flex items-center gap-2 text-sm sm:text-base">
                   <Building2 className="text-green-400" size={18} />
-                  Métodos de Pago en Wompi
+                  {t('wompi.paymentMethods.title')}
                 </h4>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="bg-[#2b2d31] rounded-lg p-3 text-center">
-                    <div className="text-blue-400 font-bold text-xs sm:text-sm">Tarjetas</div>
-                    <div className="text-white/50 text-xs">Visa, Mastercard</div>
+                    <div className="text-blue-400 font-bold text-xs sm:text-sm">{t('wompi.paymentMethods.cards.title')}</div>
+                    <div className="text-white/50 text-xs">{t('wompi.paymentMethods.cards.description')}</div>
                   </div>
                   <div className="bg-[#2b2d31] rounded-lg p-3 text-center">
-                    <div className="text-green-400 font-bold text-xs sm:text-sm">PSE</div>
-                    <div className="text-white/50 text-xs">Bancos Colombia</div>
+                    <div className="text-green-400 font-bold text-xs sm:text-sm">{t('wompi.paymentMethods.pse.title')}</div>
+                    <div className="text-white/50 text-xs">{t('wompi.paymentMethods.pse.description')}</div>
                   </div>
                   <div className="bg-[#2b2d31] rounded-lg p-3 text-center">
-                    <div className="text-yellow-400 font-bold text-xs sm:text-sm">Nequi</div>
-                    <div className="text-white/50 text-xs">Pago móvil</div>
+                    <div className="text-yellow-400 font-bold text-xs sm:text-sm">{t('wompi.paymentMethods.nequi.title')}</div>
+                    <div className="text-white/50 text-xs">{t('wompi.paymentMethods.nequi.description')}</div>
                   </div>
                   <div className="bg-[#2b2d31] rounded-lg p-3 text-center">
-                    <div className="text-red-400 font-bold text-xs sm:text-sm">Bancolombia</div>
-                    <div className="text-white/50 text-xs">Transferencia</div>
+                    <div className="text-red-400 font-bold text-xs sm:text-sm">{t('wompi.paymentMethods.bancolombia.title')}</div>
+                    <div className="text-white/50 text-xs">{t('wompi.paymentMethods.bancolombia.description')}</div>
                   </div>
                 </div>
               </div>

@@ -98,64 +98,248 @@ export const register = async (email, password) => {
 };
 
 
-export const loginWithoutRedirect = async (email, password) => {
+export const loginWithWait = async (email, password, onStatusUpdate = null) => {
   try {
-    // ✅ URL correcta (tu ruta es /api/login)
-    const response = await axios.post(`${API_BASE_URL}/api/login`, { email, password });
+    console.log("🔄 Intentando login...");
+    
+    // Usar la función existente pero interceptar el 202
+    const response = await axios.post(`${API_BASE_URL}/api/login`, { 
+      email, 
+      password 
+    }, { skipInterceptor: true });
 
-    const token = response.data.access_token;
-    if (token) {
-      localStorage.setItem("token", token);
-      console.log("✅ Token guardado en login:", token.substring(0, 10) + "...");
+    // Login exitoso directo (no había sesión activa)
+    if (response.data.access_token) {
+      localStorage.setItem('token', response.data.access_token);
+      localStorage.setItem("just_logged_in", "true");
+
+      setTimeout(() => {
+        localStorage.removeItem("just_logged_in");
+      }, 10000);
+
+      console.log("✅ Token guardado en login:", response.data.access_token.substring(0, 10) + "...");
       
-      // 🔥 CARGAR IDIOMA INMEDIATAMENTE DESPUÉS DEL LOGIN
-      try {
-        console.log('🔄 Cargando idioma del usuario...');
-        const userResponse = await axios.get(`${API_BASE_URL}/api/profile/info`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (userResponse.data.success && userResponse.data.user.preferred_language) {
-          localStorage.setItem('userPreferredLanguage', userResponse.data.user.preferred_language);
-          localStorage.setItem('selectedLanguage', userResponse.data.user.preferred_language);
-          localStorage.setItem('i18nextLng', userResponse.data.user.preferred_language); // 🔥 AGREGAR ESTA LÍNEA
-          localStorage.setItem('lang', userResponse.data.user.preferred_language); // 🔥 AGREGAR ESTA LÍNEA
-          console.log('🌍 Idioma cargado en login:', userResponse.data.user.preferred_language);
-          
-          // Actualizar i18next si está disponible
-          if (window.i18n && typeof window.i18n.changeLanguage === 'function') {
-            window.i18n.changeLanguage(userResponse.data.user.preferred_language);
-            console.log('🌍 i18next actualizado a:', userResponse.data.user.preferred_language);
-          }
-        } else {
-          console.log('⚠️ No se encontró idioma preferido, usando español por defecto');
-          localStorage.setItem('userPreferredLanguage', 'es');
-          localStorage.setItem('selectedLanguage', 'es');
-        }
-      } catch (languageError) {
-        console.error('❌ Error cargando idioma post-login:', languageError);
-        // Fallback a español si falla
-        localStorage.setItem('userPreferredLanguage', 'es');
-        localStorage.setItem('selectedLanguage', 'es');
-      }
-      
-      // 🔥 LIMPIAR CACHE AL HACER LOGIN
-      userCache.clearCache();
-      
+      // Marcar como online y iniciar heartbeat
       try {
         await axios.post(`${API_BASE_URL}/api/user/mark-online`, {}, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${response.data.access_token}` }
         });
         console.log("🟢 Usuario marcado como online");
         startHeartbeat();
       } catch (error) {
         console.error("❌ Error marcando como online:", error);
       }
+
+      userCache.clearCache();
+      return { success: true, data: response.data, requiresWait: false };
+    }
+
+    return { success: true, data: response.data, requiresWait: false };
+
+  } catch (error) {
+    // Usuario A está activo, necesitamos esperar (código 202)
+    if (error.response?.status === 202 && error.response?.data?.status === 'waiting_for_user_decision') {
+      console.log("⏳ Usuario activo detectado - Iniciando espera...");
+      
+      return await waitForUserDecision(email, password, error.response.data, onStatusUpdate);
+    }
+
+    // Otros errores (401, 404, etc.)
+    throw error;
+  }
+};
+
+// Función para esperar la decisión del Usuario A
+const waitForUserDecision = async (email, password, initialResponse, onStatusUpdate) => {
+  const requestId = initialResponse.request_id;
+  const maxWaitTime = (initialResponse.wait_time || 10) * 60 * 1000; // convertir a ms
+  const startTime = Date.now();
+  
+  console.log(`⏳ Esperando decisión del usuario activo por ${initialResponse.wait_time} minutos...`);
+  
+  // Notificar al UI del estado inicial
+  if (onStatusUpdate) {
+    onStatusUpdate({
+      status: 'waiting',
+      message: 'Hay una sesión activa. El usuario está siendo notificado...',
+      remainingTime: initialResponse.wait_time,
+      canCancel: true
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const checkInterval = setInterval(async () => {
+      try {
+        const elapsed = Date.now() - startTime;
+        
+        // Timeout alcanzado
+        if (elapsed >= maxWaitTime) {
+          clearInterval(checkInterval);
+          reject(new Error('Tiempo de espera agotado'));
+          return;
+        }
+
+        // Verificar estado actual
+        const statusResponse = await axios.post(`${API_BASE_URL}/api/check-login-status`, {
+          email,
+          request_id: requestId
+        }, { skipInterceptor: true });
+
+        const status = statusResponse.data;
+        console.log("🔍 Estado actual:", status);
+
+        // Actualizar UI
+        if (onStatusUpdate) {
+          onStatusUpdate({
+            status: status.status,
+            message: status.message,
+            remainingTime: status.remaining_time || 0,
+            canCancel: true
+          });
+        }
+
+        // Usuario A aprobó o tiempo expiró
+        if (status.can_login) {
+          clearInterval(checkInterval);
+          console.log("✅ Acceso aprobado - Completando login...");
+          
+          try {
+            // Completar el login
+            const loginResponse = await axios.post(`${API_BASE_URL}/api/complete-pending-login`, {
+              email,
+              password
+            }, { skipInterceptor: true });
+
+            if (loginResponse.data.access_token) {
+              localStorage.setItem('token', loginResponse.data.access_token);
+              localStorage.setItem("just_logged_in", "true");
+
+              setTimeout(() => {
+                localStorage.removeItem("just_logged_in");
+              }, 10000);
+
+              console.log("✅ Login completado con token:", loginResponse.data.access_token.substring(0, 10) + "...");
+              
+              // Marcar como online y iniciar heartbeat
+              try {
+                await axios.post(`${API_BASE_URL}/api/user/mark-online`, {}, {
+                  headers: { 'Authorization': `Bearer ${loginResponse.data.access_token}` }
+                });
+                console.log("🟢 Usuario marcado como online");
+                startHeartbeat();
+              } catch (error) {
+                console.error("❌ Error marcando como online:", error);
+              }
+
+              userCache.clearCache();
+              
+              resolve({ 
+                success: true, 
+                data: loginResponse.data,
+                requiresWait: true,
+                waitResult: 'approved'
+              });
+            } else {
+              throw new Error('No se recibió token de acceso');
+            }
+          } catch (loginError) {
+            clearInterval(checkInterval);
+            reject(loginError);
+          }
+        }
+
+      } catch (error) {
+        console.error("❌ Error verificando estado:", error);
+        clearInterval(checkInterval);
+        reject(error);
+      }
+    }, 3000); // Verificar cada 3 segundos
+
+    // Cleanup function para cancelar si es necesario
+    resolve.cancel = () => {
+      clearInterval(checkInterval);
+      reject(new Error('Operación cancelada por el usuario'));
+    };
+  });
+};
+
+// Función para cancelar la espera (Usuario B)
+export const cancelWaitingLogin = () => {
+  console.log("❌ Usuario B canceló la espera");
+  // Esta función puede ser llamada desde el UI para cancelar la espera
+  return { cancelled: true };
+};
+
+
+// 🔄 MODIFICAR loginWithoutRedirect - Usuario B entra inmediatamente
+export const loginWithoutRedirect = async (email, password) => {
+  try {
+    console.log("🔄 Login (Usuario B entra inmediatamente)");
+    
+    const response = await axios.post(`${API_BASE_URL}/api/login`, { 
+      email, 
+      password 
+    }, { skipInterceptor: true });
+
+    // Login exitoso - Usuario B entra inmediatamente
+    if (response.data.access_token) {
+      localStorage.setItem('token', response.data.access_token);
+      localStorage.setItem("just_logged_in", "true");
+
+      setTimeout(() => {
+        localStorage.removeItem("just_logged_in");
+      }, 10000);
+
+      console.log("✅ Token guardado:", response.data.access_token.substring(0, 10) + "...");
+      
+      // 🔥 CARGAR IDIOMA INMEDIATAMENTE DESPUÉS DEL LOGIN
+      try {
+        console.log('🔄 Cargando idioma del usuario...');
+        const userResponse = await axios.get(`${API_BASE_URL}/api/profile/info`, {
+          headers: { 'Authorization': `Bearer ${response.data.access_token}` }
+        });
+        
+        if (userResponse.data.success && userResponse.data.user.preferred_language) {
+          localStorage.setItem('userPreferredLanguage', userResponse.data.user.preferred_language);
+          localStorage.setItem('selectedLanguage', userResponse.data.user.preferred_language);
+          localStorage.setItem('i18nextLng', userResponse.data.user.preferred_language);
+          localStorage.setItem('lang', userResponse.data.user.preferred_language);
+          console.log('🌍 Idioma cargado:', userResponse.data.user.preferred_language);
+          
+          if (window.i18n && typeof window.i18n.changeLanguage === 'function') {
+            window.i18n.changeLanguage(userResponse.data.user.preferred_language);
+          }
+        } else {
+          console.log('⚠️ Usando español por defecto');
+          localStorage.setItem('userPreferredLanguage', 'es');
+          localStorage.setItem('selectedLanguage', 'es');
+        }
+      } catch (languageError) {
+        console.error('❌ Error cargando idioma:', languageError);
+        localStorage.setItem('userPreferredLanguage', 'es');
+        localStorage.setItem('selectedLanguage', 'es');
+      }
+      
+      userCache.clearCache();
+      
+      // Marcar como online y iniciar heartbeat
+      try {
+        await axios.post(`${API_BASE_URL}/api/user/mark-online`, {}, {
+          headers: { 'Authorization': `Bearer ${response.data.access_token}` }
+        });
+        console.log("🟢 Usuario B marcado como online");
+        startHeartbeat();
+      } catch (error) {
+        console.error("❌ Error marcando como online:", error);
+      }
+
+      return response.data;
     }
 
     return response.data;
+
   } catch (error) {
-    // 🔧 CORRECCIÓN: Agregar manejo de error 404 (email no existe)
+    // Mantener el mismo manejo de errores que antes
     if (error.response?.status === 404) {
       throw new Error(error.response.data.message || "No existe una cuenta con este correo");
     }
@@ -173,6 +357,103 @@ export const loginWithoutRedirect = async (email, password) => {
   }
 };
 
+// 🔄 MODIFICADO: Reclamar sesión (Usuario A permite acceso a Usuario B)
+export const reclamarSesion = async (email, password) => {
+  try {
+    console.log('🔄 Usuario A permitiendo acceso para:', email);
+    
+    const response = await axios.post(`${API_BASE_URL}/api/reclaim-session`, {
+      email,
+      password,
+      force: true
+    }, { skipInterceptor: true });
+
+    console.log("✅ Acceso permitido exitosamente");
+    
+    // Usuario A será desconectado - limpiar su estado local
+    stopHeartbeat();
+    localStorage.removeItem("token");
+    localStorage.removeItem("just_logged_in");
+    userCache.clearCache();
+    
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error permitiendo acceso:", error.response?.data || error);
+    
+    if (error.response?.status === 401) {
+      throw new Error("Credenciales incorrectas");
+    } else if (error.response?.status === 400) {
+      throw new Error("Solicitud de sesión expirada o inválida");
+    } else if (error.response?.status === 404) {
+      throw new Error("Usuario no encontrado");
+    }
+    
+    throw new Error("Error al permitir acceso");
+  }
+};
+export const rechazarNuevaSesion = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No hay token");
+    }
+
+    const response = await axios.post(`${API_BASE_URL}/api/reject-new-session`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    console.log("✅ Intruso expulsado exitosamente");
+    
+    if (response.data.access_token) {
+      localStorage.setItem("token", response.data.access_token);
+      console.log("✅ Nuevo token recibido para Usuario A");
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error expulsando intruso:', error);
+    throw error;
+  }
+};
+
+// 🆕 NUEVA: Función para que Usuario A permita el acceso y se desconecte
+export const allowAndDisconnect = async (email, password) => {
+  try {
+    console.log('🔄 Usuario A permitiendo acceso y desconectándose');
+    
+    // Usar reclamarSesion que ya maneja esto
+    await reclamarSesion(email, password);
+    
+    // Inmediatamente desconectar (el token será invalidado por Usuario B)
+    stopHeartbeat();
+    localStorage.removeItem("token");
+    localStorage.removeItem("just_logged_in");
+    userCache.clearCache();
+    
+    return { success: true, message: 'Acceso permitido' };
+  } catch (error) {
+    console.error("❌ Error permitiendo acceso:", error);
+    throw error;
+  }
+};
+
+export const checkAuthStatus = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No hay token");
+    }
+
+    const response = await axios.get(`${API_BASE_URL}/api/check-auth`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error verificando estado de auth:', error);
+    throw error;
+  }
+};
 export const logout = async () => {
   try {
     await markUserOffline();
@@ -212,6 +493,12 @@ export const getUser = async (forceRefresh = false) => {
   } catch (error) {
     console.error("❌ Error obteniendo usuario:", error.response?.data || error.message);
     
+    // 🆕 MANEJO ESPECÍFICO DE SESIÓN DUPLICADA
+    if (error.response?.status === 401 && error.response?.data?.code === 'SESSION_DUPLICATED') {
+      console.log("🔥 Sesión duplicada detectada en getUser");
+      throw error; // Dejar que VerificarSesionActiva maneje esto
+    }
+    
     // 🔥 MANEJO DE RATE LIMITING
     if (error.response?.status === 429) {
       console.warn('⚠️ Rate limited obteniendo usuario');
@@ -223,6 +510,7 @@ export const getUser = async (forceRefresh = false) => {
       console.log("🧹 Limpiando token inválido");
       stopHeartbeat();
       localStorage.removeItem("token");
+      localStorage.removeItem("reclamando_sesion");
       userCache.clearCache();
     }
     
@@ -256,40 +544,6 @@ export const asignarRol = async ({ rol, nombre }) => {
     rol,
     name: nombre,
   });
-};
-
-// ✅ Reclamar sesión
-export const reclamarSesion = async () => {
-  try {
-    const token = localStorage.getItem("token");
-    const response = await axios.post(
-      `${API_BASE_URL}/api/reclamar-sesion`,
-      {},
-      {
-        skipInterceptor: true,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    const nuevoToken = response.data.nuevo_token;
-    if (nuevoToken) {
-      localStorage.setItem("token", nuevoToken);
-      
-      // 🔥 LIMPIAR CACHE CON NUEVO TOKEN
-      userCache.clearCache();
-      startHeartbeat();
-      
-      return nuevoToken;
-    } else {
-      console.warn("⚠️ No se recibió nuevo_token");
-      return null;
-    }
-  } catch (error) {
-    console.error("❌ Error reclamando sesión:", error.response?.data || error);
-    throw error;
-  }
 };
 
 // Función para inicializar el sistema
@@ -435,4 +689,24 @@ export const debugAuth = () => {
   };
 };
 
-export { startHeartbeat, stopHeartbeat };
+
+export const allowNewSession = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No hay token");
+    }
+
+    const response = await axios.post(`${API_BASE_URL}/api/allow-new-session`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    console.log("✅ Acceso permitido");
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error permitiendo acceso:', error);
+    throw error;
+  }
+};
+
+export { startHeartbeat, stopHeartbeat,    };

@@ -36,6 +36,7 @@ export default function ChatPrivado() {
   const { settings: translationSettings, setSettings: setTranslationSettings, languages } = useCustomTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  
 
   // 🔥 ESTADOS PRINCIPALES OPTIMIZADOS
   const [usuario, setUsuario] = useState({ id: null, name: "Usuario", rol: "cliente" });
@@ -51,6 +52,8 @@ export default function ChatPrivado() {
   const [showMainSettings, setShowMainSettings] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [userBalance, setUserBalance] = useState(0);        // Balance de COINS
+  const [giftBalance, setGiftBalance] = useState(0);
 
   // Estados de llamadas simplificados
   const [isCallActive, setIsCallActive] = useState(false);
@@ -195,6 +198,7 @@ export default function ChatPrivado() {
     }
   }, []);
 
+
   const cargarConversaciones = useCallback(async () => {
     if (loading) return;
     
@@ -205,7 +209,6 @@ export default function ChatPrivado() {
       }
       
       console.log('🔍 Cargando conversaciones...');
-      console.log('🔑 Headers:', getAuthHeaders());
       
       const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
@@ -216,110 +219,114 @@ export default function ChatPrivado() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Conversaciones recibidas:', data);
+        console.log('✅ Conversaciones del servidor:', data);
         
-        const newConversations = data.conversations || [];
+        const serverConversations = data.conversations || [];
         
-        // Comparar con conversaciones anteriores para detectar cambios
-        const hasChanges = newConversations.some(newConv => {
-          const oldConv = conversaciones.find(old => old.room_name === newConv.room_name);
-          if (!oldConv) return true; // Nueva conversación
+        // 🔥 ESTRATEGIA: COMBINAR Y ORDENAR CORRECTAMENTE
+        setConversaciones(prev => {
+          // Separar conversaciones persistentes y del servidor
+          const persistentConvs = prev.filter(conv => conv.isPersistent || conv.fromSearch || conv.createdLocally);
+          const nonPersistentConvs = prev.filter(conv => !conv.isPersistent && !conv.fromSearch && !conv.createdLocally);
           
-          // Verificar si cambió el último mensaje
-          const newTime = new Date(newConv.last_message_time).getTime();
-          const oldTime = new Date(oldConv.last_message_time).getTime();
+          console.log('🛡️ Conservando conversaciones persistentes:', persistentConvs.length);
+          console.log('🔄 Actualizando conversaciones del servidor:', serverConversations.length);
           
-          return newTime > oldTime || newConv.last_message !== oldConv.last_message;
-        });
-        
-        if (hasChanges || conversaciones.length === 0) {
-          console.log('📝 Actualizando conversaciones con cambios detectados');
-          setConversaciones(newConversations);
+          // Crear nueva lista combinada
+          const combined = [];
           
-          // Si hay mensajes nuevos en otras conversaciones, actualizar sin parpadeos
-          newConversations.forEach(newConv => {
-            const oldConv = conversaciones.find(old => old.room_name === newConv.room_name);
-            if (oldConv && newConv.last_message !== oldConv.last_message && newConv.room_name !== conversacionActiva) {
-              console.log(`💬 Mensaje nuevo detectado en ${newConv.other_user_name}: ${newConv.last_message}`);
+          // 🔥 PASO 1: Agregar conversaciones del servidor
+          serverConversations.forEach(serverConv => {
+            combined.push(serverConv);
+          });
+          
+          // 🔥 PASO 2: Agregar conversaciones persistentes que NO estén en el servidor
+          persistentConvs.forEach(persistentConv => {
+            const existsInServer = serverConversations.some(serverConv => 
+              serverConv.room_name === persistentConv.room_name ||
+              serverConv.other_user_id === persistentConv.other_user_id
+            );
+            
+            if (!existsInServer) {
+              console.log('➕ Manteniendo conversación local:', persistentConv.other_user_name);
+              combined.push(persistentConv);
+            } else {
+              console.log('🔄 Conversación local ya existe en servidor:', persistentConv.other_user_name);
+              // 🔥 ACTUALIZAR la conversación del servidor con datos locales importantes
+              const serverIndex = combined.findIndex(conv => 
+                conv.room_name === persistentConv.room_name ||
+                conv.other_user_id === persistentConv.other_user_id
+              );
+              
+              if (serverIndex !== -1) {
+                // Mantener datos del servidor pero preservar estado local si es necesario
+                combined[serverIndex] = {
+                  ...combined[serverIndex],
+                  // Preservar datos importantes del estado local si los tiene
+                  avatar: persistentConv.avatar || combined[serverIndex].avatar
+                };
+              }
             }
           });
-        } else {
-          console.log('ℹ️ No hay cambios en conversaciones');
-        }
+          
+          // 🔥 PASO 3: ORDENAR POR FECHA DE ÚLTIMO MENSAJE (MÁS RECIENTE PRIMERO)
+          combined.sort((a, b) => {
+            const timeA = new Date(a.last_message_time || 0).getTime();
+            const timeB = new Date(b.last_message_time || 0).getTime();
+            
+            console.log('📊 Comparando ordenamiento:', {
+              a: { name: a.other_user_name, time: a.last_message_time, timestamp: timeA },
+              b: { name: b.other_user_name, time: b.last_message_time, timestamp: timeB },
+              result: timeB - timeA
+            });
+            
+            return timeB - timeA; // Más reciente primero
+          });
+          
+          console.log('📊 Conversaciones ordenadas:', combined.map(conv => ({
+            name: conv.other_user_name,
+            time: conv.last_message_time,
+            message: conv.last_message
+          })));
+          
+          return combined;
+        });
+        
       } else {
         console.error('❌ Error status:', response.status);
-        const errorText = await response.text();
-        console.error('Error details:', errorText);
         
-        // Solo usar datos de ejemplo si no hay conversaciones cargadas
-        if (conversaciones.length === 0) {
-          console.log('🔧 Usando datos de ejemplo...');
-          const exampleConversations = [
-            {
-              id: 1,
-              other_user_id: 2,
-              other_user_name: "SofiSweet",
-              other_user_role: "modelo",
-              room_name: "chat_user_1_2",
-              last_message: "¡Hola! ¿Cómo estás?",
-              last_message_time: "2024-01-15T14:30:00Z",
-              last_message_sender_id: 2,
-              unread_count: 2
-            },
-            {
-              id: 2,
-              other_user_id: 3,
-              other_user_name: "Mia88",
-              other_user_role: "modelo",
-              room_name: "chat_user_1_3",
-              last_message: "Gracias por la sesión 😘",
-              last_message_time: "2024-01-15T12:15:00Z",
-              last_message_sender_id: 3,
-              unread_count: 1
-            }
-          ];
-          setConversaciones(exampleConversations);
-        }
+        // En caso de error, ordenar las conversaciones existentes
+        setConversaciones(prev => {
+          const sorted = [...prev].sort((a, b) => {
+            const timeA = new Date(a.last_message_time || 0).getTime();
+            const timeB = new Date(b.last_message_time || 0).getTime();
+            return timeB - timeA;
+          });
+          
+          console.log('📊 Reordenando conversaciones existentes por error del servidor');
+          return sorted;
+        });
       }
     } catch (error) {
       console.error('❌ Error de conexión:', error);
       
-      // Solo usar datos de ejemplo si no hay conversaciones cargadas
-      if (conversaciones.length === 0) {
-        console.log('🔧 Usando datos de ejemplo por error de conexión...');
-        const exampleConversations = [
-          {
-            id: 1,
-            other_user_id: 2,
-            other_user_name: "SofiSweet",
-            other_user_role: "modelo",
-            room_name: "chat_user_1_2",
-            last_message: "¡Hola! ¿Cómo estás?",
-            last_message_time: "2024-01-15T14:30:00Z",
-            last_message_sender_id: 2,
-            unread_count: 2
-          },
-          {
-            id: 2,
-            other_user_id: 3,
-            other_user_name: "Mia88",
-            other_user_role: "modelo",
-            room_name: "chat_user_1_3",
-            last_message: "Gracias por la sesión 😘",
-            last_message_time: "2024-01-15T12:15:00Z",
-            last_message_sender_id: 3,
-            unread_count: 1
-          }
-        ];
-        setConversaciones(exampleConversations);
-      }
+      // En caso de error, ordenar las conversaciones existentes
+      setConversaciones(prev => {
+        const sorted = [...prev].sort((a, b) => {
+          const timeA = new Date(a.last_message_time || 0).getTime();
+          const timeB = new Date(b.last_message_time || 0).getTime();
+          return timeB - timeA;
+        });
+        
+        console.log('📊 Reordenando conversaciones existentes por error de conexión');
+        return sorted;
+      });
     } finally {
-      // Solo quitar loading si se había puesto
       if (conversaciones.length === 0) {
         setLoading(false);
       }
     }
-  }, [loading, getAuthHeaders, conversaciones, conversacionActiva]);
+  }, [loading, getAuthHeaders]);
 
   const cargarMensajes = useCallback(async (roomName) => {
     try {
@@ -390,8 +397,8 @@ export default function ChatPrivado() {
         setNuevoMensaje("");
         
         // ACTUALIZAR PREVIEW INMEDIATAMENTE en la lista de conversaciones
-        setConversaciones(prev => 
-          prev.map(conv => 
+        setConversaciones(prev => {
+          const updated = prev.map(conv => 
             conv.room_name === conversacionActiva
               ? {
                   ...conv,
@@ -400,8 +407,28 @@ export default function ChatPrivado() {
                   last_message_sender_id: usuario.id
                 }
               : conv
-          )
-        );
+          );
+          
+          // 🔥 REORDENAR DESPUÉS DE ACTUALIZAR
+          const sorted = updated.sort((a, b) => {
+            const timeA = new Date(a.last_message_time || 0).getTime();
+            const timeB = new Date(b.last_message_time || 0).getTime();
+            
+            console.log('📊 Reordenando después de enviar mensaje:', {
+              activeRoom: conversacionActiva,
+              conversations: updated.map(c => ({
+                name: c.other_user_name,
+                time: c.last_message_time,
+                isActive: c.room_name === conversacionActiva
+              }))
+            });
+            
+            return timeB - timeA; // Más reciente primero
+          });
+          
+          console.log('✅ Conversaciones reordenadas después de enviar mensaje');
+          return sorted;
+        });
         
         // Marcar como visto después de enviar mensaje
         await marcarComoVisto(conversacionActiva);
@@ -625,85 +652,6 @@ export default function ChatPrivado() {
   // 🔥 AGREGAR ESTOS DOS useEffect A TU ChatPrivado.jsx
   // Agrégalos después de la línea: const hasOpenedSpecificChat = useRef(false);
 
-  // 1️⃣ MANEJO DE openChatWith (desde la navegación del header)
-  useEffect(() => {
-    if (openChatWith && conversaciones.length > 0 && !hasOpenedSpecificChat.current) {
-      console.log('🎯 Procesando apertura de chat específico:', openChatWith);
-      
-      // Buscar conversación existente por room_name (más confiable)
-      let conversacionExistente = null;
-      
-      if (openChatWith.room_name) {
-        conversacionExistente = conversaciones.find(conv => 
-          conv.room_name === openChatWith.room_name
-        );
-        console.log('🔍 Búsqueda por room_name:', openChatWith.room_name, 'Encontrada:', !!conversacionExistente);
-      }
-      
-      // Si no se encuentra por room_name, buscar por other_user_id
-      if (!conversacionExistente && openChatWith.other_user_id) {
-        conversacionExistente = conversaciones.find(conv => 
-          conv.other_user_id === openChatWith.other_user_id
-        );
-        console.log('🔍 Búsqueda por other_user_id:', openChatWith.other_user_id, 'Encontrada:', !!conversacionExistente);
-      }
-      
-      if (conversacionExistente) {
-        console.log('✅ Conversación existente encontrada, abriendo...');
-        abrirConversacion(conversacionExistente);
-      } else {
-        console.log('📝 Conversación no encontrada, creando entrada local...');
-        
-        // Crear nueva conversación localmente usando los datos recibidos
-        const nuevaConversacion = {
-          id: openChatWith.id || Date.now(),
-          other_user_id: openChatWith.other_user_id,
-          other_user_name: openChatWith.other_user_name,
-          other_user_role: openChatWith.other_user_role || 'modelo',
-          room_name: openChatWith.room_name,
-          last_message: "Conversación iniciada - Envía tu primer mensaje",
-          last_message_time: new Date().toISOString(),
-          last_message_sender_id: null,
-          unread_count: 0,
-          session_status: 'waiting',
-          avatar: `https://i.pravatar.cc/40?u=${openChatWith.other_user_id}`
-        };
-        
-        console.log('📋 Nueva conversación creada:', nuevaConversacion);
-        
-        // Agregar al inicio de la lista de conversaciones
-        setConversaciones(prev => {
-          // Verificar que no exista duplicada
-          const exists = prev.some(conv => 
-            conv.room_name === nuevaConversacion.room_name ||
-            conv.other_user_id === nuevaConversacion.other_user_id
-          );
-          
-          if (exists) {
-            console.log('⚠️ Conversación ya existe, no agregando duplicado');
-            return prev;
-          }
-          
-          console.log('➕ Agregando nueva conversación a la lista');
-          return [nuevaConversacion, ...prev];
-        });
-        
-        // Abrir la nueva conversación
-        setTimeout(() => {
-          abrirConversacion(nuevaConversacion);
-        }, 100);
-      }
-      
-      // Marcar como procesado
-      hasOpenedSpecificChat.current = true;
-      
-      // Limpiar el state para futuras navegaciones
-      setTimeout(() => {
-        navigate('/message', { replace: true, state: {} });
-      }, 500);
-    }
-  }, [openChatWith, conversaciones, abrirConversacion, navigate]);
-
   // 2️⃣ MANEJO DE PARÁMETROS URL (fallback para compatibilidad)
   useEffect(() => {
     // Manejar parámetros URL como fallback (para compatibilidad)
@@ -756,6 +704,206 @@ export default function ChatPrivado() {
       }, 500);
     }
   }, [usuario.id, conversaciones, abrirConversacion, navigate]);
+
+
+  // 🔥 AGREGAR useEffect PARA RECUPERAR CONVERSACIÓN AL CARGAR
+  useEffect(() => {
+    // Recuperar conversación activa del localStorage al cargar el componente
+    const savedActiveChat = localStorage.getItem('activeChat');
+    const savedActiveRoom = localStorage.getItem('activeRoomName');
+    
+    if (savedActiveChat && savedActiveRoom && !conversacionActiva) {
+      try {
+        const chatData = JSON.parse(savedActiveChat);
+        console.log('🔄 PERSIST - Recuperando conversación del localStorage:', chatData);
+        
+        // Verificar si no existe ya en conversaciones
+        const exists = conversaciones.some(conv => conv.room_name === chatData.room_name);
+        
+        if (!exists) {
+          console.log('➕ PERSIST - Restaurando conversación perdida...');
+          setConversaciones(prev => [chatData, ...prev]);
+        }
+        
+        // Restaurar como activa
+        if (savedActiveRoom && !conversacionActiva) {
+          console.log('🔓 PERSIST - Restaurando conversación activa:', savedActiveRoom);
+          setConversacionActiva(savedActiveRoom);
+        }
+        
+      } catch (error) {
+        console.error('❌ Error recuperando conversación:', error);
+        localStorage.removeItem('activeChat');
+        localStorage.removeItem('activeRoomName');
+      }
+    }
+  }, [conversaciones.length]); // Solo cuando cambien las conversaciones
+  // 🔥 AGREGA ESTE useEffect AL FINAL DE TUS useEffect EN ChatPrivado
+
+useEffect(() => {
+  // Auto-reordenar conversaciones cuando hay cambios
+  const reorderConversations = () => {
+    setConversaciones(prev => {
+      // Solo reordenar si hay más de una conversación
+      if (prev.length <= 1) return prev;
+      
+      const sorted = [...prev].sort((a, b) => {
+        const timeA = new Date(a.last_message_time || 0).getTime();
+        const timeB = new Date(b.last_message_time || 0).getTime();
+        return timeB - timeA;
+      });
+      
+      // Solo actualizar si el orden cambió
+      const orderChanged = sorted.some((conv, index) => 
+        conv.room_name !== prev[index]?.room_name
+      );
+      
+      if (orderChanged) {
+        console.log('🔄 Auto-reordenando conversaciones:', sorted.map(c => ({
+          name: c.other_user_name,
+          time: c.last_message_time
+        })));
+        return sorted;
+      }
+      
+      return prev;
+    });
+  };
+
+  // Reordenar cada 5 segundos para mantener el orden correcto
+  const interval = setInterval(reorderConversations, 5000);
+  
+  return () => clearInterval(interval);
+}, []);
+
+// 🔥 TAMBIÉN AGREGA ESTE useEffect PARA REORDENAR CUANDO LLEGUEN MENSAJES NUEVOS
+useEffect(() => {
+  // Cuando cambie el conteo de mensajes no leídos, reordenar
+  const totalUnread = conversaciones.reduce((count, conv) => {
+    return count + calculateUnreadCount(conv);
+  }, 0);
+  
+  if (totalUnread > 0) {
+    console.log('📥 Mensajes nuevos detectados, verificando orden...');
+    
+    // Reordenar después de un pequeño delay para asegurar que los datos estén actualizados
+    setTimeout(() => {
+      setConversaciones(prev => {
+        const sorted = [...prev].sort((a, b) => {
+          const timeA = new Date(a.last_message_time || 0).getTime();
+          const timeB = new Date(b.last_message_time || 0).getTime();
+          return timeB - timeA;
+        });
+        
+        // Verificar si el orden cambió
+        const orderChanged = sorted.some((conv, index) => 
+          conv.room_name !== prev[index]?.room_name
+        );
+        
+        if (orderChanged) {
+          console.log('🔄 Reordenando por mensajes nuevos');
+          return sorted;
+        }
+        
+        return prev;
+      });
+    }, 1000);
+  }
+}, [conversaciones, calculateUnreadCount]);
+
+useEffect(() => {
+  console.log('🔥 BACKEND - Verificando openChatWith');
+  console.log('📦 openChatWith:', openChatWith);
+  console.log('🔄 Ya procesado:', hasOpenedSpecificChat.current);
+  
+  if (openChatWith && !hasOpenedSpecificChat.current) {
+    console.log('✅ BACKEND - Procesando chat');
+    
+    // Marcar como procesado PRIMERO
+    hasOpenedSpecificChat.current = true;
+    
+    // 🔥 VERIFICAR SI VIENE DEL BACKEND O ES LOCAL
+    const isFromBackend = openChatWith.fromBackend || openChatWith.id;
+    
+    let conversacionFinal = openChatWith;
+    
+    if (!isFromBackend) {
+      console.log('📝 BACKEND - Conversación local, agregando datos adicionales...');
+      // Si es local, agregar campos que el backend habría proporcionado
+      conversacionFinal = {
+        ...openChatWith,
+        // No marcar como persistente si no viene del backend
+        createdLocally: true,
+        needsSync: true // Marcar que necesita sincronización
+      };
+    } else {
+      console.log('✅ BACKEND - Conversación del backend, usando datos reales');
+    }
+    
+    console.log('📋 BACKEND - Conversación final:', conversacionFinal);
+    
+    // 🔥 SIEMPRE AGREGAR A LA LISTA (sin localStorage si es del backend)
+    setConversaciones(prev => {
+      const exists = prev.some(conv => 
+        conv.room_name === conversacionFinal.room_name ||
+        conv.other_user_id === conversacionFinal.other_user_id
+      );
+      
+      if (exists) {
+        console.log('⚠️ BACKEND - Conversación ya existe, actualizando...');
+        return prev.map(conv => {
+          if (conv.room_name === conversacionFinal.room_name || conv.other_user_id === conversacionFinal.other_user_id) {
+            return { ...conversacionFinal, id: conv.id }; // Mantener ID local si existe
+          }
+          return conv;
+        });
+      }
+      
+      console.log('➕ BACKEND - Agregando nueva conversación');
+      return [conversacionFinal, ...prev];
+    });
+    
+    // 🔥 ABRIR CONVERSACIÓN
+    setTimeout(() => {
+      console.log('🔓 BACKEND - Abriendo conversación...');
+      setConversacionActiva(conversacionFinal.room_name);
+      
+      if (window.innerWidth < 768) {
+        setShowSidebar(false);
+      }
+      
+      // Marcar como visto
+      if (typeof marcarComoVisto === 'function') {
+        marcarComoVisto(conversacionFinal.room_name);
+      }
+      
+      // Scroll al final
+      setTimeout(() => {
+        if (mensajesRef.current) {
+          mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+        }
+      }, 200);
+      
+    }, 100);
+    
+    // 🔥 LIMPIAR STATE
+    setTimeout(() => {
+      console.log('🧹 BACKEND - Limpiando navigation state...');
+      navigate('/message', { replace: true, state: {} });
+    }, 2000);
+    
+    console.log('✅ BACKEND - Proceso completado');
+  }
+  
+}, [openChatWith]);
+
+// 🔥 useEffect para resetear flag
+useEffect(() => {
+  if (!openChatWith) {
+    hasOpenedSpecificChat.current = false;
+  }
+}, [openChatWith]);
+
 
   // 🔥 FUNCIONES DE LLAMADAS SIMPLIFICADAS
   const iniciarLlamadaReal = useCallback(async (otherUserId, otherUserName) => {
@@ -1152,6 +1300,161 @@ export default function ChatPrivado() {
   }
   }, [acceptGiftRequest, pendingRequests, usuario.id]);
 
+  const enviarRegaloDirecto = useCallback(async (giftId, recipientId, roomName, message = '', requiredGiftCoins) => {
+    try {
+      console.log('💸 CLIENTE enviando regalo directo...');
+      
+      const authToken = localStorage.getItem("token");
+      
+      const response = await fetch(`${API_BASE_URL}/api/gifts/send-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          gift_id: giftId,
+          recipient_id: recipientId,
+          room_name: roomName,
+          message: message || '',
+          sender_type: 'cliente',
+          expected_cost: requiredGiftCoins
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Regalo enviado exitosamente');
+        
+        // Procesar mensaje del chat si viene
+        if (data.chat_message) {
+          let processedExtraData = { ...data.chat_message.extra_data };
+          
+          if (processedExtraData.gift_image) {
+            const completeImageUrl = buildCompleteImageUrl(processedExtraData.gift_image);
+            processedExtraData.gift_image = completeImageUrl;
+          }
+          
+          let processedMessage = {
+            ...data.chat_message,
+            gift_data: processedExtraData,
+            extra_data: processedExtraData
+          };
+          
+          // Agregar mensaje al chat
+          setMensajes(prev => [...prev, processedMessage]);
+          
+          // Actualizar conversación
+          setConversaciones(prev => 
+            prev.map(conv => 
+              conv.room_name === roomName
+                ? {
+                    ...conv,
+                    last_message: `🎁 Regalo: ${processedExtraData.gift_name || 'Regalo'}`,
+                    last_message_time: new Date().toISOString(),
+                    last_message_sender_id: usuario.id
+                  }
+                : conv
+            )
+          );
+          
+          // Scroll al final
+          setTimeout(() => {
+            if (mensajesRef.current) {
+              mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+            }
+          }, 100);
+        }
+        
+        // Mostrar notificación de éxito
+        if (data.new_balance !== undefined) {
+          alert(`¡Regalo enviado! Nuevo saldo: ${data.new_balance} monedas`);
+        }
+        
+        return { success: true, data };
+      } else {
+        console.error('❌ Error enviando regalo:', data.error);
+        
+        // Personalizar mensajes de error
+        let errorMsg = data.error;
+        if (data.error === 'insufficient_balance') {
+          errorMsg = '💰 Saldo insuficiente para enviar este regalo';
+        } else if (data.error === 'user_banned') {
+          errorMsg = '🚫 Tu cuenta está temporalmente suspendida';
+        }
+        
+        alert(errorMsg);
+        return { success: false, error: data.error };
+      }
+    } catch (error) {
+      console.error('❌ Error de conexión:', error);
+      alert('Error de conexión al enviar regalo');
+      return { success: false, error: 'Error de conexión' };
+    }
+  }, [buildCompleteImageUrl, usuario.id, setMensajes, setConversaciones, mensajesRef]);
+  const updateBalance = useCallback(async () => {
+  try {
+    const authToken = localStorage.getItem('token');
+    if (!authToken) return;
+
+    console.log('💰 [CHAT] Actualizando balances...');
+
+    // OBTENER BALANCE DE COINS (monedas generales)
+    const coinsResponse = await fetch(`${API_BASE_URL}/api/client-balance/my-balance/quick`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (coinsResponse.ok) {
+      const coinsData = await coinsResponse.json();
+      if (coinsData.success) {
+        setUserBalance(coinsData.total_coins || 0);
+        console.log('✅ [CHAT] User Balance:', coinsData.total_coins);
+      }
+    }
+
+    // OBTENER BALANCE DE GIFTS (regalos específicos) - 🔥 FIX AQUÍ
+    const giftsResponse = await fetch(`${API_BASE_URL}/api/gifts/balance`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (giftsResponse.ok) {
+      const giftsData = await giftsResponse.json();
+      console.log('🎁 [CHAT] Respuesta gifts/balance:', giftsData);
+      
+      if (giftsData.success) {
+        // 🔥 FIX: Acceder correctamente a los datos
+        const giftBalanceValue = giftsData.balance?.gift_balance || 0;
+        setGiftBalance(giftBalanceValue);
+        console.log('✅ [CHAT] Gift Balance:', giftBalanceValue);
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ [CHAT] Error actualizando balances:', error);
+  }
+  }, []);
+
+useEffect(() => {
+  if (usuario.id && usuario.rol === 'cliente') {
+    console.log('🚀 [CHAT] Cargando balance inicial para cliente...');
+    updateBalance();
+    
+    // Actualizar balance cada 30 segundos
+    const balanceInterval = setInterval(updateBalance, 30000);
+    return () => clearInterval(balanceInterval);
+  }
+}, [usuario.id, usuario.rol, updateBalance]);
+
+
   const handleRejectGift = useCallback(async (requestId) => {
     try {
       setLoadingGift(true);
@@ -1175,6 +1478,55 @@ export default function ChatPrivado() {
       setLoadingGift(false);
     }
   }, [rejectGiftRequest]);
+  const handleSendGift = useCallback(async (giftId, recipientId, roomName, message, requiredCoins) => {
+  try {
+    setLoadingGift(true);
+    
+    console.log('🎁 [CHAT] HandleSendGift llamado con:', {
+      giftId,
+      recipientId, 
+      roomName,
+      message,
+      requiredCoins,
+      currentGiftBalance: giftBalance
+    });
+
+    // VERIFICAR SALDO ANTES DE ENVIAR
+    if (giftBalance < requiredCoins) {
+      alert(`Saldo insuficiente. Necesitas ${requiredCoins} gift coins, tienes ${giftBalance}`);
+      return { success: false, error: 'Saldo insuficiente' };
+    }
+    
+    const result = await enviarRegaloDirecto(giftId, recipientId, roomName, message, requiredCoins);
+    
+    if (result.success) {
+      setShowGiftsModal(false);
+      console.log('🎉 [CHAT] Regalo enviado exitosamente - Modal cerrado');
+      
+      // ACTUALIZAR BALANCE DESPUÉS DE ENVIAR
+      setTimeout(() => {
+        updateBalance();
+      }, 1000);
+      
+      // Notificación de éxito
+      if (Notification.permission === 'granted') {
+        new Notification('🎁 Regalo Enviado', {
+          body: 'Tu regalo ha sido enviado exitosamente',
+          icon: '/favicon.ico'
+        });
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('❌ [CHAT] Error inesperado en handleSendGift:', error);
+    alert('Error inesperado al enviar regalo');
+    return { success: false, error: 'Error inesperado' };
+  } finally {
+    setLoadingGift(false);
+  }
+}, [enviarRegaloDirecto, setLoadingGift, setShowGiftsModal, giftBalance, updateBalance]);
+
 
   // 🔥 FUNCIONES DE APODOS
   const abrirModalApodo = useCallback((userId, userName) => {
@@ -1963,50 +2315,43 @@ const renderMensaje = useCallback((mensaje) => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => iniciarLlamadaReal(
-                        conversacionSeleccionada?.other_user_id,
-                        conversacionSeleccionada?.other_user_name
-                      )}
-                      disabled={isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))}
-                      className={`px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${
-                        isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))
-                          ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
-                          : 'bg-[#ff007a]/20 hover:bg-[#ff007a]/30 text-[#ff007a]'
-                      }`}
-                      title={
-                        conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
-                          ? 'No disponible - usuario bloqueado'
-                          : isCallActive
-                            ? 'Llamada en curso'
-                            : 'Iniciar videochat'
-                      }
-                    >
-                      <Video size={16} />
-                      {!isMobile && (
-                        conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
-                          ? 'Bloqueado'
-                          : isCallActive
-                            ? 'Llamando...'
-                            : 'Videochat'
-                      )}
-                    </button>
-
-                    {usuario.rol === 'modelo' && (
                       <button
-                        onClick={() => setShowGiftsModal(true)}
-                        disabled={conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)}
-                        className={`px-4 py-2 rounded-full text-xs hover:scale-105 transition-transform flex items-center gap-2 ${
-                          conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
-                            ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-purple-500 to-pink-500'
-                        }`}
-                        title={conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id) ? 'No disponible - usuario bloqueado' : 'Pedir regalos'}
-                      >
-                        <Gift size={16} />
-                        {!isMobile && (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id) ? 'Bloqueado' : 'Pedir Regalo')}
-                      </button>
+                    onClick={() => iniciarLlamadaReal(
+                      conversacionSeleccionada?.other_user_id,
+                      conversacionSeleccionada?.other_user_name
                     )}
+                    disabled={isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))}
+                    className={`px-2 py-2 rounded-lg text-sm transition-colors flex items-center gap-1 ${
+                      isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))
+                        ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
+                        : 'bg-[#ff007a]/20 hover:bg-[#ff007a]/30 text-[#ff007a]'
+                    }`}
+                  >
+                    <Video size={16} />
+                    {!isMobile && (
+                      conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
+                        ? 'Bloqueado'
+                        : isCallActive
+                          ? 'Llamando...'
+                          : 'Video'
+                    )}
+                  </button>
+
+                  {/* Botón PEDIR regalo solo para modelos */}
+                  {usuario.rol === 'modelo' && (
+                    <button
+                      onClick={() => setShowGiftsModal(true)}
+                      disabled={conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)}
+                      className={`px-2 py-2 rounded-lg text-xs hover:scale-105 transition-transform flex items-center gap-1 ${
+                        conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
+                          ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-purple-500 to-pink-500'
+                      }`}
+                    >
+                      <Gift size={14} />
+                      {!isMobile && 'Pedir'}
+                    </button>
+                  )}
 
                     <div className="relative">
                       <button
@@ -2378,7 +2723,14 @@ const renderMensaje = useCallback((mensaje) => {
         roomName={conversacionActiva}
         userRole={usuario.rol}
         gifts={gifts}
-        onRequestGift={handleRequestGift}
+        // 🔥 PROPS SEGÚN ROL
+        {...(usuario.rol === 'modelo' ? {
+          onRequestGift: handleRequestGift,  // Solo modelos
+        } : {
+          onSendGift: handleSendGift,       // Solo clientes
+          userBalance: userBalance,          // Balance de monedas normales
+          giftBalance: giftBalance,          // Balance de gift coins ← CRÍTICO
+        })}
         loading={loadingGift}
       />
       <GiftNotificationOverlay

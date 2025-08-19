@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, MessageSquare, Phone, User } from 'lucide-react';
 
-// Componente Avatar integrado
+// Componente Avatar integrado (igual que antes)
 const Avatar = ({ 
   src, 
   name, 
@@ -38,7 +38,7 @@ const Avatar = ({
   };
 
   const getInitials = (fullName) => {
-    if (!fullName) return 'U';
+    if (!fullName) return 'M';
     return fullName
       .split(' ')
       .map(word => word.charAt(0))
@@ -48,12 +48,12 @@ const Avatar = ({
   };
 
   const getBackgroundColor = (fullName) => {
-    if (!fullName) return 'bg-gray-500';
+    if (!fullName) return 'bg-pink-500';
     
     const colors = [
-      'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500',
-      'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
-      'bg-orange-500', 'bg-cyan-500'
+      'bg-pink-500', 'bg-purple-500', 'bg-indigo-500', 'bg-blue-500',
+      'bg-green-500', 'bg-yellow-500', 'bg-orange-500', 'bg-red-500',
+      'bg-teal-500', 'bg-cyan-500'
     ];
     
     let hash = 0;
@@ -127,58 +127,63 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
   const [filteredModels, setFilteredModels] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // 🔥 FUNCIÓN PARA OBTENER TOKENS MEJORADA
+  const getAuthToken = () => {
+    let token = null;
+    
+    // Múltiples ubicaciones de tokens
+    const locations = [
+      () => localStorage.getItem('token'),
+      () => localStorage.getItem('auth_token'), 
+      () => localStorage.getItem('access_token'),
+      () => localStorage.getItem('bearer_token'),
+      () => sessionStorage.getItem('token'),
+      () => sessionStorage.getItem('auth_token'),
+      () => sessionStorage.getItem('access_token')
+    ];
+    
+    // Probar cada ubicación
+    for (const getToken of locations) {
+      token = getToken();
+      if (token) break;
+    }
+    
+    // Fallback: cookies
+    if (!token) {
+      const cookies = document.cookie.split(';');
+      const tokenCookie = cookies.find(cookie => 
+        cookie.trim().startsWith('auth_token=') || 
+        cookie.trim().startsWith('token=')
+      );
+      if (tokenCookie) {
+        token = tokenCookie.split('=')[1];
+      }
+    }
+
+    console.log('🔑 Token de autenticación:', token ? 'Encontrado' : 'NO ENCONTRADO');
+    return token;
+  };
+
   // Función para obtener modelos desde la API
   const fetchModels = async (searchQuery = '') => {
     setLoading(true);
     try {
-      // 🔍 MÚLTIPLES FORMAS DE OBTENER EL TOKEN
-      let token = null;
-      
-      // 🔑 SEGÚN TUS LOGS, EL TOKEN ESTÁ EN sessionStorage con nombre 'token'
-      token = localStorage.getItem('token');
-      
-      // Fallback: Intentar otras ubicaciones
-      if (!token) {
-        token = localStorage.getItem('auth_token') || 
-                localStorage.getItem('token') || 
-                localStorage.getItem('access_token') ||
-                localStorage.getItem('bearer_token') ||
-                sessionStorage.getItem('auth_token') || 
-                sessionStorage.getItem('access_token');
-      }
-
-      // Opción 3: Desde cookies (si usas cookies)
-      if (!token) {
-        const cookies = document.cookie.split(';');
-        const tokenCookie = cookies.find(cookie => 
-          cookie.trim().startsWith('auth_token=') || 
-          cookie.trim().startsWith('token=')
-        );
-        if (tokenCookie) {
-          token = tokenCookie.split('=')[1];
-        }
-      }
-
-      console.log('🔑 Token de autenticación:', token ? 'Encontrado' : 'NO ENCONTRADO');
-      console.log('🔍 Todos los items en localStorage:', Object.keys(localStorage));
-      console.log('🔍 Todos los items en sessionStorage:', Object.keys(sessionStorage));
+      const token = getAuthToken();
       
       if (!token) {
-        console.error('❌ No se encontró token de autenticación en ningún lugar');
-        setModels([]);
-        setFilteredModels([]);
+        console.error('❌ No se encontró token de autenticación');
         
         // Mostrar datos simulados para que puedas ver la interfaz
         const mockModels = [
           {
-            id: 1,
+            id: 2,
             name: 'Sofia Rodriguez (SIN AUTH)',
             avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=400&h=400&fit=crop&crop=face',
             role: 'modelo',
             online: true
           },
           {
-            id: 2,
+            id: 3,
             name: 'Isabella Martinez (SIN AUTH)',
             avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face',
             role: 'modelo',
@@ -193,7 +198,7 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
       }
 
       // 🔥 CONFIGURAR LA URL CORRECTA DEL BACKEND
-      const API_BASE_URL = 'http://localhost:8000'; // Ajusta el puerto de tu Laravel
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://ligando.online';
       const url = new URL('/api/search-models', API_BASE_URL);
       
       if (searchQuery.trim()) {
@@ -260,14 +265,14 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
       // Mostrar datos simulados en caso de error para testing
       const mockModels = [
         {
-          id: 1,
+          id: 2,
           name: 'Sofia Rodriguez (ERROR)',
           avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=400&h=400&fit=crop&crop=face',
           role: 'modelo',
           online: true
         },
         {
-          id: 2,
+          id: 3,
           name: 'Isabella Martinez (ERROR)',
           avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face',
           role: 'modelo',
@@ -302,23 +307,64 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
     return () => clearTimeout(searchTimeout);
   }, [searchTerm, isOpen]);
 
-  // Función para manejar el envío de mensaje
+  // 🔥 FUNCIÓN CON DEBUG AGREGADO
   const handleMessage = (modelId, modelName) => {
-    console.log('📩 Enviando mensaje a:', modelName);
-    // Llamar a la función proporcionada por el componente padre
-    if (onMessage) {
-      onMessage(modelId, modelName);
+    console.group('📩 SearchModelsModal - handleMessage');
+    console.log('📥 Parámetros recibidos:', { modelId, modelName });
+    console.log('📞 Función onMessage disponible:', typeof onMessage);
+    console.log('🚪 Función onClose disponible:', typeof onClose);
+    
+    try {
+      // Validar parámetros
+      if (!modelId || !modelName) {
+        console.error('❌ Parámetros inválidos');
+        alert('Error: Datos del modelo incompletos');
+        return;
+      }
+
+      // Convertir modelId a número si es string
+      const numericModelId = parseInt(modelId);
+      console.log('🔢 ModelId convertido:', numericModelId);
+
+      if (onMessage && typeof onMessage === 'function') {
+        console.log('🚀 Llamando a onMessage...');
+        onMessage(numericModelId, modelName);
+        console.log('✅ onMessage ejecutado');
+      } else {
+        console.error('❌ onMessage no está disponible o no es una función');
+        alert('Error: Función de navegación no disponible');
+        return;
+      }
+      
+      // Cerrar el modal
+      if (onClose && typeof onClose === 'function') {
+        console.log('🚪 Cerrando modal...');
+        onClose();
+        console.log('✅ Modal cerrado');
+      } else {
+        console.warn('⚠️ onClose no está disponible');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en handleMessage:', error);
+      console.error('❌ Stack:', error.stack);
+      alert('Error procesando la selección. Inténtalo de nuevo.');
     }
-    onClose();
+    
+    console.groupEnd();
   };
 
-  // Función para manejar la llamada
+  // 🔥 FUNCIÓN PARA MANEJAR LA LLAMADA
   const handleCall = (modelId, modelName) => {
-    console.log('📞 Iniciando llamada con:', modelName);
-    // Llamar a la función proporcionada por el componente padre
+    console.log('📞 Cliente iniciando llamada con modelo:', { modelId, modelName });
+    
     if (onCall) {
+      // Llamar a la función proporcionada por el header
       onCall(modelId, modelName);
     }
+    
+    // Por ahora, también redirigir al chat
+    handleMessage(modelId, modelName);
   };
 
   // No renderizar si no está abierto
@@ -413,13 +459,30 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
 
                     {/* Botones de acción */}
                     <div className="flex items-center gap-2">
+                      {/* 🔥 BOTÓN CON DEBUG AGREGADO */}
                       <button
-                        onClick={() => handleMessage(model.id, model.name)}
+                        onClick={() => {
+                          console.log('🖱️ Click en botón Mensaje - Modelo:', { id: model.id, name: model.name });
+                          handleMessage(model.id, model.name);
+                        }}
                         className="bg-[#ff007a] hover:bg-[#e6006e] text-white p-3 rounded-lg transition-colors flex items-center gap-2 font-medium"
                         title="Enviar mensaje"
                       >
                         <MessageSquare size={18} />
                         <span className="hidden sm:block">Mensaje</span>
+                      </button>
+                      
+                      {/* 🔥 BOTÓN DE LLAMADA OPCIONAL */}
+                      <button
+                        onClick={() => {
+                          console.log('🖱️ Click en botón Llamar - Modelo:', { id: model.id, name: model.name });
+                          handleCall(model.id, model.name);
+                        }}
+                        className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-lg transition-colors flex items-center gap-2 font-medium"
+                        title="Llamar"
+                      >
+                        <Phone size={18} />
+                        <span className="hidden sm:block">Llamar</span>
                       </button>
                     </div>
                   </div>

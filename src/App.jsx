@@ -6,6 +6,7 @@ import { initializeAuth } from "./utils/auth";
 import { ProtectedPage } from "./components/hooks/usePageAccess.jsx";
 import useUserLanguage  from "./components/hooks/useUserLanguage.js";
 import { RegistrationProtectedPage } from "./components/hooks/useRegistrationAccess.jsx";
+import VerificarSesionActiva from "./components/verificacion/login/verifysession.jsx"; 
 
 import LigandHome from "./components/ligandHome";
 import LoginLigand from "./components/verificacion/login/loginligand";
@@ -63,6 +64,8 @@ function App() {
             <NotificationProvider>
 
             <ToastContainer />
+            <VerificarSesionActiva /> 
+
               
             <Routes>
               {/* 🔓 RUTAS PÚBLICAS (sin protección) */}

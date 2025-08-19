@@ -71,194 +71,134 @@ const DisconnectionScreenImprovedClient = ({
   const info = getDisconnectionInfo();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Fondo animado con partículas */}
+    <div className="min-h-screen bg-gradient-to-b from-[#0a0d10] to-[#131418] text-white flex items-center justify-center p-3 relative overflow-hidden">
+      {/* Fondo minimalista */}
       <div className="absolute inset-0">
-        <div className={`absolute inset-0 bg-gradient-to-br ${info.bgGradient} opacity-40`}></div>
+        <div className={`absolute inset-0 bg-gradient-to-br ${info.bgGradient} opacity-30`}></div>
         
-        {/* Partículas flotantes mejoradas */}
-        <div className="absolute top-20 left-20 w-3 h-3 bg-[#ff007a]/20 rounded-full animate-ping" style={{animationDelay: '0s'}}></div>
-        <div className="absolute top-40 right-32 w-2 h-2 bg-[#ff007a]/30 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute bottom-32 left-40 w-2 h-2 bg-[#00ff66]/20 rounded-full animate-bounce" style={{animationDelay: '2s'}}></div>
-        <div className="absolute bottom-20 right-20 w-1 h-1 bg-white/25 rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
-        <div className="absolute top-60 left-80 w-1 h-1 bg-[#ff007a]/30 rounded-full animate-pulse" style={{animationDelay: '1.5s'}}></div>
-        <div className="absolute top-80 right-60 w-2 h-2 bg-[#ff007a]/15 rounded-full animate-bounce" style={{animationDelay: '2.5s'}}></div>
-        
-        {/* Ondas de fondo */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 border border-[#ff007a]/10 rounded-full animate-pulse"></div>
-          <div className="absolute top-1/3 right-1/3 w-64 h-64 border border-[#ff007a]/20 rounded-full animate-ping"></div>
-        </div>
+        {/* Solo 2 partículas pequeñas */}
+        <div className="absolute top-10 left-10 w-1 h-1 bg-[#ff007a]/30 rounded-full animate-ping"></div>
+        <div className="absolute bottom-10 right-10 w-1 h-1 bg-[#ff007a]/20 rounded-full animate-pulse"></div>
       </div>
       
-      <div className="text-center max-w-lg mx-auto relative z-10">
-        {/* Contenedor principal con glassmorphism */}
-        <div className="bg-gradient-to-b from-[#0a0d10] to-[#131418] backdrop-blur-2xl rounded-3xl border border-[#ff007a]/20 p-8 shadow-2xl">
+      <div className="text-center max-w-sm mx-auto relative z-10 w-full">
+        {/* Contenedor compacto */}
+        <div className="bg-gradient-to-b from-[#0a0d10]/90 to-[#131418]/90 backdrop-blur-xl rounded-xl border border-[#ff007a]/20 p-4 shadow-xl">
           
-          {/* Icono principal rediseñado */}
-          <div className={`bg-gradient-to-br ${info.iconBg} rounded-3xl p-10 mx-auto mb-8 border ${info.borderColor} backdrop-blur-sm shadow-2xl relative overflow-hidden`}>
-            {/* Efecto de brillo */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12 animate-shimmer"></div>
-            
-            <div className="text-8xl animate-bounce relative z-10">
+          {/* Icono medio */}
+          <div className={`bg-gradient-to-br ${info.iconBg} rounded-xl p-4 mx-auto mb-4 border ${info.borderColor} shadow-lg relative overflow-hidden`}>
+            <div className="text-3xl relative z-10">
               {info.icon}
             </div>
-            
-            {/* Anillo de pulso */}
-            <div className="absolute inset-6 border-2 border-[#ff007a]/20 rounded-2xl animate-pulse"></div>
           </div>
           
-          {/* Información principal */}
-          <div className="space-y-4 mb-8">
-            <h2 className="text-4xl font-bold text-white leading-tight">
+          {/* Info compacta */}
+          <div className="space-y-2 mb-4">
+            <h2 className="text-base font-bold text-white leading-tight">
               {info.title}
             </h2>
-            <p className={`text-xl ${info.textColor} font-medium leading-relaxed`}>
+            <p className={`text-sm ${info.textColor} font-medium`}>
               {info.subtitle}
             </p>
           </div>
           
-          {/* Mensaje de razón */}
+          {/* Razón opcional */}
           {disconnectionReason && (
-            <div className={`bg-gradient-to-b from-[#0a0d10] to-[#131418] backdrop-blur-lg border ${info.borderColor} rounded-2xl p-6 mb-8 shadow-xl`}>
-              <div className="flex items-center gap-3 mb-3">
-                <Sparkles size={20} className={info.accentColor} />
-                <span className="text-white font-semibold text-sm">Detalles</span>
+            <div className={`bg-[#0a0d10]/50 border ${info.borderColor} rounded-xl p-3 mb-4`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={12} className={info.accentColor} />
+                <span className="text-white font-medium text-sm">Detalles</span>
               </div>
-              <p className={`${info.textColor} text-base leading-relaxed`}>
+              <p className={`${info.textColor} text-sm`}>
                 {disconnectionReason}
               </p>
             </div>
           )}
           
-          {/* Sección de reconexión rediseñada para CLIENTE */}
-          <div className="bg-gradient-to-r from-[#ff007a]/10 to-[#ff007a]/5 backdrop-blur-lg border border-[#ff007a]/20 rounded-3xl p-8 space-y-6 shadow-xl">
+          {/* Reconexión */}
+          <div className="bg-gradient-to-r from-[#ff007a]/10 to-[#ff007a]/5 border border-[#ff007a]/20 rounded-xl p-4 space-y-3">
             
-            {/* Mensaje motivacional para cliente */}
-            <div className="space-y-3">
+            {/* Mensaje */}
+            <div className="space-y-2">
               <div className="flex items-center justify-center gap-2">
-                <Heart size={20} className="text-[#ff007a]" />
-                <h3 className="text-white font-bold text-lg">
+                <Heart size={12} className="text-[#ff007a]" />
+                <h3 className="text-white font-bold text-sm">
                   {t?.('videochat.dontWorryClient') || '¡No te preocupes!'}
                 </h3>
               </div>
-              <p className="text-[#ff007a] text-base leading-relaxed">
-                Te conectaremos con otra modelo increíble en segundos
+              <p className="text-[#ff007a] text-sm">
+                Conectando con otra modelo...
               </p>
             </div>
             
-            {/* Countdown mejorado */}
+            {/* Countdown */}
             {redirectCountdown > 0 ? (
-              <div className="relative">
-                <div className="flex items-center justify-center space-x-4">
-                  {/* Spinner animado */}
-                  <div className="relative">
-                    <div className="w-16 h-16 border-4 border-gray-600/30 rounded-full"></div>
-                    <div className="absolute inset-0 w-16 h-16 border-4 border-[#ff007a] border-t-transparent rounded-full animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-[#ff007a] font-bold text-xl">
-                        {redirectCountdown}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Información del countdown */}
-                  <div className="text-left">
-                    <div className="text-[#ff007a] font-bold text-2xl flex items-center gap-2">
-                      <Clock size={24} />
-                      Conectando en {redirectCountdown}s
-                    </div>
-                    <div className="text-[#ff007a]/70 text-sm mt-1 flex items-center gap-1">
-                      <Zap size={14} />
-                      Preparando siguiente conexión...
-                    </div>
+              <div className="flex items-center justify-center space-x-3">
+                {/* Spinner */}
+                <div className="relative">
+                  <div className="w-8 h-8 border-2 border-gray-600/30 rounded-full"></div>
+                  <div className="absolute inset-0 w-8 h-8 border-2 border-[#ff007a] border-t-transparent rounded-full animate-spin"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-[#ff007a] font-bold text-sm">
+                      {redirectCountdown}
+                    </span>
                   </div>
                 </div>
                 
-                {/* Barra de progreso */}
-                <div className="mt-6">
-                  <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden shadow-inner">
-                    <div 
-                      className="h-full bg-gradient-to-r from-[#ff007a] to-[#ff007a]/80 rounded-full transition-all duration-1000 relative overflow-hidden"
-                      style={{ 
-                        width: `${((3 - redirectCountdown) / 3) * 100}%` 
-                      }}
-                    >
-                      {/* Efecto de brillo en la barra */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transform -skew-x-12 animate-shimmer"></div>
-                    </div>
+                {/* Info */}
+                <div className="text-left">
+                  <div className="text-[#ff007a] font-bold text-sm flex items-center gap-1">
+                    <Clock size={12} />
+                    En {redirectCountdown}s
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="relative">
-                <div className="flex items-center justify-center space-x-4">
-                  <div className="relative">
-                    <div className="w-12 h-12 border-4 border-[#ff007a] border-t-transparent rounded-full animate-spin"></div>
-                    <div className="absolute inset-2 border-2 border-[#ff007a]/50 rounded-full animate-ping"></div>
-                  </div>
-                  <div className="text-left">
-                    <div className="text-[#ff007a] font-bold text-2xl flex items-center gap-2">
-                      <Zap size={24} />
-                      Conectando...
-                    </div>
-                    <div className="text-[#ff007a]/70 text-sm mt-1">
-                      Buscando la modelo perfecta para ti
-                    </div>
-                  </div>
+              <div className="flex items-center justify-center space-x-3">
+                <div className="w-6 h-6 border-2 border-[#ff007a] border-t-transparent rounded-full animate-spin"></div>
+                <div className="text-[#ff007a] font-bold text-sm flex items-center gap-1">
+                  <Zap size={12} />
+                  Conectando...
                 </div>
+              </div>
+            )}
+
+            {/* Barra */}
+            {redirectCountdown > 0 && (
+              <div className="w-full bg-white/10 rounded-full h-1.5">
+                <div 
+                  className="h-full bg-[#ff007a] rounded-full transition-all duration-1000"
+                  style={{ width: `${((3 - redirectCountdown) / 3) * 100}%` }}
+                ></div>
               </div>
             )}
           </div>
         </div>
         
-        {/* Consejos mejorados para CLIENTE */}
-        <div className="mt-8 space-y-3">
-          <div className="bg-gradient-to-b from-[#0a0d10] to-[#131418] backdrop-blur-sm rounded-2xl p-4 border border-[#00ff66]/20 hover:border-[#00ff66]/40 transition-all duration-300 group">
-            <div className="flex items-center gap-3 text-[#00ff66]">
-              <div className="p-2 bg-[#00ff66]/20 rounded-xl group-hover:bg-[#00ff66]/30 transition-colors">
-                <Sparkles size={16} className="text-[#00ff66]" />
-              </div>
-              <span className="text-sm font-medium">
-                💰 Mantén suficientes monedas para sesiones más largas
-              </span>
+        {/* Consejos */}
+        <div className="mt-3 space-y-2">
+          <div className="bg-[#0a0d10]/80 rounded-xl p-2.5 border border-[#00ff66]/20">
+            <div className="flex items-center gap-2 text-[#00ff66]">
+              <Sparkles size={10} />
+              <span className="text-sm font-medium">💰 Mantén monedas suficientes</span>
             </div>
           </div>
           
-          <div className="bg-gradient-to-b from-[#0a0d10] to-[#131418] backdrop-blur-sm rounded-2xl p-4 border border-[#ff007a]/20 hover:border-[#ff007a]/40 transition-all duration-300 group">
-            <div className="flex items-center gap-3 text-[#ff007a]">
-              <div className="p-2 bg-[#ff007a]/20 rounded-xl group-hover:bg-[#ff007a]/30 transition-colors">
-                <Heart size={16} className="text-[#ff007a]" />
-              </div>
-              <span className="text-sm font-medium">
-                🎯 Sé respetuoso y la modelo estará más tiempo contigo
-              </span>
+          <div className="bg-[#0a0d10]/80 rounded-xl p-2.5 border border-[#ff007a]/20">
+            <div className="flex items-center gap-2 text-[#ff007a]">
+              <Heart size={10} />
+              <span className="text-sm font-medium">🎯 Sé respetuoso siempre</span>
             </div>
           </div>
           
-          <div className="bg-gradient-to-b from-[#0a0d10] to-[#131418] backdrop-blur-sm rounded-2xl p-4 border border-[#ff007a]/20 hover:border-[#ff007a]/40 transition-all duration-300 group">
-            <div className="flex items-center gap-3 text-[#ff007a]">
-              <div className="p-2 bg-[#ff007a]/20 rounded-xl group-hover:bg-[#ff007a]/30 transition-colors">
-                <ArrowRight size={16} className="text-[#ff007a]" />
-              </div>
-              <span className="text-sm font-medium">
-                ✨ Cada nueva conexión es una experiencia única
-              </span>
+          <div className="bg-[#0a0d10]/80 rounded-xl p-2.5 border border-[#ff007a]/20">
+            <div className="flex items-center gap-2 text-[#ff007a]">
+              <ArrowRight size={10} />
+              <span className="text-sm font-medium">✨ Cada conexión es única</span>
             </div>
           </div>
         </div>
       </div>
-      
-      <style jsx>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%) skewX(-12deg); }
-          100% { transform: translateX(300%) skewX(-12deg); }
-        }
-        
-        .animate-shimmer {
-          animation: shimmer 2s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 };

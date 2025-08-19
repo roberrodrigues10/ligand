@@ -287,6 +287,34 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
     }
   }, [currentUser, getAuthHeaders, processingRequest]);
 
+
+  // 💰 Cargar balance del usuario - AGREGAR ESTA FUNCIÓN
+const loadUserBalance = useCallback(async () => {
+  try {
+    console.log('💰 [VIDEOCHAT] Cargando balance de usuario...');
+    
+    const response = await fetch(`${API_BASE_URL}/api/videochat/gifts/balance`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        console.log('✅ [VIDEOCHAT] Balance cargado:', data.balance);
+        setUserBalance(data.balance || 0);
+        return { success: true, balance: data.balance };
+      }
+    }
+    
+    console.error('❌ [VIDEOCHAT] Error cargando balance');
+    return { success: false, error: 'Error cargando balance' };
+  } catch (error) {
+    console.error('❌ [VIDEOCHAT] Error de conexión cargando balance:', error);
+    return { success: false, error: 'Error de conexión' };
+  }
+}, [getAuthHeaders]);
+
   // ❌ Rechazar regalo (solo clientes)
   const rejectGift = useCallback(async (requestId, reason = '') => {
     if (currentUser?.role !== 'cliente') {
@@ -365,12 +393,14 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
   useEffect(() => {
     if (roomName && currentUser) {
       loadGifts();
+        loadUserBalance();  // ← AGREGAR ESTA LÍNEA
+
       
       if (currentUser.role === 'cliente') {
         loadPendingRequests();
       }
     }
-  }, [roomName, currentUser, loadGifts, loadPendingRequests]);
+  }, [roomName, currentUser, loadGifts, loadUserBalance, loadPendingRequests]);
 
   // 🔄 Polling para solicitudes pendientes (solo clientes)
   useEffect(() => {
@@ -421,6 +451,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
     loadGifts,
     loadPendingRequests,
     loadGiftHistory,
+    loadUserBalance,
     
     // Utilidades
     setPendingRequests,

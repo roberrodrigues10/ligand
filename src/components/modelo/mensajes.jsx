@@ -985,6 +985,7 @@ const cargarMensajes = useCallback(async (roomName) => {
       },
       body: JSON.stringify(debugData)
     });
+    
 
     const responseText = await response.text();
     console.log('📡 Debug Response Status:', response.status);
