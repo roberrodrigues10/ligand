@@ -85,8 +85,7 @@ const MobileDropdownMenu = () => {
     },
     { 
       label: t('ayuda'), 
-      action: () => console.log('Ayuda clicked'),
-      icon: <HelpCircle size={18} />
+      action: () => <HelpCircle size={18} />
     }
   ];
 
@@ -175,8 +174,7 @@ useEffect(() => {
   const cargarHistorias = async () => {
     try {
       setLoadingHistorias(true);
-      console.log("🔄 Cargando historias desde BD...");
-      
+            
       const historiasPrueba = [
         { 
           id: 'prueba1', 
@@ -246,19 +244,15 @@ useEffect(() => {
           const historiasNecesarias = 3 - historiasFinales.length;
           const historiasPruebaAUsar = historiasPrueba.slice(0, historiasNecesarias);
           historiasFinales = [...historiasFinales, ...historiasPruebaAUsar];
-          console.log(`📝 Se agregaron ${historiasPruebaAUsar.length} historias de prueba (total disponible: ${historiasFinales.length})`);
-        }
+                  }
         
         setHistorias(historiasFinales);
-        console.log("✅ Historias finales cargadas:", historiasFinales);
-      } catch (apiError) {
-        console.error("❌ Error API, usando datos de prueba:", apiError);
-        setHistorias(historiasPrueba);
+              } catch (apiError) {
+                setHistorias(historiasPrueba);
       }
       
     } catch (error) {
-      console.error("❌ Error general:", error);
-      setHistorias([]);
+            setHistorias([]);
     } finally {
       setLoadingHistorias(false);
     }
@@ -287,18 +281,15 @@ useEffect(() => {
   };
 
   const handleClose = () => {
-    console.log("🔴 Cerrando modal...");
-    setExpandedIndex(null);
+        setExpandedIndex(null);
     document.body.style.overflow = 'auto';
     
     setTimeout(() => {
       if (expandedIndex === null) {
-        console.log("🔄 Reiniciando carrusel...");
-        intervalRef.current = setInterval(() => {
+                intervalRef.current = setInterval(() => {
           setCurrentIndex((prevIndex) => {
             const newIndex = (prevIndex + 1) % historias.length;
-            console.log("📍 Nuevo índice:", newIndex);
-            return newIndex;
+                        return newIndex;
           });
         }, 5000);
       }
@@ -309,21 +300,17 @@ useEffect(() => {
     clearInterval(intervalRef.current);
     
     if (expandedIndex === null) {
-      console.log("▶️ Iniciando carrusel automático...");
-      intervalRef.current = setInterval(() => {
+            intervalRef.current = setInterval(() => {
         setCurrentIndex((prevIndex) => {
           const newIndex = (prevIndex + 1) % historias.length;
-          console.log("📍 Carrusel automático - nuevo índice:", newIndex);
-          return newIndex;
+                    return newIndex;
         });
       }, 5000);
     } else {
-      console.log("⏸️ Carrusel pausado - modal abierto");
-    }
+          }
 
     return () => {
-      console.log("🧹 Limpiando intervalo...");
-      clearInterval(intervalRef.current);
+            clearInterval(intervalRef.current);
     };
   }, [expandedIndex]);
 
@@ -352,66 +339,51 @@ useEffect(() => {
   useEffect(() => {
     const checkUserAndRedirect = async () => {
       if (hasChecked.current) {
-        console.log('🛑 ligandHome: Ya se verificó el usuario, saltando...');
-        return;
+                return;
       }
 
       try {
-        console.log("👤 Usuario detectado en HOME, verificando...");
-        hasChecked.current = true;
+                hasChecked.current = true;
 
         const res = await apiCall('/api/profile');
         const user = res.data.user;
 
-        console.log("👤 Usuario detectado en HOME, verificando...", user);
-
+        
         if (user) {
           const sessionToken = localStorage.getItem('token');
           const sessionRoomName = localStorage.getItem('roomName');
           const sessionUserName = localStorage.getItem('userName');
 
-          console.log("🎮 Verificando token de videochat:", {
-            hasToken: !!sessionToken,
-            roomName: sessionRoomName,
-            userName: sessionUserName
-          });
-
+          
           if (sessionToken && sessionRoomName && sessionRoomName !== 'null' && sessionRoomName !== 'undefined') {
-            console.log("🎥 Token de videochat activo detectado, forzando redirección...");
-            
+                        
             if (user.rol === "cliente") {
-              console.log("🎥 Redirigiendo cliente a videochat activo");
-              navigate(`/videochatclient?roomName=${sessionRoomName}&userName=${sessionUserName}`, { replace: true });
+                            navigate(`/videochatclient?roomName=${sessionRoomName}&userName=${sessionUserName}`, { replace: true });
               return;
             } else if (user.rol === "modelo") {
-              console.log("🎥 Redirigiendo modelo a videochat activo");
-              navigate(`/videochat?roomName=${sessionRoomName}&userName=${sessionUserName}`, { replace: true });
+                            navigate(`/videochat?roomName=${sessionRoomName}&userName=${sessionUserName}`, { replace: true });
               return;
             }
           }
 
           if (!user.email_verified_at) {
-            console.log("📧 Redirigiendo a verificar email");
-            navigate("/verificaremail", { replace: true });
+                        navigate("/verificaremail", { replace: true });
             return;
           }
 
           if (!user.rol || !user.name) {
-            console.log("👤 Redirigiendo a completar perfil");
-            navigate("/genero", { replace: true });
+                        navigate("/genero", { replace: true });
             return;
           }
 
           if (user.rol === "cliente") {
-            console.log("👨‍💼 Redirigiendo cliente a su home");
-            navigate("/homecliente", { replace: true });
+                        navigate("/homecliente", { replace: true });
             return;
           }
 
           if (user.rol === "modelo") {
             const estado = user.verificacion?.estado;
-            console.log("👩‍🎤 Modelo detectada, estado:", estado);
-
+            
             switch (estado) {
               case null:
               case undefined:
@@ -431,15 +403,12 @@ useEffect(() => {
           }
         }
 
-        console.log("🔓 Usuario no logueado, mostrando HOME");
-        setLoading(false);
+                setLoading(false);
 
       } catch (error) {
-        console.log("🔓 Usuario no autenticado, mostrando HOME");
-        
+                
         if (error.response?.status === 429) {
-          console.warn('⚠️ Rate limited en ligandHome - manteniendo estado');
-          setLoading(false);
+                    setLoading(false);
           return;
         }
         
@@ -471,8 +440,7 @@ useEffect(() => {
   }, []);
 
   const handleButtonClick = (action) => {
-    console.log(`🔄 Usuario no logueado intentando ${action}, redirigiendo a registro...`);
-    navigate("/home?auth=register");
+        navigate("/home?auth=register");
   };
 
   if (loading || loadingHistorias) {
@@ -489,8 +457,7 @@ useEffect(() => {
   }
 
   if (!loadingHistorias && historias.length === 0) {
-    console.log("⚠️ No hay historias disponibles");
-  }
+      }
 
   return (
     <div className="bg-ligand-mix-dark min-h-screen px-4">

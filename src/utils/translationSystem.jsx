@@ -56,8 +56,7 @@ export const detectLanguage = (text) => {
   if (cleanText.split(' ').length === 1) {
     for (const [lang, words] of Object.entries(commonWords)) {
       if (words.includes(cleanText)) {
-        console.log(`🔍 Palabra "${text}" detectada como ${lang}`);
-        return lang;
+                return lang;
       }
     }
   }
@@ -83,17 +82,14 @@ export const detectLanguage = (text) => {
   const maxScore = Math.max(...Object.values(scores));
   const detectedLang = Object.keys(scores).find(lang => scores[lang] === maxScore);
 
-  console.log('🔍 Scores de detección:', scores);
-  console.log('🔍 Detectado:', detectedLang, 'con puntuación:', maxScore);
-
+    
   return maxScore > 0 ? detectedLang : 'unknown';
 };
 
 // 🔄 FUNCIÓN DE TRADUCCIÓN CON LIBRE TRANSLATE
 const tryLibreTranslate = async (text, targetLang) => {
   try {
-    console.log('🔄 [LibreTranslate] Traduciendo...');
-    
+        
     const response = await fetch('https://libretranslate.com/translate', {
       method: 'POST',
       headers: {
@@ -114,22 +110,19 @@ const tryLibreTranslate = async (text, targetLang) => {
     const data = await response.json();
     
     if (data.translatedText && data.translatedText !== text) {
-      console.log('✅ [LibreTranslate] Traducción exitosa:', data.translatedText);
-      return data.translatedText;
+            return data.translatedText;
     }
 
     return null;
   } catch (error) {
-    console.warn('⚠️ [LibreTranslate] Error:', error);
-    return null;
+        return null;
   }
 };
 
 // 🔄 FUNCIÓN DE TRADUCCIÓN CON GOOGLE
 const tryGoogleTranslate = async (text, targetLang) => {
   try {
-    console.log('🔄 [Google] Traduciendo...');
-    
+        
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
 
     const response = await fetch(url, {
@@ -159,15 +152,13 @@ const tryGoogleTranslate = async (text, targetLang) => {
       }
 
       if (translation && translation.toLowerCase() !== text.toLowerCase()) {
-        console.log('✅ [Google] Traducción exitosa:', translation);
-        return translation;
+                return translation;
       }
     }
 
     return null;
   } catch (error) {
-    console.warn('⚠️ [Google] Error:', error);
-    return null;
+        return null;
   }
 };
 
@@ -180,8 +171,7 @@ export const translateText = async (text, targetLang = 'es') => {
 
   // Verificar cache
   if (translationCache.has(cacheKey)) {
-    console.log('🔄 Usando cache para:', cleanText);
-    return translationCache.get(cacheKey);
+        return translationCache.get(cacheKey);
   }
 
   // Detectar idioma
@@ -189,17 +179,11 @@ export const translateText = async (text, targetLang = 'es') => {
   
   // No traducir si ya está en el idioma objetivo
   if (detectedLang === targetLang) {
-    console.log('🔄 Mismo idioma, no traducir');
-    return null;
+        return null;
   }
 
   try {
-    console.log('🌍 Iniciando traducción:', {
-      text: cleanText,
-      from: detectedLang,
-      to: targetLang
-    });
-
+    
     let translation = null;
 
     // Intentar LibreTranslate primero
@@ -222,16 +206,13 @@ export const translateText = async (text, targetLang = 'es') => {
       // Guardar en cache
       translationCache.set(cacheKey, result);
       
-      console.log('✅ Traducción completada:', result);
-      return result;
+            return result;
     }
 
-    console.warn('❌ No se pudo traducir:', cleanText);
-    return null;
+        return null;
 
   } catch (error) {
-    console.warn('⚠️ Error general en traducción:', error);
-    return null;
+        return null;
   }
 };
 
@@ -246,8 +227,7 @@ export const useTranslation = () => {
         }
       }
     } catch (error) {
-      console.warn('Error loading settings:', error);
-    }
+          }
     
     return {
       enabled: true,
@@ -265,8 +245,7 @@ export const useTranslation = () => {
         localStorage.setItem('translationSettings', JSON.stringify(settings));
       }
     } catch (error) {
-      console.warn('Error saving settings:', error);
-    }
+          }
   }, [settings]);
 
   const generateMessageId = (message) => {
@@ -282,8 +261,7 @@ export const useTranslation = () => {
     const messageId = generateMessageId(message);
     
     if (processedMessages.has(messageId)) {
-      console.log('🔄 Mensaje ya procesado:', messageId);
-      return null;
+            return null;
     }
 
     const shouldTranslate = 
@@ -308,8 +286,7 @@ export const useTranslation = () => {
 
       return null;
     } catch (error) {
-      console.warn('Error traduciendo mensaje:', error);
-      processedMessages.delete(messageId);
+            processedMessages.delete(messageId);
       return null;
     }
   }, [settings]);
@@ -317,8 +294,7 @@ export const useTranslation = () => {
   const clearProcessedMessages = useCallback(() => {
     processedMessages.clear();
     translationCache.clear();
-    console.log('🧹 Cache limpiado');
-  }, []);
+      }, []);
 
   return {
     settings,
@@ -364,8 +340,7 @@ export const TranslatedMessage = ({ message, settings }) => {
         const result = await translateText(message.text, safeSettings.targetLanguage);
         setTranslationData(result);
       } catch (error) {
-        console.warn('Error traduciendo mensaje:', error);
-        setTranslationData(null);
+                setTranslationData(null);
       } finally {
         setIsTranslating(false);
       }
@@ -428,14 +403,12 @@ export const TranslationSettings = ({ isOpen, onClose, settings, onSettingsChang
   const otherLanguages = Object.keys(languages).filter(code => !popularLanguages.includes(code));
 
   const handleLanguageChange = (newLang) => {
-    console.log('🔧 Cambiando idioma a:', newLang);
-    const newSettings = { ...settings, targetLanguage: newLang };
+        const newSettings = { ...settings, targetLanguage: newLang };
     onSettingsChange(newSettings);
   };
 
   const handleSettingChange = (key, value) => {
-    console.log('🔧 Cambiando', key, 'a:', value);
-    const newSettings = { ...settings, [key]: value };
+        const newSettings = { ...settings, [key]: value };
     onSettingsChange(newSettings);
   };
 
@@ -599,8 +572,7 @@ export const TranslationSettings = ({ isOpen, onClose, settings, onSettingsChang
 export const clearTranslationCache = () => {
   translationCache.clear();
   processedMessages.clear();
-  console.log('🧹 Cache de traducción limpiado');
-};
+  };
 
 export const getTranslationCacheSize = () => {
   return {

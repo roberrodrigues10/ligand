@@ -41,8 +41,7 @@ const sendHeartbeat = async () => {
       headers: { 'Authorization': `Bearer ${token}` },
       timeout: 5000 // reducir timeout
     });
-    console.log("💓 Heartbeat enviado", payload);
-  } catch (error) {
+      } catch (error) {
     // tu manejo de errores está bien
   }
 };
@@ -50,8 +49,7 @@ const sendHeartbeat = async () => {
 const startHeartbeat = () => {
   if (heartbeatInterval) clearInterval(heartbeatInterval);
   
-  console.log("💓 Iniciando sistema de heartbeat");
-  sendHeartbeat(); // enviar inmediatamente
+    sendHeartbeat(); // enviar inmediatamente
   heartbeatInterval = setInterval(sendHeartbeat, 10000); // cada 10 segundos
 };
 
@@ -59,8 +57,7 @@ const stopHeartbeat = () => {
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval);
     heartbeatInterval = null;
-    console.log("💓 Sistema de heartbeat detenido");
-  }
+      }
 };
 
 const markUserOffline = async () => {
@@ -71,10 +68,8 @@ const markUserOffline = async () => {
     await axios.post(`${API_BASE_URL}/api/user/mark-offline`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    console.log("🔴 Usuario marcado como offline");
-  } catch (error) {
-    console.error("❌ Error marcando como offline:", error);
-  }
+      } catch (error) {
+      }
 };
 
 // ✅ Registrar usuario
@@ -85,23 +80,19 @@ export const register = async (email, password) => {
     const token = response.data.access_token;
     if (token) {
       localStorage.setItem("token", token);
-      console.log("✅ Token guardado en registro:", token.substring(0, 10) + "...");
-    } else {
-      console.warn("⚠️ No se recibió access_token en registro.", response.data);
-    }
+          } else {
+          }
 
     return response.data;
   } catch (error) {
-    console.error("❌ Error en registro:", error.response?.data || error);
-    throw error;
+        throw error;
   }
 };
 
 
 export const loginWithWait = async (email, password, onStatusUpdate = null) => {
   try {
-    console.log("🔄 Intentando login...");
-    
+        
     // Usar la función existente pero interceptar el 202
     const response = await axios.post(`${API_BASE_URL}/api/login`, { 
       email, 
@@ -117,18 +108,15 @@ export const loginWithWait = async (email, password, onStatusUpdate = null) => {
         localStorage.removeItem("just_logged_in");
       }, 10000);
 
-      console.log("✅ Token guardado en login:", response.data.access_token.substring(0, 10) + "...");
-      
+            
       // Marcar como online y iniciar heartbeat
       try {
         await axios.post(`${API_BASE_URL}/api/user/mark-online`, {}, {
           headers: { 'Authorization': `Bearer ${response.data.access_token}` }
         });
-        console.log("🟢 Usuario marcado como online");
-        startHeartbeat();
+                startHeartbeat();
       } catch (error) {
-        console.error("❌ Error marcando como online:", error);
-      }
+              }
 
       userCache.clearCache();
       return { success: true, data: response.data, requiresWait: false };
@@ -139,8 +127,7 @@ export const loginWithWait = async (email, password, onStatusUpdate = null) => {
   } catch (error) {
     // Usuario A está activo, necesitamos esperar (código 202)
     if (error.response?.status === 202 && error.response?.data?.status === 'waiting_for_user_decision') {
-      console.log("⏳ Usuario activo detectado - Iniciando espera...");
-      
+            
       return await waitForUserDecision(email, password, error.response.data, onStatusUpdate);
     }
 
@@ -155,8 +142,7 @@ const waitForUserDecision = async (email, password, initialResponse, onStatusUpd
   const maxWaitTime = (initialResponse.wait_time || 10) * 60 * 1000; // convertir a ms
   const startTime = Date.now();
   
-  console.log(`⏳ Esperando decisión del usuario activo por ${initialResponse.wait_time} minutos...`);
-  
+    
   // Notificar al UI del estado inicial
   if (onStatusUpdate) {
     onStatusUpdate({
@@ -186,8 +172,7 @@ const waitForUserDecision = async (email, password, initialResponse, onStatusUpd
         }, { skipInterceptor: true });
 
         const status = statusResponse.data;
-        console.log("🔍 Estado actual:", status);
-
+        
         // Actualizar UI
         if (onStatusUpdate) {
           onStatusUpdate({
@@ -201,8 +186,7 @@ const waitForUserDecision = async (email, password, initialResponse, onStatusUpd
         // Usuario A aprobó o tiempo expiró
         if (status.can_login) {
           clearInterval(checkInterval);
-          console.log("✅ Acceso aprobado - Completando login...");
-          
+                    
           try {
             // Completar el login
             const loginResponse = await axios.post(`${API_BASE_URL}/api/complete-pending-login`, {
@@ -218,18 +202,15 @@ const waitForUserDecision = async (email, password, initialResponse, onStatusUpd
                 localStorage.removeItem("just_logged_in");
               }, 10000);
 
-              console.log("✅ Login completado con token:", loginResponse.data.access_token.substring(0, 10) + "...");
-              
+                            
               // Marcar como online y iniciar heartbeat
               try {
                 await axios.post(`${API_BASE_URL}/api/user/mark-online`, {}, {
                   headers: { 'Authorization': `Bearer ${loginResponse.data.access_token}` }
                 });
-                console.log("🟢 Usuario marcado como online");
-                startHeartbeat();
+                                startHeartbeat();
               } catch (error) {
-                console.error("❌ Error marcando como online:", error);
-              }
+                              }
 
               userCache.clearCache();
               
@@ -249,8 +230,7 @@ const waitForUserDecision = async (email, password, initialResponse, onStatusUpd
         }
 
       } catch (error) {
-        console.error("❌ Error verificando estado:", error);
-        clearInterval(checkInterval);
+                clearInterval(checkInterval);
         reject(error);
       }
     }, 3000); // Verificar cada 3 segundos
@@ -265,8 +245,7 @@ const waitForUserDecision = async (email, password, initialResponse, onStatusUpd
 
 // Función para cancelar la espera (Usuario B)
 export const cancelWaitingLogin = () => {
-  console.log("❌ Usuario B canceló la espera");
-  // Esta función puede ser llamada desde el UI para cancelar la espera
+    // Esta función puede ser llamada desde el UI para cancelar la espera
   return { cancelled: true };
 };
 
@@ -274,7 +253,6 @@ export const cancelWaitingLogin = () => {
 // 🔄 MODIFICAR loginWithoutRedirect - Usuario B entra inmediatamente
 export const loginWithoutRedirect = async (email, password) => {
   try {
-    console.log("🔄 Login (Usuario B entra inmediatamente)");
     
     const response = await axios.post(`${API_BASE_URL}/api/login`, { 
       email, 
@@ -290,11 +268,11 @@ export const loginWithoutRedirect = async (email, password) => {
         localStorage.removeItem("just_logged_in");
       }, 10000);
 
-      console.log("✅ Token guardado:", response.data.access_token.substring(0, 10) + "...");
+
       
       // 🔥 CARGAR IDIOMA INMEDIATAMENTE DESPUÉS DEL LOGIN
       try {
-        console.log('🔄 Cargando idioma del usuario...');
+
         const userResponse = await axios.get(`${API_BASE_URL}/api/profile/info`, {
           headers: { 'Authorization': `Bearer ${response.data.access_token}` }
         });
@@ -304,18 +282,18 @@ export const loginWithoutRedirect = async (email, password) => {
           localStorage.setItem('selectedLanguage', userResponse.data.user.preferred_language);
           localStorage.setItem('i18nextLng', userResponse.data.user.preferred_language);
           localStorage.setItem('lang', userResponse.data.user.preferred_language);
-          console.log('🌍 Idioma cargado:', userResponse.data.user.preferred_language);
+
           
           if (window.i18n && typeof window.i18n.changeLanguage === 'function') {
             window.i18n.changeLanguage(userResponse.data.user.preferred_language);
           }
         } else {
-          console.log('⚠️ Usando español por defecto');
+
           localStorage.setItem('userPreferredLanguage', 'es');
           localStorage.setItem('selectedLanguage', 'es');
         }
       } catch (languageError) {
-        console.error('❌ Error cargando idioma:', languageError);
+
         localStorage.setItem('userPreferredLanguage', 'es');
         localStorage.setItem('selectedLanguage', 'es');
       }
@@ -327,10 +305,10 @@ export const loginWithoutRedirect = async (email, password) => {
         await axios.post(`${API_BASE_URL}/api/user/mark-online`, {}, {
           headers: { 'Authorization': `Bearer ${response.data.access_token}` }
         });
-        console.log("🟢 Usuario B marcado como online");
+
         startHeartbeat();
       } catch (error) {
-        console.error("❌ Error marcando como online:", error);
+
       }
 
       return response.data;
@@ -352,7 +330,7 @@ export const loginWithoutRedirect = async (email, password) => {
       throw new Error(error.response.data.message || "Correo no verificado");
     }
 
-    console.error("❌ Error en login:", error.response?.data || error);
+
     throw new Error(error.response?.data?.message || "Error desconocido en el login");
   }
 };
@@ -360,7 +338,7 @@ export const loginWithoutRedirect = async (email, password) => {
 // 🔄 MODIFICADO: Reclamar sesión (Usuario A permite acceso a Usuario B)
 export const reclamarSesion = async (email, password) => {
   try {
-    console.log('🔄 Usuario A permitiendo acceso para:', email);
+
     
     const response = await axios.post(`${API_BASE_URL}/api/reclaim-session`, {
       email,
@@ -368,7 +346,7 @@ export const reclamarSesion = async (email, password) => {
       force: true
     }, { skipInterceptor: true });
 
-    console.log("✅ Acceso permitido exitosamente");
+
     
     // Usuario A será desconectado - limpiar su estado local
     stopHeartbeat();
@@ -378,7 +356,7 @@ export const reclamarSesion = async (email, password) => {
     
     return response.data;
   } catch (error) {
-    console.error("❌ Error permitiendo acceso:", error.response?.data || error);
+
     
     if (error.response?.status === 401) {
       throw new Error("Credenciales incorrectas");
@@ -402,16 +380,16 @@ export const rechazarNuevaSesion = async () => {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
-    console.log("✅ Intruso expulsado exitosamente");
+
     
     if (response.data.access_token) {
       localStorage.setItem("token", response.data.access_token);
-      console.log("✅ Nuevo token recibido para Usuario A");
+
     }
     
     return response.data;
   } catch (error) {
-    console.error('❌ Error expulsando intruso:', error);
+
     throw error;
   }
 };
@@ -419,8 +397,7 @@ export const rechazarNuevaSesion = async () => {
 // 🆕 NUEVA: Función para que Usuario A permita el acceso y se desconecte
 export const allowAndDisconnect = async (email, password) => {
   try {
-    console.log('🔄 Usuario A permitiendo acceso y desconectándose');
-    
+        
     // Usar reclamarSesion que ya maneja esto
     await reclamarSesion(email, password);
     
@@ -432,8 +409,7 @@ export const allowAndDisconnect = async (email, password) => {
     
     return { success: true, message: 'Acceso permitido' };
   } catch (error) {
-    console.error("❌ Error permitiendo acceso:", error);
-    throw error;
+        throw error;
   }
 };
 
@@ -450,8 +426,7 @@ export const checkAuthStatus = async () => {
     
     return response.data;
   } catch (error) {
-    console.error('❌ Error verificando estado de auth:', error);
-    throw error;
+        throw error;
   }
 };
 export const logout = async () => {
@@ -469,8 +444,7 @@ export const logout = async () => {
     
     return true;
   } catch (error) {
-    console.error("❌ Error en logout:", error.response?.data || error);
-    
+        
     stopHeartbeat();
     localStorage.removeItem("token");
     userCache.clearCache(); // 🔥 LIMPIAR CACHE SIEMPRE
@@ -482,33 +456,27 @@ export const logout = async () => {
 // 🔥 ✅ getUser CON CACHE GLOBAL REAL
 export const getUser = async (forceRefresh = false) => {
   try {
-    console.log("🔐 getUser llamado, forceRefresh:", forceRefresh);
-    
+        
     // 🔥 USAR EL CACHE MANAGER EN LUGAR DE LLAMADA DIRECTA
     const userData = await userCache.getUser(forceRefresh);
     
-    console.log("✅ Perfil obtenido desde cache manager:", userData.name || userData.email);
-    return userData;
+        return userData;
     
   } catch (error) {
-    console.error("❌ Error obteniendo usuario:", error.response?.data || error.message);
-    
+        
     // 🆕 MANEJO ESPECÍFICO DE SESIÓN DUPLICADA
     if (error.response?.status === 401 && error.response?.data?.code === 'SESSION_DUPLICATED') {
-      console.log("🔥 Sesión duplicada detectada en getUser");
-      throw error; // Dejar que VerificarSesionActiva maneje esto
+            throw error; // Dejar que VerificarSesionActiva maneje esto
     }
     
     // 🔥 MANEJO DE RATE LIMITING
     if (error.response?.status === 429) {
-      console.warn('⚠️ Rate limited obteniendo usuario');
-      throw error; // Dejar que el cache manager maneje esto
+            throw error; // Dejar que el cache manager maneje esto
     }
     
     // Solo limpiar token en errores reales de auth
     if (error.response?.status === 401 || error.response?.status === 403) {
-      console.log("🧹 Limpiando token inválido");
-      stopHeartbeat();
+            stopHeartbeat();
       localStorage.removeItem("token");
       localStorage.removeItem("reclamando_sesion");
       userCache.clearCache();
@@ -520,14 +488,12 @@ export const getUser = async (forceRefresh = false) => {
 
 // 🔥 FUNCIÓN PARA REFRESCAR USUARIO (FORZAR NUEVA REQUEST)
 export const refreshUser = async () => {
-  console.log("🔄 Forzando refresh de usuario");
-  return await getUser(true);
+    return await getUser(true);
 };
 
 // ✅ Verificar código
 export async function verificarCodigo(email, code) {
-  console.log("➡️ Enviando:", { email, code });
-  const response = await axios.post(`${API_BASE_URL}/api/verify-email-code`, {
+    const response = await axios.post(`${API_BASE_URL}/api/verify-email-code`, {
     email,
     code,
   });
@@ -551,8 +517,7 @@ export const initializeAuth = () => {
   const token = localStorage.getItem("token");
   
   if (token) {
-    console.log("🔄 Token encontrado, iniciando heartbeat automático");
-    startHeartbeat();
+        startHeartbeat();
   }
 };
 
@@ -568,13 +533,10 @@ export const updateHeartbeatRoom = async (roomName) => {
     }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    console.log("💓 Heartbeat actualizado para videochat");
-  } catch (error) {
-    console.error("❌ Error actualizando heartbeat:", error);
-    
+      } catch (error) {
+        
     if (error.response?.status === 429) {
-      console.warn('⚠️ Rate limited actualizando heartbeat');
-      return;
+            return;
     }
   }
 };
@@ -582,8 +544,7 @@ export const updateHeartbeatRoom = async (roomName) => {
 
 export const loginWithGoogle = async () => {
   try {
-    console.log('🔵 Iniciando Google OAuth...');
-    
+        
     // ✅ CORRECCIÓN: Usar la URL correcta del backend
     const response = await axios.get(`${API_BASE_URL}/api/auth/google/redirect`, {
       headers: {
@@ -592,20 +553,16 @@ export const loginWithGoogle = async () => {
       }
     });
     
-    console.log('🔵 Respuesta del servidor:', response.data);
-    
+        
     if (!response.data.success) {
       throw new Error(response.data.message || 'Error al obtener URL de Google');
     }
 
     // ✅ Redirigir a Google OAuth
-    console.log('🔵 Redirigiendo a:', response.data.auth_url);
-    window.location.href = response.data.auth_url;
+        window.location.href = response.data.auth_url;
     
   } catch (error) {
-    console.error('❌ Error en loginWithGoogle:', error);
-    console.error('❌ Response data:', error.response?.data);
-    throw new Error(error.response?.data?.message || 'Error al iniciar sesión con Google');
+            throw new Error(error.response?.data?.message || 'Error al iniciar sesión con Google');
   }
 };
 
@@ -614,9 +571,7 @@ export const loginWithGoogle = async () => {
  */
 export const handleGoogleCallback = async (code, state) => {
   try {
-    console.log('🔄 Procesando callback de Google...');
-    console.log('📋 Parámetros recibidos:', { code: code?.substring(0, 10) + '...', state });
-    
+            
     if (!code) {
       throw new Error('Código de autorización no recibido');
     }
@@ -625,8 +580,7 @@ export const handleGoogleCallback = async (code, state) => {
       params: { code, state }
     });
 
-    console.log('🔄 Respuesta del callback:', response.data);
-
+    
     if (!response.data.success) {
       throw new Error(response.data.message || 'Error en autenticación con Google');
     }
@@ -640,18 +594,14 @@ export const handleGoogleCallback = async (code, state) => {
       await axios.post(`${API_BASE_URL}/api/user/mark-online`, {}, {
         headers: { 'Authorization': `Bearer ${access_token}` }
       });
-      console.log("🟢 Usuario marcado como online");
-      startHeartbeat();
+            startHeartbeat();
     } catch (error) {
-      console.error("❌ Error marcando como online:", error);
-    }
+          }
 
-    console.log('✅ Google OAuth exitoso para:', user.email);
-    return { user, signup_step, token: access_token };
+        return { user, signup_step, token: access_token };
 
   } catch (error) {
-    console.error('❌ Error en handleGoogleCallback:', error);
-    throw new Error(error.response?.data?.message || 'Error al procesar autenticación con Google');
+        throw new Error(error.response?.data?.message || 'Error al procesar autenticación con Google');
   }
 }; // ← Asegúrate de que esta llave esté cerrada
 
@@ -670,8 +620,7 @@ export const unlinkGoogle = async () => {
 
     return response.data;
   } catch (error) {
-    console.error('❌ Error desvincular Google:', error);
-    throw new Error(error.response?.data?.message || 'Error al desvincular cuenta de Google');
+        throw new Error(error.response?.data?.message || 'Error al desvincular cuenta de Google');
   }
 };
 
@@ -701,11 +650,9 @@ export const allowNewSession = async () => {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
-    console.log("✅ Acceso permitido");
-    return response.data;
+        return response.data;
   } catch (error) {
-    console.error('❌ Error permitiendo acceso:', error);
-    throw error;
+        throw error;
   }
 };
 

@@ -257,8 +257,7 @@ export default function SubirHistoria() {
         }
       }
     } catch (error) {
-      console.error('❌ Error verificando si puede subir:', error);
-      if (error.response?.status === 401) {
+            if (error.response?.status === 401) {
         notifications.unauthorized();
       }
     }
@@ -330,8 +329,7 @@ export default function SubirHistoria() {
         }
       }
     } catch (error) {
-      console.error('❌ Error al verificar historia existente:', error);
-      
+            
       if (error.response?.status === 401) {
         notifications.unauthorized();
       }
@@ -374,8 +372,7 @@ export default function SubirHistoria() {
         notifications.error("No se encontró ninguna cámara disponible");
       }
     } catch (error) {
-      console.error("❌ Error al enumerar dispositivos:", error);
-      notifications.error("Hubo un problema al acceder a la cámara/micrófono");
+            notifications.error("Hubo un problema al acceder a la cámara/micrófono");
     }
   };
 
@@ -395,8 +392,7 @@ export default function SubirHistoria() {
       videoRef.current.srcObject = stream;
 
     } catch (err) {
-      console.error("❌ Error accediendo a la cámara:", err);
-      if (err.name === "NotAllowedError") {
+            if (err.name === "NotAllowedError") {
         notifications.error("Permiso denegado. Por favor, permite acceso a la cámara en tu navegador");
       } else if (err.name === "NotFoundError") {
         notifications.error("No se encontró cámara o micrófono");
@@ -597,8 +593,7 @@ export default function SubirHistoria() {
     };
 
     recorder.onerror = (e) => {
-      console.error('❌ Error en MediaRecorder:', e);
-      notifications.error('Error durante la grabación');
+            notifications.error('Error durante la grabación');
     };
 
     recorder.start(1000);
@@ -703,8 +698,7 @@ export default function SubirHistoria() {
       };
       
       video.onerror = () => {
-        console.error('❌ Error cargando video para validación');
-        notifications.error('Error al procesar el video. Intenta con otro archivo.');
+                notifications.error('Error al procesar el video. Intenta con otro archivo.');
         URL.revokeObjectURL(video.src);
       };
       
@@ -872,18 +866,13 @@ export default function SubirHistoria() {
       setVideoBlob(null);
       
     } catch (error) {
-      console.error('❌ === ERROR DETALLADO ===');
-      console.error('Status:', error.response?.status);
-      console.error('Data:', error.response?.data);
-      console.error('Headers:', error.response?.headers);
-      
+                              
       if (error.response?.status === 422) {
         const errorData = error.response.data;
         
         if (errorData.errors?.file) {
           const fileError = errorData.errors.file[0];
-          console.error('❌ Error específico del archivo:', fileError);
-          
+                    
           // Mostrar error específico y sugerencias
           notifications.error(`Error del servidor: ${fileError}`);
           
@@ -1093,8 +1082,7 @@ export default function SubirHistoria() {
                     className="w-full h-[300px] object-cover"
                     controls={isApproved}
                     onError={(e) => {
-                      console.error('❌ Error cargando video:', e);
-                      console.log('URL intentada:', e.target.src);
+                                            console.log('URL intentada:', e.target.src);
                     }}
                   />
                 ) : (
@@ -1107,8 +1095,7 @@ export default function SubirHistoria() {
                     alt="Historia" 
                     className="w-full object-cover"
                     onError={(e) => {
-                      console.error('❌ Error cargando imagen:', e);
-                      console.log('URL intentada:', e.target.src);
+                                            console.log('URL intentada:', e.target.src);
                     }}
                   />
                 )}

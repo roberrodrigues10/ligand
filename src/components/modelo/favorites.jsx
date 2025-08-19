@@ -102,8 +102,7 @@ export default function Favoritos() {
         }
       }
     } catch (error) {
-      console.error('❌ Error cargando usuarios bloqueados:', error);
-    } finally {
+          } finally {
       setLoadingBloqueados(false);
     }
   };
@@ -131,11 +130,9 @@ export default function Favoritos() {
         // 🔥 RECARGAR FAVORITOS POR SI ERA UN FAVORITO BLOQUEADO
         loadFavorites();
       } else {
-        console.error('Error desbloqueando:', data.error);
-      }
+              }
     } catch (error) {
-      console.error('❌ Error desbloqueando chico:', error);
-    } finally {
+          } finally {
       setProcessingAction(null);
     }
   };
@@ -167,8 +164,7 @@ export default function Favoritos() {
         }
       }
     } catch (error) {
-      console.error('❌ Error cargando usuarios online:', error);
-    }
+          }
   };
 
   // 🔥 FUNCIÓN PARA OBTENER ESTADO DE CONEXIÓN DETALLADO
@@ -303,8 +299,7 @@ export default function Favoritos() {
         setCurrentCall(null);
       }
     } catch (error) {
-      console.error('❌ Error:', error);
-      setIsCallActive(false);
+            setIsCallActive(false);
       setCurrentCall(null);
       
       setConfirmAction({
@@ -352,8 +347,7 @@ export default function Favoritos() {
           }
         }
       } catch (error) {
-        console.error('❌ Error verificando llamada:', error);  
-      }
+              }
     }, 2000);
     
     setCallPollingInterval(interval);
@@ -375,8 +369,7 @@ export default function Favoritos() {
         setCallPollingInterval(null);
       }
     } catch (error) {
-      console.error('❌ Error cancelando llamada:', error);
-    }
+          }
     
     setIsCallActive(false);
     setCurrentCall(null);
@@ -443,8 +436,7 @@ export default function Favoritos() {
       }
 
     } catch (err) {
-      console.error('❌ Error cargando favoritos:', err);
-      setError(err.message);
+            setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -475,11 +467,9 @@ export default function Favoritos() {
         setOpcionesAbiertas(null);
         console.log('✅ Favorito eliminado:', nombre);
       } else {
-        console.error('Error eliminando favorito:', data.error);
-      }
+              }
     } catch (error) {
-      console.error('❌ Error eliminando favorito:', error);
-    } finally {
+          } finally {
       setProcessingAction(null);
     }
   };
@@ -513,11 +503,9 @@ export default function Favoritos() {
         cargarUsuariosBloqueados();
       }
     } else {
-      console.error('Error bloqueando:', data.error);
-    }
+          }
   } catch (error) {
-    console.error('❌ Error bloqueando chico:', error);
-  } finally {
+      } finally {
     setProcessingAction(null);
     setShowBlockModal(false); // Cierra el modal si estaba abierto
   }
@@ -641,8 +629,7 @@ export default function Favoritos() {
       });
       
     } catch (error) {
-      console.error('❌ Error iniciando chat:', error);
-      alert('Error de conexión');
+            alert('Error de conexión');
     } finally {
       setProcessingAction(null);
     }

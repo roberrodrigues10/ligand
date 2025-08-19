@@ -19,16 +19,10 @@ export class RoomSyncManager {
   // 🔥 INICIAR SINCRONIZACIÓN
   start() {
     if (this.isActive) {
-      console.log('🔄 Sync manager ya está activo');
-      return;
+            return;
     }
 
-    console.log('🚀 Iniciando Room Sync Manager', {
-      room: this.roomName,
-      user: this.userName,
-      role: this.userRole
-    });
-
+    
     this.isActive = true;
     this.consecutiveErrors = 0;
 
@@ -45,8 +39,7 @@ export class RoomSyncManager {
 
   // 🔥 DETENER SINCRONIZACIÓN
   stop() {
-    console.log('🛑 Deteniendo Room Sync Manager');
-    this.isActive = false;
+        this.isActive = false;
     
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
@@ -69,8 +62,7 @@ export class RoomSyncManager {
         try {
           listener.callback(data);
         } catch (error) {
-          console.error('❌ Error en listener:', error);
-        }
+                  }
       });
   }
 
@@ -82,13 +74,11 @@ export class RoomSyncManager {
     
     // Evitar sincronizaciones muy frecuentes
     if (now - this.lastSyncTime < 10000) {
-      console.log('⏭️ Saltando sync - muy reciente');
-      return;
+            return;
     }
 
     try {
-      console.log('🔄 Ejecutando sincronización...');
-      
+            
       const authToken = localStorage.getItem('token');
       if (!authToken) {
         throw new Error('No hay token de autenticación');
@@ -105,23 +95,19 @@ export class RoomSyncManager {
       
       // 4. Ejecutar acciones correctivas si es necesario
       if (analysis.needsAction) {
-        console.log('⚠️ Inconsistencias detectadas:', analysis);
-        await this.executeCorrectiveActions(analysis, authToken);
+                await this.executeCorrectiveActions(analysis, authToken);
       }
 
       this.lastSyncTime = now;
       this.consecutiveErrors = 0;
       
-      console.log('✅ Sincronización completada');
-
+      
     } catch (error) {
       this.consecutiveErrors++;
-      console.error(`❌ Error en sincronización (${this.consecutiveErrors}/${this.maxErrors}):`, error);
-
+      
       // Si hay muchos errores consecutivos, detener sincronización
       if (this.consecutiveErrors >= this.maxErrors) {
-        console.error('🚨 Demasiados errores - deteniendo sincronización');
-        this.emit('sync_failed', { error, consecutiveErrors: this.consecutiveErrors });
+                this.emit('sync_failed', { error, consecutiveErrors: this.consecutiveErrors });
         this.stop();
       }
     }
@@ -233,8 +219,7 @@ export class RoomSyncManager {
 
   // 🔥 EJECUTAR ACCIONES CORRECTIVAS
   async executeCorrectiveActions(analysis, authToken) {
-    console.log('🔧 Ejecutando acciones correctivas:', analysis.actions);
-
+    
     for (const action of analysis.actions) {
       try {
         switch (action) {
@@ -257,18 +242,15 @@ export class RoomSyncManager {
             break;
 
           default:
-            console.warn('⚠️ Acción desconocida:', action);
-        }
+                    }
       } catch (error) {
-        console.error(`❌ Error ejecutando acción ${action}:`, error);
-      }
+              }
     }
   }
 
   // 🔥 LIMPIAR MÚLTIPLES SESIONES
   async cleanupMultipleSessions(authToken) {
-    console.log('🧹 Limpiando múltiples sesiones...');
-
+    
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/heartbeat/force-cleanup`, {
       method: 'POST',
       headers: {
@@ -285,13 +267,11 @@ export class RoomSyncManager {
     }
 
     const result = await response.json();
-    console.log('✅ Cleanup completado:', result);
-  }
+      }
 
   // 🔥 SINCRONIZAR HEARTBEAT
   async syncHeartbeat(authToken) {
-    console.log('💓 Sincronizando heartbeat...');
-
+    
     const activityType = this.userRole === 'modelo' ? 'videochat' : 'videochat_client';
 
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/heartbeat`, {
@@ -310,8 +290,7 @@ export class RoomSyncManager {
       throw new Error(`Error sincronizando heartbeat: ${response.status}`);
     }
 
-    console.log('✅ Heartbeat sincronizado');
-  }
+      }
 }
 
 // 🔥 HOOK PERSONALIZADO PARA USAR EL SYNC MANAGER
@@ -329,16 +308,14 @@ export function useRoomSyncManager(roomName, userName, userRole, connected) {
       return;
     }
 
-    console.log('🔧 Configurando Room Sync Manager...');
-
+    
     // Crear nuevo sync manager
     const syncManager = new RoomSyncManager(roomName, userName, userRole);
     syncManagerRef.current = syncManager;
 
     // Configurar listeners
     syncManager.addListener('need_redirect', (data) => {
-      console.log('🔄 Redirección requerida por sync manager:', data);
-      
+            
       // Detener sync antes de navegar
       syncManager.stop();
       
@@ -354,8 +331,7 @@ export function useRoomSyncManager(roomName, userName, userRole, connected) {
     });
 
     syncManager.addListener('sync_failed', (data) => {
-      console.error('🚨 Sync manager falló:', data);
-      
+            
       // En caso de fallo crítico, también redirigir
       const urlParams = new URLSearchParams({
         role: userRole,
@@ -372,8 +348,7 @@ export function useRoomSyncManager(roomName, userName, userRole, connected) {
 
     // Cleanup al desmontar
     return () => {
-      console.log('🧹 Limpiando Room Sync Manager');
-      if (syncManagerRef.current) {
+            if (syncManagerRef.current) {
         syncManagerRef.current.stop();
         syncManagerRef.current = null;
       }
@@ -384,11 +359,9 @@ export function useRoomSyncManager(roomName, userName, userRole, connected) {
   // Función para forzar sincronización manual
   const forceSync = useCallback(() => {
     if (syncManagerRef.current) {
-      console.log('🔄 Forzando sincronización manual...');
-      syncManagerRef.current.performSync();
+            syncManagerRef.current.performSync();
     } else {
-      console.warn('⚠️ No hay sync manager activo para forzar');
-    }
+          }
   }, []);
 
   // 🔥 RETORNAR OBJETO CON forceSync
@@ -397,13 +370,11 @@ export function useRoomSyncManager(roomName, userName, userRole, connected) {
 
 // 🔥 FUNCIÓN UTILITARIA PARA CLEANUP COMPLETO
 export async function performCompleteUserCleanup(reason = 'manual_cleanup') {
-  console.log('🧹 Iniciando cleanup completo del usuario...', { reason });
-
+  
   try {
     const authToken = localStorage.getItem('token');
     if (!authToken) {
-      console.warn('❌ No hay token para cleanup');
-      return false;
+            return false;
     }
 
     // 1. Cleanup en servidor
@@ -418,10 +389,8 @@ export async function performCompleteUserCleanup(reason = 'manual_cleanup') {
 
     if (response.ok) {
       const result = await response.json();
-      console.log('✅ Cleanup servidor exitoso:', result);
-    } else {
-      console.warn('⚠️ Error en cleanup servidor:', response.status);
-    }
+          } else {
+          }
 
     // 2. Cleanup local
     const itemsToRemove = [
@@ -433,15 +402,12 @@ export async function performCompleteUserCleanup(reason = 'manual_cleanup') {
       try {
         localStorage.removeItem(item);
       } catch (e) {
-        console.warn('⚠️ Error removiendo item:', item);
-      }
+              }
     });
 
-    console.log('✅ Cleanup completo exitoso');
-    return true;
+        return true;
 
   } catch (error) {
-    console.error('❌ Error en cleanup completo:', error);
-    return false;
+        return false;
   }
 }

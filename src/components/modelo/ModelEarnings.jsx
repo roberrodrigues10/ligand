@@ -66,8 +66,7 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
         setError('Error al cargar las ganancias semanales');
       }
     } catch (error) {
-      console.error('Error fetching weekly earnings:', error);
-      setError('Error de conexión');
+            setError('Error de conexión');
     } finally {
       setLoading(false);
     }
@@ -89,11 +88,9 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
         console.log('💰 [UNIFICADO] Balance data:', data);
         setBalanceData(data);
       } else {
-        console.error('Error al obtener balance');
-      }
+              }
     } catch (error) {
-      console.error('Error fetching balance:', error);
-    } finally {
+          } finally {
       setBalanceLoading(false);
     }
   };
@@ -117,8 +114,7 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
         setPaymentsError('Error al cargar pagos pendientes');
       }
     } catch (error) {
-      console.error('Error fetching pending payments:', error);
-      setPaymentsError('Error de conexión');
+            setPaymentsError('Error de conexión');
     } finally {
       setPaymentsLoading(false);
     }
@@ -143,8 +139,7 @@ const WeeklyEarnings = ({ isOpen, onClose }) => {
         setPaymentsError('Error al cargar historial de pagos');
       }
     } catch (error) {
-      console.error('Error fetching payment history:', error);
-      setPaymentsError('Error de conexión');
+            setPaymentsError('Error de conexión');
     } finally {
       setPaymentsLoading(false);
     }

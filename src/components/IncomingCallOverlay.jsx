@@ -40,13 +40,11 @@ const IncomingCallOverlay = ({
     if (isResponding) return;
     
     setIsResponding(true);
-    console.log('✅ Aceptando llamada entrante');
-    
+        
     try {
       await onAnswer();
     } catch (error) {
-      console.error('❌ Error aceptando llamada:', error);
-      setIsResponding(false);
+            setIsResponding(false);
     }
   };
 
@@ -55,13 +53,11 @@ const IncomingCallOverlay = ({
     if (isResponding) return;
     
     setIsResponding(true);
-    console.log('❌ Rechazando llamada entrante');
-    
+        
     try {
       await onDecline();
     } catch (error) {
-      console.error('❌ Error rechazando llamada:', error);
-    } finally {
+          } finally {
       setIsResponding(false);
     }
   };

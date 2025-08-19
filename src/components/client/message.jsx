@@ -142,9 +142,7 @@ export default function ChatPrivado() {
         )
       );
       
-      console.log(`📖 Marcado como leído: ${roomName}`);
     } catch (error) {
-      console.error('❌ Error marcando como leído:', error);
     }
   }, [lastSeenMessages, getAuthHeaders]);
 
@@ -177,9 +175,8 @@ export default function ChatPrivado() {
   // 🔥 FUNCIONES PRINCIPALES SIMPLIFICADAS
   const cargarDatosUsuario = useCallback(async () => {
     try {
-      console.log('🔍 Cargando datos de usuario...');
       const userData = await getUser();
-      console.log('✅ Usuario cargado:', userData);
+
       
       setUsuario({
         id: userData.id,
@@ -187,9 +184,9 @@ export default function ChatPrivado() {
         rol: userData.rol
       });
     } catch (error) {
-      console.error('❌ Error cargando usuario:', error);
+
       // 🔥 USAR DATOS DE EJEMPLO COMO FALLBACK
-      console.log('🔧 Usando datos de usuario de ejemplo...');
+
       setUsuario({
         id: 1,
         name: "Usuario Demo",
@@ -208,18 +205,18 @@ export default function ChatPrivado() {
         setLoading(true);
       }
       
-      console.log('🔍 Cargando conversaciones...');
+
       
       const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
 
-      console.log('📡 Respuesta status:', response.status);
 
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Conversaciones del servidor:', data);
+
         
         const serverConversations = data.conversations || [];
         
@@ -229,9 +226,7 @@ export default function ChatPrivado() {
           const persistentConvs = prev.filter(conv => conv.isPersistent || conv.fromSearch || conv.createdLocally);
           const nonPersistentConvs = prev.filter(conv => !conv.isPersistent && !conv.fromSearch && !conv.createdLocally);
           
-          console.log('🛡️ Conservando conversaciones persistentes:', persistentConvs.length);
-          console.log('🔄 Actualizando conversaciones del servidor:', serverConversations.length);
-          
+
           // Crear nueva lista combinada
           const combined = [];
           
@@ -248,10 +243,8 @@ export default function ChatPrivado() {
             );
             
             if (!existsInServer) {
-              console.log('➕ Manteniendo conversación local:', persistentConv.other_user_name);
               combined.push(persistentConv);
             } else {
-              console.log('🔄 Conversación local ya existe en servidor:', persistentConv.other_user_name);
               // 🔥 ACTUALIZAR la conversación del servidor con datos locales importantes
               const serverIndex = combined.findIndex(conv => 
                 conv.room_name === persistentConv.room_name ||
@@ -274,26 +267,13 @@ export default function ChatPrivado() {
             const timeA = new Date(a.last_message_time || 0).getTime();
             const timeB = new Date(b.last_message_time || 0).getTime();
             
-            console.log('📊 Comparando ordenamiento:', {
-              a: { name: a.other_user_name, time: a.last_message_time, timestamp: timeA },
-              b: { name: b.other_user_name, time: b.last_message_time, timestamp: timeB },
-              result: timeB - timeA
-            });
-            
             return timeB - timeA; // Más reciente primero
           });
-          
-          console.log('📊 Conversaciones ordenadas:', combined.map(conv => ({
-            name: conv.other_user_name,
-            time: conv.last_message_time,
-            message: conv.last_message
-          })));
           
           return combined;
         });
         
       } else {
-        console.error('❌ Error status:', response.status);
         
         // En caso de error, ordenar las conversaciones existentes
         setConversaciones(prev => {
@@ -303,12 +283,10 @@ export default function ChatPrivado() {
             return timeB - timeA;
           });
           
-          console.log('📊 Reordenando conversaciones existentes por error del servidor');
           return sorted;
         });
       }
     } catch (error) {
-      console.error('❌ Error de conexión:', error);
       
       // En caso de error, ordenar las conversaciones existentes
       setConversaciones(prev => {
@@ -318,7 +296,6 @@ export default function ChatPrivado() {
           return timeB - timeA;
         });
         
-        console.log('📊 Reordenando conversaciones existentes por error de conexión');
         return sorted;
       });
     } finally {
@@ -343,7 +320,6 @@ export default function ChatPrivado() {
         }
       }
     } catch (error) {
-      console.error('❌ Error cargando mensajes:', error);
     }
   }, [getAuthHeaders]);
 
@@ -414,19 +390,9 @@ export default function ChatPrivado() {
             const timeA = new Date(a.last_message_time || 0).getTime();
             const timeB = new Date(b.last_message_time || 0).getTime();
             
-            console.log('📊 Reordenando después de enviar mensaje:', {
-              activeRoom: conversacionActiva,
-              conversations: updated.map(c => ({
-                name: c.other_user_name,
-                time: c.last_message_time,
-                isActive: c.room_name === conversacionActiva
-              }))
-            });
-            
             return timeB - timeA; // Más reciente primero
           });
           
-          console.log('✅ Conversaciones reordenadas después de enviar mensaje');
           return sorted;
         });
         
@@ -453,11 +419,9 @@ export default function ChatPrivado() {
       } else if (errorData.error === 'blocked_by_user') {
         alert('Este usuario te ha bloqueado');
       } else {
-        console.error('Error del servidor:', errorData);
       }
     }
   } catch (error) {
-    console.error('❌ Error enviando mensaje:', error);
   }
   }, [nuevoMensaje, conversacionActiva, conversacionSeleccionada, bloqueados, bloqueadoPor, getAuthHeaders, usuario, marcarComoVisto, cargarConversaciones]);
   
@@ -484,7 +448,6 @@ export default function ChatPrivado() {
         if (favData.success) {
           const favIds = new Set(favData.favorites?.map(fav => fav.id) || []);
           setFavoritos(favIds);
-          console.log('✅ Favoritos cargados:', Array.from(favIds));
         }
       }
 
@@ -505,10 +468,6 @@ export default function ChatPrivado() {
           const bloqueadoresIds = new Set(blockData.blocked_by_users?.map(user => user.id) || []);
           setBloqueadoPor(bloqueadoresIds);
           
-          console.log('✅ Estados de bloqueo cargados:', {
-            bloqueados: Array.from(bloqueadosIds),
-            bloqueadoPor: Array.from(bloqueadoresIds)
-          });
         }
       }
 
@@ -526,12 +485,10 @@ export default function ChatPrivado() {
             apodosMap[item.target_user_id] = item.nickname;
           });
           setApodos(apodosMap);
-          console.log('✅ Apodos cargados:', apodosMap);
         }
       }
       
     } catch (error) {
-      console.error('❌ Error cargando estados iniciales:', error);
     }
   }, [usuario.id, getAuthHeaders]);
   // 🔥 FUNCIONES DE ACCIÓN SIMPLIFICADAS
@@ -555,11 +512,9 @@ export default function ChatPrivado() {
             isFavorite ? newSet.delete(userId) : newSet.add(userId);
             return newSet;
           });
-          console.log(`✅ Favorito ${isFavorite ? 'removido' : 'agregado'}:`, userName);
         }
       }
     } catch (error) {
-      console.error('❌ Error favorito:', error);
     }
     setLoadingActions(false);
   }, [loadingActions, favoritos, getAuthHeaders]);
@@ -596,11 +551,9 @@ export default function ChatPrivado() {
               return newSet;
             });
           }
-          console.log(`✅ Usuario ${isBlocked ? 'desbloqueado' : 'bloqueado'}:`, userName);
         }
       }
     } catch (error) {
-      console.error('❌ Error bloquear:', error);
     }
     setLoadingActions(false);
   }, [loadingActions, bloqueados, getAuthHeaders]);
@@ -619,9 +572,7 @@ export default function ChatPrivado() {
 
 
   const abrirConversacion = useCallback(async (conversacion) => {
-    console.log(`📂 Abriendo conversación: ${conversacion.other_user_name}`);
-    console.log(`📊 Contador antes: ${conversacion.unread_count}`);
-    
+  
     setConversacionActiva(conversacion.room_name);
     
     // Marcar como visto INMEDIATAMENTE al abrir
@@ -645,7 +596,6 @@ export default function ChatPrivado() {
       }
     }, 100);
     
-    console.log(`✅ Conversación abierta y marcada como vista`);
   }, [cargarMensajes, isMobile, marcarComoVisto]);
 
   
@@ -660,7 +610,6 @@ export default function ChatPrivado() {
     const userName = urlParams.get('userName');
     
     if (userId && userName && !hasOpenedSpecificChat.current && conversaciones.length > 0) {
-      console.log('🔗 Procesando parámetros URL:', { userId, userName });
       
       // Buscar conversación existente
       const conversacionExistente = conversaciones.find(conv => 
@@ -668,10 +617,10 @@ export default function ChatPrivado() {
       );
       
       if (conversacionExistente) {
-        console.log('✅ Conversación encontrada via URL params');
+
         abrirConversacion(conversacionExistente);
       } else {
-        console.log('📝 Creando conversación desde URL params...');
+
         
         // Generar room_name usando la misma lógica del backend
         const currentUserId = usuario.id;
@@ -715,24 +664,24 @@ export default function ChatPrivado() {
     if (savedActiveChat && savedActiveRoom && !conversacionActiva) {
       try {
         const chatData = JSON.parse(savedActiveChat);
-        console.log('🔄 PERSIST - Recuperando conversación del localStorage:', chatData);
+
         
         // Verificar si no existe ya en conversaciones
         const exists = conversaciones.some(conv => conv.room_name === chatData.room_name);
         
         if (!exists) {
-          console.log('➕ PERSIST - Restaurando conversación perdida...');
+
           setConversaciones(prev => [chatData, ...prev]);
         }
         
         // Restaurar como activa
         if (savedActiveRoom && !conversacionActiva) {
-          console.log('🔓 PERSIST - Restaurando conversación activa:', savedActiveRoom);
+
           setConversacionActiva(savedActiveRoom);
         }
         
       } catch (error) {
-        console.error('❌ Error recuperando conversación:', error);
+
         localStorage.removeItem('activeChat');
         localStorage.removeItem('activeRoomName');
       }
@@ -759,10 +708,8 @@ useEffect(() => {
       );
       
       if (orderChanged) {
-        console.log('🔄 Auto-reordenando conversaciones:', sorted.map(c => ({
-          name: c.other_user_name,
-          time: c.last_message_time
-        })));
+
+        
         return sorted;
       }
       
@@ -784,7 +731,7 @@ useEffect(() => {
   }, 0);
   
   if (totalUnread > 0) {
-    console.log('📥 Mensajes nuevos detectados, verificando orden...');
+
     
     // Reordenar después de un pequeño delay para asegurar que los datos estén actualizados
     setTimeout(() => {
@@ -801,7 +748,7 @@ useEffect(() => {
         );
         
         if (orderChanged) {
-          console.log('🔄 Reordenando por mensajes nuevos');
+
           return sorted;
         }
         
@@ -812,12 +759,9 @@ useEffect(() => {
 }, [conversaciones, calculateUnreadCount]);
 
 useEffect(() => {
-  console.log('🔥 BACKEND - Verificando openChatWith');
-  console.log('📦 openChatWith:', openChatWith);
-  console.log('🔄 Ya procesado:', hasOpenedSpecificChat.current);
-  
+
   if (openChatWith && !hasOpenedSpecificChat.current) {
-    console.log('✅ BACKEND - Procesando chat');
+
     
     // Marcar como procesado PRIMERO
     hasOpenedSpecificChat.current = true;
@@ -828,7 +772,7 @@ useEffect(() => {
     let conversacionFinal = openChatWith;
     
     if (!isFromBackend) {
-      console.log('📝 BACKEND - Conversación local, agregando datos adicionales...');
+
       // Si es local, agregar campos que el backend habría proporcionado
       conversacionFinal = {
         ...openChatWith,
@@ -837,10 +781,10 @@ useEffect(() => {
         needsSync: true // Marcar que necesita sincronización
       };
     } else {
-      console.log('✅ BACKEND - Conversación del backend, usando datos reales');
+
     }
     
-    console.log('📋 BACKEND - Conversación final:', conversacionFinal);
+
     
     // 🔥 SIEMPRE AGREGAR A LA LISTA (sin localStorage si es del backend)
     setConversaciones(prev => {
@@ -850,7 +794,7 @@ useEffect(() => {
       );
       
       if (exists) {
-        console.log('⚠️ BACKEND - Conversación ya existe, actualizando...');
+
         return prev.map(conv => {
           if (conv.room_name === conversacionFinal.room_name || conv.other_user_id === conversacionFinal.other_user_id) {
             return { ...conversacionFinal, id: conv.id }; // Mantener ID local si existe
@@ -859,13 +803,12 @@ useEffect(() => {
         });
       }
       
-      console.log('➕ BACKEND - Agregando nueva conversación');
+
       return [conversacionFinal, ...prev];
     });
     
     // 🔥 ABRIR CONVERSACIÓN
     setTimeout(() => {
-      console.log('🔓 BACKEND - Abriendo conversación...');
       setConversacionActiva(conversacionFinal.room_name);
       
       if (window.innerWidth < 768) {
@@ -888,11 +831,10 @@ useEffect(() => {
     
     // 🔥 LIMPIAR STATE
     setTimeout(() => {
-      console.log('🧹 BACKEND - Limpiando navigation state...');
       navigate('/message', { replace: true, state: {} });
     }, 2000);
     
-    console.log('✅ BACKEND - Proceso completado');
+
   }
   
 }, [openChatWith]);
@@ -928,7 +870,7 @@ useEffect(() => {
         });
       }
     } catch (error) {
-      console.error('❌ Error iniciando llamada:', error);
+
       setIsCallActive(false);
       setCurrentCall(null);
     }
@@ -957,12 +899,7 @@ useEffect(() => {
     
     // Limpiar imagePath de barras escapadas
     const cleanImagePath = imagePath.replace(/\\/g, '');
-    
-    console.log('🛠️ Construyendo URL:', {
-      original: imagePath,
-      cleaned: cleanImagePath,
-      baseUrl: cleanBaseUrl
-    });
+
     
     // Si comienza con storage/
     if (cleanImagePath.startsWith('storage/')) {
@@ -994,24 +931,18 @@ useEffect(() => {
 
       const data = await response.json();
       
-      console.log('📦 Respuesta completa del servidor:', data);
+
       
       if (data.success) {
         if (data.chat_message) {
-          console.log('💬 Chat message recibido:', data.chat_message);
-          console.log('🔍 Extra data original:', data.chat_message.extra_data);
-          
+       
           // 🔥 CONSTRUIR URL COMPLETA DESDE EL FRONTEND
           let processedExtraData = { ...data.chat_message.extra_data };
           
           if (processedExtraData.gift_image) {
             const originalImagePath = processedExtraData.gift_image;
             const completeImageUrl = buildCompleteImageUrl(originalImagePath);
-            
-            console.log('🖼️ Procesando imagen:');
-            console.log('   - Path original:', originalImagePath);
-            console.log('   - URL completa:', completeImageUrl);
-            console.log('   - Base URL:', API_BASE_URL);
+          
             
             // Actualizar con la URL completa
             processedExtraData.gift_image = completeImageUrl;
@@ -1025,13 +956,9 @@ useEffect(() => {
             extra_data: processedExtraData  // También actualizar extra_data
           };
           
-          console.log('✨ Mensaje procesado final:', processedMessage);
-          console.log('🔍 Gift data con URL completa:', processedMessage.gift_data);
-          
           // Agregar el mensaje directamente a la lista
           setMensajes(prev => {
             const newMessages = [...prev, processedMessage];
-            console.log('📝 Lista completa de mensajes:', newMessages);
             return newMessages;
           });
           
@@ -1057,14 +984,14 @@ useEffect(() => {
           }, 100);
         }
         
-        console.log('✅ Solicitud de regalo enviada correctamente');
+
         return { success: true, data: data.request };
       } else {
-        console.error('❌ Error del servidor:', data.error);
+
         return { success: false, error: data.error || 'Error desconocido' };
       }
     } catch (error) {
-      console.error('❌ Error de conexión pidiendo regalo:', error);
+
       return { success: false, error: 'Error de conexión' };
     }
   }, [getAuthHeaders, usuario.id]);
@@ -1087,72 +1014,43 @@ useEffect(() => {
   const handleAcceptGift = useCallback(async (requestId, securityHash = null) => {
   try {
     setLoadingGift(true);
-    
-    console.log(`🎁 Cliente aceptando regalo ${requestId}`);
-    console.log(`🔐 Security hash recibido:`, securityHash ? 'PRESENTE' : 'FALTANTE');
-    
-    // 🔍 DEBUG COMPLETO DE pendingRequests
-    console.group('🔍 DEBUGGING PENDING REQUESTS');
-    console.log('📋 Total pending requests:', pendingRequests?.length || 0);
-    
+
     if (pendingRequests && pendingRequests.length > 0) {
-      console.log('📋 Estructura completa de pendingRequests:');
+
       pendingRequests.forEach((req, index) => {
-        console.log(`Request ${index + 1}:`, {
-          id: req.id,
-          id_type: typeof req.id,
-          gift_id: req.gift_id,
-          amount: req.amount,
-          security_hash: req.security_hash,
-          gift_data: req.gift_data,
-          created_at: req.created_at,
-          expires_at: req.expires_at,
-          // Mostrar todas las propiedades
-          all_keys: Object.keys(req)
-        });
-        
         // 🔍 VERIFICAR SI EL HASH ESTÁ EN gift_data
         if (req.gift_data) {
           try {
             const giftData = typeof req.gift_data === 'string' 
               ? JSON.parse(req.gift_data) 
               : req.gift_data;
-            console.log(`📦 gift_data parseado para request ${req.id}:`, giftData);
-            
+
+              
             if (giftData.security_hash || giftData.hash) {
-              console.log('✅ HASH ENCONTRADO EN gift_data:', {
-                security_hash: giftData.security_hash,
-                hash: giftData.hash
-              });
+
+              
             }
           } catch (parseError) {
-            console.log(`❌ Error parsing gift_data para request ${req.id}:`, parseError);
+
           }
         }
       });
     }
-    console.groupEnd();
+
     
     // 🔥 BUSCAR SECURITY HASH CON MÚLTIPLES ESTRATEGIAS
     let finalSecurityHash = securityHash;
     
     if (!finalSecurityHash) {
-      console.log('🔍 Buscando security hash en pendingRequests...');
+
       
       const pendingRequest = pendingRequests?.find(req => req.id === parseInt(requestId));
       
       if (pendingRequest) {
-        console.log('✅ Solicitud encontrada:', {
-          id: pendingRequest.id,
-          keys: Object.keys(pendingRequest),
-          security_hash: pendingRequest.security_hash,
-          gift_data_exists: !!pendingRequest.gift_data
-        });
         
         // 🔍 ESTRATEGIA 1: security_hash directo
         if (pendingRequest.security_hash) {
           finalSecurityHash = pendingRequest.security_hash;
-          console.log('✅ Security hash encontrado directamente');
         }
         // 🔍 ESTRATEGIA 2: buscar en gift_data
         else if (pendingRequest.gift_data) {
@@ -1163,19 +1061,19 @@ useEffect(() => {
             
             if (giftData.security_hash) {
               finalSecurityHash = giftData.security_hash;
-              console.log('✅ Security hash encontrado en gift_data.security_hash');
+
             } else if (giftData.hash) {
               finalSecurityHash = giftData.hash;
-              console.log('✅ Security hash encontrado en gift_data.hash');
+
             }
           } catch (parseError) {
-            console.error('❌ Error parsing gift_data:', parseError);
+
           }
         }
         
         // 🔍 ESTRATEGIA 3: Generar hash en frontend (último recurso)
         if (!finalSecurityHash) {
-          console.warn('⚠️ Security hash no encontrado - intentando generar en frontend...');
+
           
           try {
             // Generar usando los mismos parámetros que el backend
@@ -1199,29 +1097,23 @@ useEffect(() => {
               const hashArray = Array.from(new Uint8Array(hashBuffer));
               const generatedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
               
-              console.log('🔑 Hash generado en frontend:', {
-                data: data,
-                hash: generatedHash.substring(0, 16) + '...'
-              });
-              
               // Intentar con el hash generado
               finalSecurityHash = generatedHash;
             });
             
           } catch (hashError) {
-            console.error('❌ Error generando hash en frontend:', hashError);
+
           }
         }
         
       } else {
-        console.error('❌ Solicitud no encontrada en pendingRequests');
-        console.log('🔍 IDs disponibles:', pendingRequests?.map(req => req.id) || []);
+
       }
     }
     
     // 🚨 SI AUN NO HAY HASH, INTENTAR SIN HASH (PARA DEBUG)
     if (!finalSecurityHash) {
-      console.error('❌ Security hash no disponible - intentando sin hash para debugging');
+
       
       // 🔥 PREGUNTA AL USUARIO QUE QUIERE HACER
       const userChoice = confirm(
@@ -1234,22 +1126,18 @@ useEffect(() => {
         return { success: false, error: 'Operación cancelada por el usuario' };
       }
       
-      console.warn('⚠️ Procediendo SIN security hash - SOLO PARA DEBUG');
+
       finalSecurityHash = null; // Explícitamente null para debug
     } else {
-      console.log('🔐 Security hash final obtenido:', finalSecurityHash.substring(0, 16) + '...');
+
     }
     
-    console.log('🚀 Enviando aceptación...');
+
     
     // 🔥 LLAMAR acceptGiftRequest 
     const result = await acceptGiftRequest(requestId, finalSecurityHash);
     
     if (result.success) {
-      console.log('✅ Regalo aceptado exitosamente');
-      console.log('💰 Nuevo saldo:', result.newBalance);
-      console.log('📩 Mensajes del chat:', result.chatMessages);
-      
       // 🎁 MOSTRAR NOTIFICACIÓN DE ÉXITO
       if (result.giftInfo) {
         const successMessage = `¡${result.giftInfo.name} enviado exitosamente!${result.newBalance !== undefined ? ` Saldo: ${result.newBalance}` : ''}`;
@@ -1266,7 +1154,7 @@ useEffect(() => {
       }
       
     } else {
-      console.error('❌ Error en la respuesta del servidor:', result);
+
       
       let errorMsg = result.error;
       
@@ -1282,8 +1170,7 @@ useEffect(() => {
       } else if (result.error === 'missing_parameters') {
         errorMsg = '📋 Faltan parámetros requeridos. Los datos enviados fueron:\n' + 
                   (result.sentFields ? result.sentFields.join(', ') : 'No disponible');
-        console.error('📋 Campos enviados:', result.sentFields);
-        console.error('📋 Respuesta del servidor:', result.serverResponse);
+
       }
       
       alert(errorMsg);
@@ -1292,7 +1179,7 @@ useEffect(() => {
     return result;
     
   } catch (error) {
-    console.error('❌ Error manejando aceptación de regalo:', error);
+
     alert('Error inesperado enviando el regalo. Inténtalo de nuevo.');
     return { success: false, error: 'Error inesperado: ' + error.message };
   } finally {
@@ -1302,7 +1189,7 @@ useEffect(() => {
 
   const enviarRegaloDirecto = useCallback(async (giftId, recipientId, roomName, message = '', requiredGiftCoins) => {
     try {
-      console.log('💸 CLIENTE enviando regalo directo...');
+
       
       const authToken = localStorage.getItem("token");
       
@@ -1325,7 +1212,7 @@ useEffect(() => {
       const data = await response.json();
       
       if (data.success) {
-        console.log('✅ Regalo enviado exitosamente');
+
         
         // Procesar mensaje del chat si viene
         if (data.chat_message) {
@@ -1374,7 +1261,7 @@ useEffect(() => {
         
         return { success: true, data };
       } else {
-        console.error('❌ Error enviando regalo:', data.error);
+
         
         // Personalizar mensajes de error
         let errorMsg = data.error;
@@ -1388,7 +1275,6 @@ useEffect(() => {
         return { success: false, error: data.error };
       }
     } catch (error) {
-      console.error('❌ Error de conexión:', error);
       alert('Error de conexión al enviar regalo');
       return { success: false, error: 'Error de conexión' };
     }
@@ -1398,8 +1284,8 @@ useEffect(() => {
     const authToken = localStorage.getItem('token');
     if (!authToken) return;
 
-    console.log('💰 [CHAT] Actualizando balances...');
 
+    
     // OBTENER BALANCE DE COINS (monedas generales)
     const coinsResponse = await fetch(`${API_BASE_URL}/api/client-balance/my-balance/quick`, {
       method: 'GET',
@@ -1413,7 +1299,7 @@ useEffect(() => {
       const coinsData = await coinsResponse.json();
       if (coinsData.success) {
         setUserBalance(coinsData.total_coins || 0);
-        console.log('✅ [CHAT] User Balance:', coinsData.total_coins);
+
       }
     }
 
@@ -1428,24 +1314,21 @@ useEffect(() => {
 
     if (giftsResponse.ok) {
       const giftsData = await giftsResponse.json();
-      console.log('🎁 [CHAT] Respuesta gifts/balance:', giftsData);
+
       
       if (giftsData.success) {
         // 🔥 FIX: Acceder correctamente a los datos
         const giftBalanceValue = giftsData.balance?.gift_balance || 0;
         setGiftBalance(giftBalanceValue);
-        console.log('✅ [CHAT] Gift Balance:', giftBalanceValue);
       }
     }
 
   } catch (error) {
-    console.error('❌ [CHAT] Error actualizando balances:', error);
   }
   }, []);
 
 useEffect(() => {
   if (usuario.id && usuario.rol === 'cliente') {
-    console.log('🚀 [CHAT] Cargando balance inicial para cliente...');
     updateBalance();
     
     // Actualizar balance cada 30 segundos
@@ -1459,19 +1342,18 @@ useEffect(() => {
     try {
       setLoadingGift(true);
       
-      console.log(`❌ Cliente rechazando regalo ${requestId}`);
       
       const result = await rejectGiftRequest(requestId);
       
       if (result.success) {
-        console.log('✅ Regalo rechazado correctamente');
+
       } else {
         alert(result.error || 'Error rechazando el regalo');
       }
       
       return result;
     } catch (error) {
-      console.error('❌ Error manejando rechazo de regalo:', error);
+
       alert('Error inesperado');
       return { success: false, error: 'Error inesperado' };
     } finally {
@@ -1482,15 +1364,6 @@ useEffect(() => {
   try {
     setLoadingGift(true);
     
-    console.log('🎁 [CHAT] HandleSendGift llamado con:', {
-      giftId,
-      recipientId, 
-      roomName,
-      message,
-      requiredCoins,
-      currentGiftBalance: giftBalance
-    });
-
     // VERIFICAR SALDO ANTES DE ENVIAR
     if (giftBalance < requiredCoins) {
       alert(`Saldo insuficiente. Necesitas ${requiredCoins} gift coins, tienes ${giftBalance}`);
@@ -1501,8 +1374,8 @@ useEffect(() => {
     
     if (result.success) {
       setShowGiftsModal(false);
-      console.log('🎉 [CHAT] Regalo enviado exitosamente - Modal cerrado');
-      
+
+  
       // ACTUALIZAR BALANCE DESPUÉS DE ENVIAR
       setTimeout(() => {
         updateBalance();
@@ -1519,7 +1392,6 @@ useEffect(() => {
     
     return result;
   } catch (error) {
-    console.error('❌ [CHAT] Error inesperado en handleSendGift:', error);
     alert('Error inesperado al enviar regalo');
     return { success: false, error: 'Error inesperado' };
   } finally {
@@ -1559,7 +1431,6 @@ useEffect(() => {
         setNicknameValue('');
       }
     } catch (error) {
-      console.error('❌ Error guardando apodo:', error);
     }
   }, [nicknameTarget, nicknameValue, getAuthHeaders]);
 
@@ -1873,7 +1744,6 @@ const renderMensaje = useCallback((mensaje) => {
     // Pedir permisos para notificaciones
     if (Notification.permission === 'default') {
       Notification.requestPermission().then(permission => {
-        console.log(`🔔 Permisos de notificación: ${permission}`);
       });
     }
   }, []);
@@ -1888,20 +1758,16 @@ const renderMensaje = useCallback((mensaje) => {
   useEffect(() => {
   if (!usuario.id || usuario.rol !== 'cliente') return;
   
-  console.log('🔄 Iniciando polling de solicitudes pendientes para cliente...');
   
   const interval = setInterval(async () => {
-    console.log('🎁 Verificando solicitudes pendientes...');
     try {
       await loadPendingRequests();
     } catch (error) {
-      console.error('❌ Error en polling de solicitudes pendientes:', error);
     }
   }, 3000); // Cada 3 segundos
   
   return () => {
     clearInterval(interval);
-    console.log('🛑 Polling de solicitudes pendientes detenido');
   };
   }, [usuario.id, usuario.rol, loadPendingRequests]);
 
@@ -1909,10 +1775,8 @@ const renderMensaje = useCallback((mensaje) => {
   useEffect(() => {
   let interval;
   if (conversacionActiva) {
-    console.log(`📡 Iniciando polling de mensajes para: ${conversacionActiva}`);
     
     interval = setInterval(async () => {
-      console.log(`🔄 Polling mensajes en conversación: ${conversacionActiva}`);
       try {
         let allMessages = [];
 
@@ -1926,13 +1790,11 @@ const renderMensaje = useCallback((mensaje) => {
           const data = await response.json();
           if (data.success && data.messages) {
             allMessages = [...allMessages, ...data.messages];
-            console.log(`📥 Mensajes principales cargados: ${data.messages.length}`);
           }
         }
 
         // 🔥 PASO 2: NUEVO - Cargar mensajes del room específico del cliente
         const clientRoomName = `${conversacionActiva}_client`;
-        console.log(`🎯 Cargando room del cliente: ${clientRoomName}`);
 
         const clientResponse = await fetch(`${API_BASE_URL}/api/chat/messages/${clientRoomName}`, {
           method: 'GET',
@@ -1943,10 +1805,8 @@ const renderMensaje = useCallback((mensaje) => {
           const clientData = await clientResponse.json();
           if (clientData.success && clientData.messages) {
             allMessages = [...allMessages, ...clientData.messages];
-            console.log(`💸 Mensajes del cliente cargados: ${clientData.messages.length}`);
           }
         } else {
-          console.log(`ℹ️ Room del cliente ${clientRoomName} no encontrado (normal si no has enviado regalos)`);
         }
 
         // 🔥 PASO 3: Ordenar todos los mensajes por fecha
@@ -1957,7 +1817,6 @@ const renderMensaje = useCallback((mensaje) => {
         const newMessages = allMessages.filter(m => !currentMessageIds.has(m.id));
         
         if (newMessages.length > 0) {
-          console.log(`✅ ${newMessages.length} mensajes nuevos recibidos`);
           
           // 🔍 DETECTAR TIPOS DE MENSAJES NUEVOS (solo para logging)
           const giftSentMessages = newMessages.filter(msg => msg.type === 'gift_sent');
@@ -1965,13 +1824,10 @@ const renderMensaje = useCallback((mensaje) => {
           const normalMessages = newMessages.filter(msg => !['gift_sent', 'gift_request', 'gift_received'].includes(msg.type));
           
           if (giftSentMessages.length > 0) {
-            console.log(`💸 ${giftSentMessages.length} regalo(s) enviado(s) detectado(s)`);
           }
           if (giftRequestMessages.length > 0) {
-            console.log(`🎁 ${giftRequestMessages.length} solicitud(es) de regalo detectada(s)`);
           }
           if (normalMessages.length > 0) {
-            console.log(`💬 ${normalMessages.length} mensaje(s) normal(es) detectado(s)`);
           }
           
           // 🔥 PASO 5: Actualizar con TODOS los mensajes (principales + cliente)
@@ -1987,12 +1843,9 @@ const renderMensaje = useCallback((mensaje) => {
             }
           }, 100);
 
-          console.log(`📊 Total mensajes después del polling: ${allMessages.length}`);
         } else {
-          console.log('ℹ️ No hay mensajes nuevos');
         }
       } catch (error) {
-        console.error('❌ Error en polling de mensajes:', error);
       }
     }, 3000); // Cada 3 segundos
   }
@@ -2000,7 +1853,6 @@ const renderMensaje = useCallback((mensaje) => {
   return () => {
     if (interval) {
       clearInterval(interval);
-      console.log('🛑 Polling de mensajes detenido');
     }
   };
   }, [conversacionActiva, mensajes, getAuthHeaders, marcarComoVisto]);
@@ -2017,7 +1869,6 @@ const renderMensaje = useCallback((mensaje) => {
     
     const interval = setInterval(async () => {
       // SIEMPRE hacer polling sin mostrar loading
-      console.log('🔄 Polling conversaciones (silencioso)...');
       await cargarConversaciones();
     }, 5000); // Cada 5 segundos para tiempo más real
     
@@ -2031,7 +1882,6 @@ const renderMensaje = useCallback((mensaje) => {
         const unreadCount = calculateUnreadCount(conv);
         if (unreadCount > 0 && conv.room_name !== conversacionActiva) {
           // Solo mostrar notificación si no estás en esa conversación
-          console.log(`🔔 Tienes ${unreadCount} mensajes nuevos de ${conv.other_user_name}`);
           
           // Opcional: Mostrar notificación del navegador
           if (Notification.permission === 'granted') {
@@ -2054,7 +1904,6 @@ const renderMensaje = useCallback((mensaje) => {
     const total = conversaciones.reduce((count, conv) => {
       return count + calculateUnreadCount(conv);
     }, 0);
-    console.log('📊 Total notificaciones no leídas:', total);
     return total;
   }, [conversaciones, calculateUnreadCount]);
 
@@ -2064,7 +1913,6 @@ const renderMensaje = useCallback((mensaje) => {
       if (!usuario.id) return;
       
       try {
-        console.log('🟢 Cargando usuarios online...');
         const response = await fetch(`${API_BASE_URL}/api/chat/users/my-contacts`, {
           method: 'GET',
           headers: getAuthHeaders()
@@ -2076,14 +1924,11 @@ const renderMensaje = useCallback((mensaje) => {
             (data.contacts || []).map(contact => contact.id)
           );
           setOnlineUsers(usuariosOnlineIds);
-          console.log('✅ Usuarios online actualizados:', Array.from(usuariosOnlineIds));
         } else {
-          console.log('⚠️ No se pudieron cargar usuarios online, usando datos simulados');
           // Fallback con datos simulados
           setOnlineUsers(new Set([2, 3, 4, 5]));
         }
       } catch (error) {
-        console.error('❌ Error cargando usuarios online:', error);
         // Fallback con datos simulados
         setOnlineUsers(new Set([2, 3, 4, 5]));
       }

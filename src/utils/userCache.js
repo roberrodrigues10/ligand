@@ -27,10 +27,8 @@ class UserCacheManager {
     const isValid = (now - cached.timestamp) < this.CACHE_DURATION;
     
     if (isValid) {
-      console.log('✅ Cache válido para:', cacheKey, `(${Math.round((now - cached.timestamp) / 1000)}s ago)`);
-    } else {
-      console.log('❌ Cache expirado para:', cacheKey);
-      this.cache.delete(cacheKey);
+          } else {
+            this.cache.delete(cacheKey);
     }
     
     return isValid;
@@ -42,8 +40,7 @@ class UserCacheManager {
     const timeSinceLastRequest = now - this.lastFetchTime;
     
     if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
-      console.log(`⏳ Bloqueando request - muy pronto (${timeSinceLastRequest}ms < ${this.MIN_REQUEST_INTERVAL}ms)`);
-      return false;
+            return false;
     }
     
     return true;
@@ -61,14 +58,12 @@ class UserCacheManager {
     // 🔥 STEP 1: Verificar cache si no es force refresh
     if (!forceRefresh && this.isCacheValid(cacheKey)) {
       const cached = this.cache.get(cacheKey);
-      console.log('🎯 Retornando desde cache:', cached.data.name || cached.data.email);
-      return cached.data;
+            return cached.data;
     }
 
     // 🔥 STEP 2: Verificar si ya hay una request pendiente
     if (this.pendingRequests.has(cacheKey)) {
-      console.log('⏳ Request ya en progreso, esperando...');
-      return await this.pendingRequests.get(cacheKey);
+            return await this.pendingRequests.get(cacheKey);
     }
 
     // 🔥 STEP 3: Verificar rate limiting propio
@@ -76,8 +71,7 @@ class UserCacheManager {
       // Si tenemos cache expirado, usarlo temporalmente
       const expiredCache = this.cache.get(cacheKey);
       if (expiredCache) {
-        console.log('🔄 Usando cache expirado temporalmente para evitar rate limit');
-        return expiredCache.data;
+                return expiredCache.data;
       }
       
       // Esperar el tiempo mínimo y reintentar
@@ -101,8 +95,7 @@ class UserCacheManager {
     try {
       this.lastFetchTime = Date.now();
       
-      console.log(`📡 Haciendo request a /api/profile (intento ${retryCount + 1}/${this.MAX_RETRIES})`);
-      
+            
       const response = await axios.get('/api/profile', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -115,39 +108,32 @@ class UserCacheManager {
           const userData = response.data?.user || response.data?.data?.user || response.data;
 
           // Y agrega logging para verificar:
-          console.log('🔍 [CACHE] response.data:', response.data);
-          console.log('🔍 [CACHE] userData extraído:', userData);        
-        // 🔥 GUARDAR EN CACHE
+                            // 🔥 GUARDAR EN CACHE
         this.cache.set(cacheKey, {
           data: userData,
           timestamp: Date.now()
         });
         
-        console.log('✅ Usuario obtenido y cacheado:', userData.name || userData.email);
-        return userData;
+                return userData;
       } else {
         throw new Error(`Invalid response: ${response.status}`);
       }
 
     } catch (error) {
-      console.error(`❌ Error obteniendo usuario (intento ${retryCount + 1}):`, error.message);
-      
+            
       // 🔥 MANEJO ESPECÍFICO DE 429
       if (error.response?.status === 429) {
-        console.warn('⚠️ Rate limited (429) detectado');
-        
+                
         // Si tenemos cache (aunque esté expirado), usarlo
         const fallbackCache = this.cache.get(cacheKey);
         if (fallbackCache) {
-          console.log('🔄 Usando cache como fallback para rate limit');
-          return fallbackCache.data;
+                    return fallbackCache.data;
         }
         
         // Si podemos reintentar, esperar más tiempo
         if (retryCount < this.MAX_RETRIES) {
           const delay = this.RATE_LIMIT_RETRY_DELAY * (retryCount + 1); // Backoff exponencial
-          console.log(`⏳ Reintentando en ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+                    await new Promise(resolve => setTimeout(resolve, delay));
           return this.makeRequestWithRetry(token, cacheKey, retryCount + 1);
         }
       }
@@ -155,8 +141,7 @@ class UserCacheManager {
       // 🔥 MANEJO DE OTROS ERRORES CON RETRY
       if (retryCount < this.MAX_RETRIES && error.response?.status !== 401 && error.response?.status !== 403) {
         const delay = 1000 * (retryCount + 1); // 1s, 2s, 3s
-        console.log(`⏳ Reintentando en ${delay}ms por error ${error.response?.status || 'network'}`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+                await new Promise(resolve => setTimeout(resolve, delay));
         return this.makeRequestWithRetry(token, cacheKey, retryCount + 1);
       }
       
@@ -167,8 +152,7 @@ class UserCacheManager {
 
   // Limpiar cache manualmente
   clearCache() {
-    console.log('🧹 Limpiando cache de usuario');
-    this.cache.clear();
+        this.cache.clear();
     this.pendingRequests.clear();
   }
 
@@ -208,8 +192,7 @@ setInterval(() => {
   for (const [key, cached] of userCacheManager.cache.entries()) {
     if (now - cached.timestamp > 600000) { // 10 minutos
       userCacheManager.cache.delete(key);
-      console.log('🧹 Cache entry auto-limpiado:', key);
-    }
+          }
   }
 }, 600000); // Cada 10 minutos
 

@@ -19,21 +19,18 @@ class HeartbeatRateLimiter {
     
     // Si estamos bloqueados temporalmente
     if (this.isBlocked && now < this.blockUntil) {
-      console.log(`🛑 [HEARTBEAT] Bloqueado hasta ${new Date(this.blockUntil).toLocaleTimeString()}`);
-      return false;
+            return false;
     }
     
     // Si ha pasado el bloqueo, desbloqueamos
     if (this.isBlocked && now >= this.blockUntil) {
       this.isBlocked = false;
       this.consecutiveErrors = 0;
-      console.log('✅ [HEARTBEAT] Desbloqueado');
-    }
+          }
     
     // Verificar intervalo mínimo
     if (now - this.lastHeartbeat < this.minInterval) {
-      console.log(`⏰ [HEARTBEAT] Muy frecuente - esperando ${this.minInterval - (now - this.lastHeartbeat)}ms`);
-      return false;
+            return false;
     }
     
     return true;
@@ -53,8 +50,7 @@ class HeartbeatRateLimiter {
       this.blockUntil = Date.now() + blockDuration;
       this.isBlocked = true;
       
-      console.warn(`🚫 [HEARTBEAT] Bloqueado por ${blockDuration/1000}s (errores: ${this.consecutiveErrors})`);
-    }
+          }
   }
 
   getRecommendedInterval() {
@@ -77,8 +73,7 @@ export const sendHeartbeat = async (activityType = 'browsing', room = null) => {
   try {
     const authToken = localStorage.getItem('token');
     if (!authToken) {
-      console.log('⚠️ [HEARTBEAT] No hay token de autenticación');
-      return false;
+            return false;
     }
 
     // Timeout para evitar requests colgados
@@ -101,27 +96,22 @@ export const sendHeartbeat = async (activityType = 'browsing', room = null) => {
     clearTimeout(timeoutId);
 
     if (response.status === 429) {
-      console.warn('⚠️ [HEARTBEAT] Rate limited por servidor');
-      rateLimiter.recordError(true);
+            rateLimiter.recordError(true);
       return false;
     }
 
     if (response.ok) {
       const data = await response.json();
-      console.log(`💓 [HEARTBEAT] ✅ ${activityType} en ${room || 'ninguna sala'}`);
-      rateLimiter.recordSuccess();
+            rateLimiter.recordSuccess();
       return true;
     } else {
-      console.log(`⚠️ [HEARTBEAT] Error ${response.status}`);
-      rateLimiter.recordError(false);
+            rateLimiter.recordError(false);
       return false;
     }
   } catch (error) {
     if (error.name === 'AbortError') {
-      console.log('⏰ [HEARTBEAT] Timeout');
-    } else {
-      console.log('❌ [HEARTBEAT] Error de red:', error.message);
-    }
+          } else {
+          }
     rateLimiter.recordError(false);
     return false;
   }
@@ -153,16 +143,14 @@ export const useHeartbeat = (activityType = 'browsing', room = null, baseInterva
   };
 
   if (!navigator.onLine) {
-  console.log('📴 [HEARTBEAT] Offline, omitiendo');
-    return false;
+      return false;
   }
 
 
   useEffect(() => {
     if (!isEnabledRef.current) return;
 
-    console.log(`🚀 [HEARTBEAT] Iniciando: ${activityType} cada ~${baseIntervalMs}ms (dinámico)`);
-
+    
     // Heartbeat inicial
     sendHeartbeat(activityType, room).then(() => {
       // Programar siguientes heartbeats
@@ -177,8 +165,7 @@ export const useHeartbeat = (activityType = 'browsing', room = null, baseInterva
       
       // 🔥 CLEANUP: Volver a browsing al desmontar (con rate limiting)
       if (activityType !== 'browsing' && isEnabledRef.current) {
-        console.log(`🧹 [HEARTBEAT] Cleanup: ${activityType} → browsing`);
-        setTimeout(() => {
+                setTimeout(() => {
           sendHeartbeat('browsing', null);
         }, 1000); // Delay para evitar rate limiting
       }
@@ -187,8 +174,7 @@ export const useHeartbeat = (activityType = 'browsing', room = null, baseInterva
 
   // Función para cambiar estado manualmente
   const changeActivity = async (newActivityType, newRoom = null) => {
-    console.log(`🔄 [HEARTBEAT] Cambio: ${activityType} → ${newActivityType}`);
-    return await sendHeartbeat(newActivityType, newRoom);
+        return await sendHeartbeat(newActivityType, newRoom);
   };
 
   return { 
@@ -264,8 +250,7 @@ export const setupHeartbeatCleanup = () => {
       formData.append('Authorization', `Bearer ${authToken}`);
       
       navigator.sendBeacon(`${API_BASE_URL}/api/heartbeat`, formData);
-      console.log('🧹 [HEARTBEAT] Cleanup enviado via sendBeacon');
-    }
+          }
   };
 
   // Throttle para visibilitychange

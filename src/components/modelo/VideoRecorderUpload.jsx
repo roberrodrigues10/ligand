@@ -43,8 +43,7 @@ export default function VideoRecorderUpload() {
           alert("No se encontró ninguna cámara disponible.");
         }
       } catch (error) {
-        console.error("❌ Error al enumerar dispositivos:", error);
-        alert("Hubo un problema al acceder a la cámara/micrófono.");
+                alert("Hubo un problema al acceder a la cámara/micrófono.");
       }
     };
 
@@ -62,22 +61,18 @@ export default function VideoRecorderUpload() {
         audio: true,
       };
 
-      console.log("🎥 Solicitando acceso a cámara y micrófono...");
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
 
-      console.log("✅ Cámara y micrófono iniciados");
-
+      
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter((device) => device.kind === "videoinput");
       setDevices(videoDevices);
 
-      console.log("📷 Cámaras disponibles:", videoDevices);
-    } catch (err) {
-      console.error("❌ Error accediendo a la cámara:", err);
-      if (err.name === "NotAllowedError") {
+          } catch (err) {
+            if (err.name === "NotAllowedError") {
         alert("Permiso denegado. Por favor, permite acceso en tu navegador.");
       } else if (err.name === "NotFoundError") {
         alert("No se encontró cámara o micrófono.");
@@ -116,8 +111,7 @@ export default function VideoRecorderUpload() {
 
     recorder.onstop = () => {
       if (chunks.length === 0) {
-        console.warn("No se grabó ningún dato.");
-        return;
+                return;
       }
 
       const blob = new Blob(chunks, { type: "video/webm" });
@@ -134,15 +128,13 @@ export default function VideoRecorderUpload() {
     recorder.start();
     setMediaRecorder(recorder);
     setRecording(true);
-    console.log("Grabación iniciada");
-  };
+      };
 
   const stopRecording = () => {
     if (mediaRecorder) {
       mediaRecorder.stop();
       setRecording(false);
-      console.log("Grabación detenida");
-    }
+          }
 
     if (recordingIntervalRef.current) {
       clearInterval(recordingIntervalRef.current);
@@ -160,8 +152,7 @@ export default function VideoRecorderUpload() {
     setRecordingTime(0);
     setButtonsDisabled(false); // ✅ Re-enable buttons when deleting
     setShowPreview(false);     // ✅ Hide preview when deleting
-    console.log("Grabación eliminada");
-  };
+      };
 
   const switchCamera = () => {
     const currentIndex = devices.findIndex(device => device.deviceId === selectedDeviceId);
@@ -171,38 +162,27 @@ export default function VideoRecorderUpload() {
 
   const uploadStory = async () => {
   try {
-    console.log("📤 Uploading video blob:", videoBlob);
-    console.log("📤 Video blob size:", videoBlob.size);
-    console.log("📤 Video blob type:", videoBlob.type);
-    
+                
     const formData = new FormData();
     formData.append("file", videoBlob, "recorded-video.webm"); // ✅ Agregamos filename
     formData.append("source_type", "record");
     
     // Debug: Ver qué se está enviando
-    console.log("📤 FormData contents:");
-    for (let [key, value] of formData.entries()) {
-      console.log(`${key}:`, value);
-    }
+        for (let [key, value] of formData.entries()) {
+          }
     
-    console.log("🚀 Making POST request to /api/historias");
-    const response = await instance.post("/api/historias", formData, {
+        const response = await instance.post("/api/historias", formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     });
-    console.log("✅ Story uploaded successfully:", response.data);
-    
+        
     deleteRecording();
   } catch (error) {
-    console.error("❌ Error uploading story:", error);
-    console.error("❌ Error response:", error.response?.data);
-    console.error("❌ Error status:", error.response?.status);
-    
+                
     // ✅ IMPORTANTE: Ver los errores específicos
     if (error.response?.data?.errors) {
-      console.error("❌ Validation errors:", error.response.data.errors);
-      
+            
       // Mostrar errores específicos al usuario
       const errorMessages = Object.values(error.response.data.errors).flat();
       alert(`Errores de validación:\n${errorMessages.join('\n')}`);

@@ -53,8 +53,7 @@ export default function PreCallLobbyModelo() {
         if (videoInputs[0]) setSelectedCamera(videoInputs[0].deviceId);
         if (audioInputs[0]) setSelectedMic(audioInputs[0].deviceId);
       } catch (err) {
-        console.error("Error enumerando dispositivos:", err);
-      }
+              }
     };
 
     initDevices();
@@ -107,8 +106,7 @@ export default function PreCallLobbyModelo() {
           console.log("Stream asignado al video");
         }
       } catch (err) {
-        console.error("Error accediendo cámara/micrófono:", err);
-        
+                
         // Si hay timeout o error, intentar solo con video
         if (err.name === 'AbortError' || err.name === 'NotReadableError' || err.message === 'Timeout manual') {
           console.log("Reintentando solo con video...");
@@ -126,8 +124,7 @@ export default function PreCallLobbyModelo() {
               console.log("Stream solo de video asignado");
             }
           } catch (videoErr) {
-            console.error("Error incluso con solo video:", videoErr);
-            alert("No se puede acceder a la cámara. Verifica que no esté siendo usada por otra aplicación.");
+                        alert("No se puede acceder a la cámara. Verifica que no esté siendo usada por otra aplicación.");
           }
         }
       }
@@ -222,8 +219,7 @@ export default function PreCallLobbyModelo() {
         }
         
       } catch (err) {
-        console.error("Error solicitando permisos:", err);
-        if (err.name === 'NotAllowedError') {
+                if (err.name === 'NotAllowedError') {
           alert(t("permission_alert", "Necesitas permitir el acceso a cámara y micrófono para continuar."));
         } else if (err.name === 'AbortError') {
           alert("Error: La cámara está siendo usada por otra aplicación. Por favor cierra otras aplicaciones que puedan estar usando la cámara (Zoom, Teams, etc.) y recarga la página.");
@@ -244,8 +240,7 @@ export default function PreCallLobbyModelo() {
       }
       navigate(`/usersearch?role=modelo&selectedCamera=${selectedCamera}&selectedMic=${selectedMic}`);
     } catch (error) {
-      console.error('Error:', error);
-      setLoading(false);
+            setLoading(false);
       isNavigatingRef.current = false;
     }
   };

@@ -9,8 +9,7 @@ import { useLocalParticipant, useRoomContext } from '@livekit/components-react';
 
 
  const applyMirrorToAllVideos = (shouldMirror) => {
-  console.log('🪞 Aplicando espejo global:', shouldMirror);
-  
+    
   const selectors = [
     '[data-lk-participant-video]',
     'video[data-participant="local"]',
@@ -158,8 +157,7 @@ const CameraAudioSettings = ({
       }
 
     } catch (error) {
-      console.error('Error obteniendo dispositivos:', error);
-    } finally {
+          } finally {
       setLoading(false);
     }
   };
@@ -182,8 +180,7 @@ const CameraAudioSettings = ({
   };
   const startCameraPreviewImmediate = async (deviceId) => {
     try {
-      console.log('🎥 Iniciando preview INMEDIATO con cámara:', deviceId);
-      
+            
       // Detener preview anterior
       if (previewStreamRef.current) {
         previewStreamRef.current.getTracks().forEach(track => track.stop());
@@ -209,13 +206,11 @@ const CameraAudioSettings = ({
           }
         }, 100);
         
-        console.log('✅ Preview INMEDIATO iniciado correctamente');
-      } else if (videoRef.current) {
+              } else if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
     } catch (error) {
-      console.error('❌ Error en preview inmediato:', error);
-    }
+          }
   };
 
   // Preview de cámara mejorado (para uso normal)
@@ -233,8 +228,7 @@ const CameraAudioSettings = ({
       }
 
       if (selectedCamera && cameraEnabled && videoRef.current) {
-        console.log('🎥 Iniciando preview con cámara:', selectedCamera);
-        
+                
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { 
             deviceId: { exact: selectedCamera },
@@ -253,13 +247,11 @@ const CameraAudioSettings = ({
           }
         }, 100);
                 
-        console.log('✅ Preview iniciado correctamente');
-      } else if (videoRef.current) {
+              } else if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
     } catch (error) {
-      console.error('❌ Error iniciando preview de cámara:', error);
-    }
+          }
   };
 
   // Cambiar cámara usando las APIs correctas de LiveKit
@@ -269,8 +261,7 @@ const CameraAudioSettings = ({
 
       isChangingDeviceRef.current = true;
       setLoading(true);
-      console.log('🎥 Cambiando cámara en LiveKit a:', deviceId);
-      
+            
       // Detener preview temporalmente para evitar conflictos
       if (previewStreamRef.current) {
         previewStreamRef.current.getTracks().forEach(track => track.stop());
@@ -285,11 +276,9 @@ const CameraAudioSettings = ({
         // Opción 1: Usar switchActiveDevice si está disponible
         if (room && room.switchActiveDevice) {
           await room.switchActiveDevice('videoinput', deviceId);
-          console.log('✅ Dispositivo cambiado usando switchActiveDevice');
-        } else {
+                  } else {
           // Opción 2: Desactivar y reactivar con nuevo dispositivo
-          console.log('🔄 Usando método de reactivación...');
-          
+                    
           // Desactivar cámara actual
           await localParticipant.setCameraEnabled(false);
           
@@ -306,12 +295,10 @@ const CameraAudioSettings = ({
           // Reactivar con nuevo dispositivo
           await localParticipant.setCameraEnabled(true, { video: constraints });
           
-          console.log('✅ Cámara reactivada con nuevo dispositivo');
-        }
+                  }
         
       } catch (liveKitError) {
-        console.warn('⚠️ Método LiveKit falló, intentando método manual:', liveKitError);
-        
+                
         // Fallback: Método manual con replaceTrack
         const newStream = await navigator.mediaDevices.getUserMedia({
           video: { 
@@ -328,8 +315,7 @@ const CameraAudioSettings = ({
           const sender = videoTrackPub.track.sender;
           if (sender && sender.replaceTrack) {
             await sender.replaceTrack(newStream.getVideoTracks()[0]);
-            console.log('✅ Track reemplazado manualmente');
-          }
+                      }
         }
         
         // Limpiar stream temporal
@@ -337,17 +323,14 @@ const CameraAudioSettings = ({
       }
       
     } catch (error) {
-      console.error('❌ Error crítico cambiando cámara:', error);
-      
+            
       // Último recurso: reiniciar completamente
       try {
         await localParticipant.setCameraEnabled(false);
         await new Promise(resolve => setTimeout(resolve, 300));
         await localParticipant.setCameraEnabled(true);
-        console.log('✅ Cámara reiniciada como último recurso');
-      } catch (fallbackError) {
-        console.error('❌ Error en reinicio completo:', fallbackError);
-      }
+              } catch (fallbackError) {
+              }
     } finally {
       setLoading(false);
       isChangingDeviceRef.current = false;
@@ -368,17 +351,14 @@ const CameraAudioSettings = ({
 
       isChangingDeviceRef.current = true;
       setLoading(true);
-      console.log('🎤 Cambiando micrófono en LiveKit a:', deviceId);
-      
+            
       try {
         // Opción 1: Usar switchActiveDevice si está disponible
         if (room && room.switchActiveDevice) {
           await room.switchActiveDevice('audioinput', deviceId);
-          console.log('✅ Micrófono cambiado usando switchActiveDevice');
-        } else {
+                  } else {
           // Opción 2: Desactivar y reactivar con nuevo dispositivo
-          console.log('🔄 Usando método de reactivación para micrófono...');
-          
+                    
           await localParticipant.setMicrophoneEnabled(false);
           await new Promise(resolve => setTimeout(resolve, 300));
           
@@ -390,12 +370,10 @@ const CameraAudioSettings = ({
           };
           
           await localParticipant.setMicrophoneEnabled(true, { audio: constraints });
-          console.log('✅ Micrófono reactivado con nuevo dispositivo');
-        }
+                  }
         
       } catch (liveKitError) {
-        console.warn('⚠️ Método LiveKit falló para micrófono, intentando método manual:', liveKitError);
-        
+                
         // Fallback manual
         const newStream = await navigator.mediaDevices.getUserMedia({
           video: false,
@@ -413,25 +391,21 @@ const CameraAudioSettings = ({
           const sender = audioTrackPub.track.sender;
           if (sender && sender.replaceTrack) {
             await sender.replaceTrack(newStream.getAudioTracks()[0]);
-            console.log('✅ Track de audio reemplazado manualmente');
-          }
+                      }
         }
         
         newStream.getTracks().forEach(track => track.stop());
       }
       
     } catch (error) {
-      console.error('❌ Error cambiando micrófono:', error);
-      
+            
       // Fallback simple
       try {
         await localParticipant.setMicrophoneEnabled(false);
         await new Promise(resolve => setTimeout(resolve, 300));
         await localParticipant.setMicrophoneEnabled(true);
-        console.log('✅ Micrófono reiniciado como fallback');
-      } catch (fallbackError) {
-        console.error('❌ Error en fallback de micrófono:', fallbackError);
-      }
+              } catch (fallbackError) {
+              }
     } finally {
       setLoading(false);
       isChangingDeviceRef.current = false;
@@ -460,8 +434,7 @@ const CameraAudioSettings = ({
         }
       }
     } catch (error) {
-      console.error('Error toggling camera:', error);
-    }
+          }
   };
 
   const handleMicToggle = async (enabled) => {
@@ -469,8 +442,7 @@ const CameraAudioSettings = ({
       setMicEnabled(enabled);
       await localParticipant?.setMicrophoneEnabled(enabled);
     } catch (error) {
-      console.error('Error toggling microphone:', error);
-    }
+          }
   };
 
   // Manejar cambio de cámara con preview inmediato y aplicación retardada
@@ -481,8 +453,7 @@ const CameraAudioSettings = ({
     setSelectedCamera(deviceId);
     
     // 1. INMEDIATAMENTE mostrar en la vista previa
-    console.log('🎥 Cambiando preview inmediatamente a:', deviceId);
-    await startCameraPreviewImmediate(deviceId);
+        await startCameraPreviewImmediate(deviceId);
     
     // 2. Iniciar countdown visual
     if (cameraEnabled) {
@@ -503,8 +474,7 @@ const CameraAudioSettings = ({
       
       // 3. Después de 7 segundos, aplicar al videochat principal
       setTimeout(async () => {
-        console.log('🔄 Aplicando cambio de cámara al videochat principal...');
-        await changeCameraInLiveKit(deviceId);
+                await changeCameraInLiveKit(deviceId);
         setApplyingToMain(false);
         
         // 4. Limpiar preview después de aplicar
@@ -548,8 +518,7 @@ const CameraAudioSettings = ({
         const checkAudioLevel = () => {
           analyserRef.current.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((a, b) => a + b) / bufferLength;
-          console.log('Nivel de micrófono:', Math.round(average));
-        };
+                  };
 
         micTestIntervalRef.current = setInterval(checkAudioLevel, 100);
 
@@ -564,8 +533,7 @@ const CameraAudioSettings = ({
         }, 3000);
       }
     } catch (error) {
-      console.error('Error testing micrófono:', error);
-      setIsTesting(prev => ({ ...prev, mic: false }));
+            setIsTesting(prev => ({ ...prev, mic: false }));
     }
   };
 
@@ -590,8 +558,7 @@ const CameraAudioSettings = ({
       }, 2000);
 
     } catch (error) {
-      console.error('Error testing altavoces:', error);
-      setIsTesting(prev => ({ ...prev, speaker: false }));
+            setIsTesting(prev => ({ ...prev, speaker: false }));
     }
   };
  
@@ -628,10 +595,8 @@ const toggleFlipCamera = () => {
         await changeMicrophoneInLiveKit(selectedMicrophone);
       }
       
-      console.log('✅ Configuraciones guardadas y aplicadas');
-    } catch (error) {
-      console.error('❌ Error guardando configuraciones:', error);
-    }
+          } catch (error) {
+          }
   };
 
   // Cargar configuraciones guardadas
@@ -648,8 +613,7 @@ const toggleFlipCamera = () => {
       //   setVolume(settings.volume || 80);
       // }
     } catch (error) {
-      console.error('❌ Error cargando configuraciones:', error);
-    }
+          }
   };
 
   // Limpiar recursos

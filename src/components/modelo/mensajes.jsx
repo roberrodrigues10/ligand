@@ -147,16 +147,14 @@ export default function ChatPrivado() {
       await audio.play();
       console.log('🎵 Sonido de regalo reproducido correctamente');
     } catch (playError) {
-      console.error('❌ Error reproduciendo sonido de regalo:', playError);
-      if (playError.name === 'NotAllowedError') {
+            if (playError.name === 'NotAllowedError') {
         console.log('🚫 AUTOPLAY BLOQUEADO - Usando sonido alternativo');
         // Sonido alternativo más corto
         playAlternativeGiftSound();
       }
     }
   } catch (error) {
-    console.error('❌ Error general creando audio de regalo:', error);
-    playAlternativeGiftSound();
+        playAlternativeGiftSound();
   }
   }, []);
 
@@ -193,8 +191,7 @@ export default function ChatPrivado() {
       
       console.log('🎵 Sonido alternativo de regalo reproducido');
     } catch (error) {
-      console.error('❌ Error con sonido alternativo:', error);
-    }
+          }
   }, []);
 
   // 🎁 FUNCIÓN PARA REPRODUCIR NOTIFICACIÓN DE REGALO
@@ -220,8 +217,7 @@ export default function ChatPrivado() {
       
       console.log('🎉 Notificación completa de regalo ejecutada');
     } catch (error) {
-      console.error('❌ Error en notificación de regalo:', error);
-    }
+          }
   }, [playGiftReceivedSound]);
 
 
@@ -254,8 +250,7 @@ export default function ChatPrivado() {
       
       console.log(`📖 Marcado como leído: ${roomName}`);
     } catch (error) {
-      console.error('❌ Error marcando como leído:', error);
-    }
+          }
   }, [lastSeenMessages, getAuthHeaders]);
 
   // 🔥 CÁLCULOS MEMOIZADOS SIMPLIFICADOS
@@ -297,8 +292,7 @@ export default function ChatPrivado() {
         rol: userData.rol
       });
     } catch (error) {
-      console.error('❌ Error cargando usuario:', error);
-      // 🔥 USAR DATOS DE EJEMPLO COMO FALLBACK
+            // 🔥 USAR DATOS DE EJEMPLO COMO FALLBACK
       console.log('🔧 Usando datos de usuario de ejemplo...');
       setUsuario({
         id: 1,
@@ -360,10 +354,8 @@ export default function ChatPrivado() {
           console.log('ℹ️ No hay cambios en conversaciones');
         }
       } else {
-        console.error('❌ Error status:', response.status);
-        const errorText = await response.text();
-        console.error('Error details:', errorText);
-        
+                const errorText = await response.text();
+                
         // Solo usar datos de ejemplo si no hay conversaciones cargadas
         if (conversaciones.length === 0) {
           console.log('🔧 Usando datos de ejemplo...');
@@ -395,8 +387,7 @@ export default function ChatPrivado() {
         }
       }
     } catch (error) {
-      console.error('❌ Error de conexión:', error);
-      
+            
       // Solo usar datos de ejemplo si no hay conversaciones cargadas
       if (conversaciones.length === 0) {
         console.log('🔧 Usando datos de ejemplo por error de conexión...');
@@ -479,8 +470,7 @@ const cargarMensajes = useCallback(async (roomName) => {
     setMensajes(allMessages);
 
   } catch (error) {
-    console.error('❌ Error:', error);
-  }
+      }
 }, [getAuthHeaders, usuario.rol]);
   // 🔥 FUNCIÓN DE ENVÍO DE MENSAJES OPTIMIZADA
   const enviarMensaje = useCallback(async (tipo = 'text', contenido = null) => {
@@ -568,12 +558,10 @@ const cargarMensajes = useCallback(async (roomName) => {
       } else if (errorData.error === 'blocked_by_user') {
         alert('Este usuario te ha bloqueado');
       } else {
-        console.error('Error del servidor:', errorData);
-      }
+              }
     }
   } catch (error) {
-    console.error('❌ Error enviando mensaje:', error);
-  }
+      }
   }, [nuevoMensaje, conversacionActiva, conversacionSeleccionada, bloqueados, bloqueadoPor, getAuthHeaders, usuario, marcarComoVisto, cargarConversaciones]);
   
   const isChatBlocked = useCallback(() => {
@@ -646,8 +634,7 @@ const cargarMensajes = useCallback(async (roomName) => {
       }
       
     } catch (error) {
-      console.error('❌ Error cargando estados iniciales:', error);
-    }
+          }
   }, [usuario.id, getAuthHeaders]);
   // 🔥 FUNCIONES DE ACCIÓN SIMPLIFICADAS
   const toggleFavorito = useCallback(async (userId, userName) => {
@@ -674,8 +661,7 @@ const cargarMensajes = useCallback(async (roomName) => {
         }
       }
     } catch (error) {
-      console.error('❌ Error favorito:', error);
-    }
+          }
     setLoadingActions(false);
   }, [loadingActions, favoritos, getAuthHeaders]);
 
@@ -715,8 +701,7 @@ const cargarMensajes = useCallback(async (roomName) => {
         }
       }
     } catch (error) {
-      console.error('❌ Error bloquear:', error);
-    }
+          }
     setLoadingActions(false);
   }, [loadingActions, bloqueados, getAuthHeaders]);
 
@@ -775,8 +760,7 @@ const cargarMensajes = useCallback(async (roomName) => {
         });
       }
     } catch (error) {
-      console.error('❌ Error iniciando llamada:', error);
-      setIsCallActive(false);
+            setIsCallActive(false);
       setCurrentCall(null);
     }
   }, [getAuthHeaders]);
@@ -881,12 +865,10 @@ const cargarMensajes = useCallback(async (roomName) => {
       
       return result;
     } else {
-      console.error('❌ Error en solicitud:', result.error);
-      return result;
+            return result;
     }
   } catch (error) {
-    console.error('❌ Error de conexión:', error);
-    return { success: false, error: 'Error de conexión' };
+        return { success: false, error: 'Error de conexión' };
   }
   }, [requestGift, usuario.id, buildCompleteImageUrl, setMensajes, setConversaciones, mensajesRef]);
 
@@ -917,16 +899,14 @@ const cargarMensajes = useCallback(async (roomName) => {
         });
       }
     } else {
-      console.error('❌ Error en handleRequestGift:', result.error);
-      
+            
       // 🚨 MOSTRAR ERROR AL USUARIO
       alert(`Error al enviar solicitud: ${result.error}`);
     }
     
     return result;
   } catch (error) {
-    console.error('❌ Error inesperado en handleRequestGift:', error);
-    alert('Error inesperado al enviar solicitud');
+        alert('Error inesperado al enviar solicitud');
     return { success: false, error: 'Error inesperado' };
   } finally {
     setLoadingGift(false);
@@ -1012,8 +992,7 @@ const cargarMensajes = useCallback(async (roomName) => {
     }
 
   } catch (error) {
-    console.error('❌ Error en debug:', error);
-  }
+      }
 }, [generateSessionToken, conversacionSeleccionada, conversacionActiva, usuario.id, getAuthHeaders]);
 
 
@@ -1048,8 +1027,7 @@ const cargarMensajes = useCallback(async (roomName) => {
         setNicknameValue('');
       }
     } catch (error) {
-      console.error('❌ Error guardando apodo:', error);
-    }
+          }
   }, [nicknameTarget, nicknameValue, getAuthHeaders]);
 
   const renderMensaje = useCallback((mensaje) => {
@@ -1447,8 +1425,7 @@ const cargarMensajes = useCallback(async (roomName) => {
           }
         }
       } catch (error) {
-        console.error('❌ Error procesando chat pendiente:', error);
-        localStorage.removeItem('pendingChatOpen');
+                localStorage.removeItem('pendingChatOpen');
       }
     };
 
@@ -1579,8 +1556,7 @@ const cargarMensajes = useCallback(async (roomName) => {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                   }
                 } catch (error) {
-                  console.error('❌ Error procesando sonido de regalo:', error);
-                }
+                                  }
               }
             }
 
@@ -1620,8 +1596,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             console.log('ℹ️ No hay mensajes nuevos en ningún room');
           }
         } catch (error) {
-          console.error('❌ Error en polling de mensajes:', error);
-        }
+                  }
       }, 3000); // Cada 3 segundos
     }
     
@@ -1712,8 +1687,7 @@ const cargarMensajes = useCallback(async (roomName) => {
           setOnlineUsers(new Set([2, 3, 4, 5]));
         }
       } catch (error) {
-        console.error('❌ Error cargando usuarios online:', error);
-        // Fallback con datos simulados
+                // Fallback con datos simulados
         setOnlineUsers(new Set([2, 3, 4, 5]));
       }
     };

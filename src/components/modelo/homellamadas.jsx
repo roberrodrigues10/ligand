@@ -52,8 +52,7 @@ export default function InterfazCliente() {
     const token = localStorage.getItem("token");
     
     if (!token || token === 'null' || token === 'undefined') {
-      console.error('❌ TOKEN INVÁLIDO - Redirigiendo a login');
-      return {};
+            return {};
     }
     
     return {
@@ -98,8 +97,7 @@ export default function InterfazCliente() {
         }
       }
     } catch (error) {
-      console.error('❌ Error verificando si puede subir:', error);
-    }
+          }
   };
 
   // 🆕 CALCULAR TIEMPO RESTANTE
@@ -187,8 +185,7 @@ export default function InterfazCliente() {
       await checkExistingStory();
       await checkCanUpload();
     } catch (error) {
-      console.error('Error eliminando historia:', error);
-      notifications.deleteError();
+            notifications.deleteError();
     }
   };
 
@@ -211,8 +208,7 @@ export default function InterfazCliente() {
         }
       }
     } catch (error) {
-      console.error('❌ Error cargando usuarios bloqueados:', error);
-    } finally {
+          } finally {
       setLoadingBloqueados(false);
     }
   };
@@ -374,8 +370,7 @@ export default function InterfazCliente() {
         const userData = await getUser();
         setUser(userData);
       } catch (err) {
-        console.error("Error al obtener usuario:", err);
-      }
+              }
     };
     fetchUser();
   }, []);
@@ -422,8 +417,7 @@ export default function InterfazCliente() {
         }
       }
     } catch (error) {
-      console.error('❌ Error al verificar historia existente:', error);
-      if (error.response?.status === 401) {
+            if (error.response?.status === 401) {
         notifications.unauthorized();
       }
     } finally {
@@ -539,14 +533,12 @@ const playIncomingCallSound = async () => {
       await audio.play();
       console.log('🎵 AUDIO REPRODUCIÉNDOSE CORRECTAMENTE');
     } catch (playError) {
-      console.error('❌ Error al reproducir:', playError);
-      if (playError.name === 'NotAllowedError') {
+            if (playError.name === 'NotAllowedError') {
         console.log('🚫 AUTOPLAY BLOQUEADO - Necesita interacción del usuario');
       }
     }
   } catch (error) {
-    console.error('❌ Error general creando audio:', error);
-  }
+      }
 };
 
 const stopIncomingCallSound = () => {
@@ -637,16 +629,14 @@ const iniciarLlamadaReal = async (usuario) => {
       });
       iniciarPollingLlamada(data.call_id);
     } else {
-      console.error('❌ Error iniciando llamada:', data.error);
-      setIsCallActive(false);
+            setIsCallActive(false);
       setCurrentCall(null);
       
       // Usar sistema de notificaciones
       notifications.error(data.error || 'No se pudo completar la llamada');
     }
   } catch (error) {
-    console.error('❌ Error:', error);
-    setIsCallActive(false);
+        setIsCallActive(false);
     setCurrentCall(null);
     notifications.warning(t("client.errors.callRejected"));
   }
@@ -702,8 +692,7 @@ const iniciarPollingLlamada = (callId) => {
       }
       
     } catch (error) {
-      console.error('❌ Error verificando llamada:', error);
-    }
+          }
   }, 2000);
   
   setCallPollingInterval(interval);
@@ -747,8 +736,7 @@ const cancelarLlamada = async () => {
     }
     
   } catch (error) {
-    console.error('❌ Error cancelando llamada:', error);
-  }
+      }
   
   setIsCallActive(false);
   setCurrentCall(null);
@@ -833,13 +821,11 @@ const responderLlamada = async (accion) => {
         setIncomingCall(null);
       }
     } else {
-      console.error('❌ Error respondiendo llamada:', data.error);
-      setIsReceivingCall(false);
+            setIsReceivingCall(false);
       setIncomingCall(null);
     }
   } catch (error) {
-    console.error('❌ Error:', error);
-    setIsReceivingCall(false);
+        setIsReceivingCall(false);
     setIncomingCall(null);
   }
 };

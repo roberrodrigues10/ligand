@@ -392,8 +392,7 @@ export default function ChatPrivadoMobile() {
       return null;
       
     } catch (error) {
-      console.error('❌ [MOBILE] Error en traducción fallback:', error);
-      return `[ERROR] ${text}`;
+            return `[ERROR] ${text}`;
     }
   }, [detectLanguage]);
 
@@ -568,8 +567,7 @@ export default function ChatPrivadoMobile() {
         rol: userData.rol
       });
     } catch (error) {
-      console.error('❌ [MOBILE] Error cargando usuario:', error);
-      setUsuario({
+            setUsuario({
         id: 1,
         name: "Usuario Demo",
         rol: "modelo"
@@ -628,8 +626,7 @@ export default function ChatPrivadoMobile() {
         setConversaciones(exampleConversations);
       }
     } catch (error) {
-      console.error('❌ [MOBILE] Error de conexión:', error);
-    } finally {
+          } finally {
       if (conversaciones.length === 0) {
         setLoading(false);
       }
@@ -706,8 +703,7 @@ export default function ChatPrivadoMobile() {
         }
       }
     } catch (error) {
-      console.error('❌ [MOBILE] Error cargando mensajes:', error);
-    }
+          }
   };
 
   // 🔥 FUNCIÓN PARA INICIAR POLLING EN TIEMPO REAL
@@ -786,8 +782,7 @@ export default function ChatPrivadoMobile() {
         setMensajes(prev => prev.filter(m => m.id !== mensajeLocal.id));
       }
     } catch (error) {
-      console.error('❌ [MOBILE] Error enviando mensaje:', error);
-      // Si falla, remover el mensaje local
+            // Si falla, remover el mensaje local
       setMensajes(prev => prev.filter(m => m.id !== mensajeLocal.id));
     }
   };
@@ -877,8 +872,7 @@ export default function ChatPrivadoMobile() {
           }
         }
       } catch (error) {
-        console.error('❌ [MOBILE] Error procesando chat pendiente:', error);
-        localStorage.removeItem('pendingChatOpen');
+                localStorage.removeItem('pendingChatOpen');
       }
     };
 

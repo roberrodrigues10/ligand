@@ -170,8 +170,7 @@ export default function Header() {
         console.log('✅ Conversaciones cargadas:', data);
         setConversaciones(data.conversations || []);
       } else {
-        console.error('❌ Error cargando conversaciones:', response.status);
-        // Datos de ejemplo para desarrollo
+                // Datos de ejemplo para desarrollo
         const exampleConversations = [
           {
             id: 1,
@@ -201,8 +200,7 @@ export default function Header() {
         setConversaciones(exampleConversations);
       }
     } catch (error) {
-      console.error('❌ Error cargando conversaciones:', error);
-    }
+          }
   };
 
   // 🔥 CARGAR MENSAJES DE UNA CONVERSACIÓN
@@ -243,8 +241,7 @@ export default function Header() {
         setMensajes(exampleMessages);
       }
     } catch (error) {
-      console.error('Error cargando mensajes:', error);
-    }
+          }
   };
 
   // 🔥 ABRIR CONVERSACIÓN EN EL MODAL
@@ -286,8 +283,7 @@ export default function Header() {
           setNuevoMensaje("");
         }
       } else {
-        console.error('❌ Error enviando mensaje:', response.status);
-        // Para demo, agregar mensaje local
+                // Para demo, agregar mensaje local
         const nuevoMensajeObj = {
           id: Date.now(),
           user_id: usuario.id,
@@ -301,8 +297,7 @@ export default function Header() {
         setNuevoMensaje("");
       }
     } catch (error) {
-      console.error('❌ Error enviando mensaje:', error);
-    }
+          }
   };
 
   // 🔥 ENVIAR REGALO
@@ -356,8 +351,7 @@ export default function Header() {
               );
             }
           } catch (error) {
-            console.error('❌ Error en TranslatedMessage:', error);
-          }
+                      }
         }
         
         return <span className="text-white">{textoMensaje}</span>;
@@ -425,8 +419,7 @@ export default function Header() {
           setUsuario({ id: 1, name: t('common.user', "Usuario") });
         }
       } catch (error) {
-        console.error('Error cargando usuario:', error);
-        setUsuario({ id: 1, name: t('common.user', "Usuario") });
+                setUsuario({ id: 1, name: t('common.user', "Usuario") });
       }
     };
 
@@ -481,12 +474,10 @@ export default function Header() {
         console.log('📊 Conteo global actualizado:', totalUnread);
         
       } else {
-        console.error('❌ Error obteniendo conversaciones:', response.status);
-        setGlobalUnreadCount(6); // Ejemplo
+                setGlobalUnreadCount(6); // Ejemplo
       }
     } catch (error) {
-      console.error('❌ Error en polling global:', error);
-      setGlobalUnreadCount(6);
+            setGlobalUnreadCount(6);
     }
   };
 

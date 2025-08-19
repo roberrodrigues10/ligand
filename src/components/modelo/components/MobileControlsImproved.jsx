@@ -61,21 +61,18 @@ const MobileControlsImproved = ({
   
   useEffect(() => {
     if (!isUserChangingCamera.current) {
-      console.log('🔄 [SYNC] Actualizando cámara local:', currentCameraId || selectedCamera);
-      setLocalSelectedCamera(currentCameraId || selectedCamera);
+            setLocalSelectedCamera(currentCameraId || selectedCamera);
     }
   }, [currentCameraId, selectedCamera]);
 
   useEffect(() => {
     if (!isUserChangingMicrophone.current) {
-      console.log('🔄 [SYNC] Actualizando micrófono local:', currentMicrophoneId || selectedMicrophone);
-      setLocalSelectedMicrophone(currentMicrophoneId || selectedMicrophone);
+            setLocalSelectedMicrophone(currentMicrophoneId || selectedMicrophone);
     }
   }, [currentMicrophoneId, selectedMicrophone]);
   
   const handleCameraChangeInternal = (deviceId) => {
-    console.log('🎥 [MÓVIL] Cambiando cámara a:', deviceId);
-    
+        
     // Marcar que el usuario está cambiando la cámara
     isUserChangingCamera.current = true;
     
@@ -92,8 +89,7 @@ const MobileControlsImproved = ({
   };
 
   const handleMicrophoneChangeInternal = (deviceId) => {
-    console.log('🎤 [MÓVIL] Cambiando micrófono a:', deviceId);
-    
+        
     // Marcar que el usuario está cambiando el micrófono
     isUserChangingMicrophone.current = true;
     
@@ -110,8 +106,7 @@ const MobileControlsImproved = ({
   };  
 
   const handleLoadDevicesInternal = () => {
-    console.log(`🔄 [${isModelView ? 'MODELO' : 'USUARIO'}] Recargando dispositivos...`);
-    onLoadDevices();
+        onLoadDevices();
   };
 
   const handleGiftClick = () => {
@@ -154,14 +149,12 @@ const MobileControlsImproved = ({
 
   // Función para abrir/cerrar configuración
   const toggleSettings = () => {
-    console.log('🔧 Toggle settings:', !showMainSettings);
-    setShowMainSettings(!showMainSettings);
+        setShowMainSettings(!showMainSettings);
   };
 
   // Función para cerrar configuración
   const closeSettings = () => {
-    console.log('🔧 Cerrando configuración');
-    setShowMainSettings(false);
+        setShowMainSettings(false);
   };
 
   // Función para manejar tecla Escape
