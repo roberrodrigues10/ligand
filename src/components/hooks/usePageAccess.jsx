@@ -22,6 +22,7 @@ export function usePageAccess() {
         '/esperandocallcliente', 
         '/videochatclient',
         '/message',
+        '/mensajesmobileclient',
         '/favoritesboy',
         '/usersearch', // 🔍 Compartida con modelo
         '/settings'
@@ -32,6 +33,7 @@ export function usePageAccess() {
       allowedPaths: [
         '/homellamadas',
         '/mensajes',
+        '/mensajesmobile',
         '/favorites', 
         '/historysu',
         '/esperandocall',

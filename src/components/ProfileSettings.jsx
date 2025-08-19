@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Upload, Trash2, User, Globe, X, Check, AlertCircle } from 'lucide-react';
+import Header from "../components/modelo/header";
+
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -74,24 +76,37 @@ const ProfileSettings = ({ t }) => {
   }, [stream]);
 
   const cargarInfoUsuario = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/profile/info`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setUserInfo(data.user);
-          setNuevoApodo(data.user.nickname || '');
-          setIdiomaSeleccionado(data.user.preferred_language || 'es');
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/profile/info`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        setUserInfo(data.user);
+        setNuevoApodo(data.user.nickname || '');
+        setIdiomaSeleccionado(data.user.preferred_language || 'es');
+        
+        // 🔥 SINCRONIZAR AQUÍ TAMBIÉN - FORZAR ACTUALIZACIÓN
+        if (data.user.preferred_language) {
+          localStorage.setItem('userPreferredLanguage', data.user.preferred_language);
+          localStorage.setItem('selectedLanguage', data.user.preferred_language);
+          console.log('🔄 ProfileSettings FORZÓ sincronización:', data.user.preferred_language);
+          
+          // 🔥 FORZAR ACTUALIZACIÓN DE i18next
+          if (window.i18n && typeof window.i18n.changeLanguage === 'function') {
+            window.i18n.changeLanguage(data.user.preferred_language);
+            console.log('🌍 i18next FORZADO a:', data.user.preferred_language);
+          }
         }
       }
-    } catch (error) {
-      console.error('Error cargando info del usuario:', error);
     }
-  };
+  } catch (error) {
+    console.error('Error cargando info del usuario:', error);
+  }
+};
 
   const mostrarMensaje = (tipo, texto) => {
     setMensaje({ tipo, texto });
@@ -342,6 +357,8 @@ const ProfileSettings = ({ t }) => {
 
   // 🌍 FUNCIONES DE GESTIÓN DE IDIOMA
 
+  // 🌍 FUNCIONES DE GESTIÓN DE IDIOMA - MODIFICACIÓN
+
   const guardarIdioma = async () => {
     setLoading(true);
     try {
@@ -354,10 +371,23 @@ const ProfileSettings = ({ t }) => {
       const data = await response.json();
       
       if (data.success) {
+        // 🔥 ACTUALIZAR EL ESTADO DEL COMPONENTE
         setUserInfo(prev => ({ 
           ...prev, 
           preferred_language: data.preferred_language 
         }));
+        
+        // 🔥 ACTUALIZAR EL LOCALSTORAGE
+        localStorage.setItem('userPreferredLanguage', data.preferred_language);
+        localStorage.setItem('selectedLanguage', data.preferred_language);
+        console.log('🌍 Idioma guardado en localStorage:', data.preferred_language);
+        
+        // 🔥 OPCIONAL: TAMBIÉN ACTUALIZAR i18next SI ESTÁ DISPONIBLE
+        if (window.i18n && typeof window.i18n.changeLanguage === 'function') {
+          window.i18n.changeLanguage(data.preferred_language);
+          console.log('🌍 Idioma actualizado en i18next:', data.preferred_language);
+        }
+        
         mostrarMensaje('success', `Idioma cambiado a ${data.language_name}`);
         cerrarModal();
       } else {
@@ -365,6 +395,7 @@ const ProfileSettings = ({ t }) => {
       }
     } catch (error) {
       mostrarMensaje('error', 'Error de conexión al actualizar el idioma');
+      console.error('Error actualizando idioma:', error);
     } finally {
       setLoading(false);
     }

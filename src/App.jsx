@@ -4,6 +4,7 @@ import { initializeAuth } from "./utils/auth";
 
 // 🔥 IMPORTAR AMBOS SISTEMAS DE PROTECCIÓN
 import { ProtectedPage } from "./components/hooks/usePageAccess.jsx";
+import useUserLanguage  from "./components/hooks/useUserLanguage.js";
 import { RegistrationProtectedPage } from "./components/hooks/useRegistrationAccess.jsx";
 
 import LigandHome from "./components/ligandHome";
@@ -18,6 +19,7 @@ import Esperando from "./components/verificacion/register/esperandoverifi";
 
 import HomeLlamadas from "./components/modelo/homellamadas.jsx";
 import Mensajes from "./components/modelo/mensajes.jsx";
+import MensajesMobile from "./components/modelo/mensajesmobile.jsx";
 import Favoritos from "./components/modelo/favorites.jsx";
 import HistorySub from "./components/modelo/historysu.jsx";
 import EsperancoCall from "./components/modelo/esperacall.jsx";
@@ -27,6 +29,7 @@ import VideochatClient from "./components/client/videochatclient";
 import ConfiPerfil from "./components/modelo/confiperfil.jsx";
 import ConfiClient from "./components/client/configclient.jsx";
 import MessageClient from "./components/client/message.jsx"
+import MensajesMobileClient from "./components/client/mensajesmobileclient.jsx"
 import Favoritesboy from "./components/client/favoritesclient.jsx"
 import ResetPasswordPage from './components/verificacion/login/ResetPasswordPage.jsx';
 
@@ -51,7 +54,7 @@ function App() {
   useEffect(() => {
     initializeAuth();
   }, []);
-
+  useUserLanguage();
   return (
     <BrowserRouter>
       <RateLimitProvider>
@@ -174,6 +177,14 @@ function App() {
                       } 
                     />
                     <Route 
+                      path="/mensajesmobileclient" 
+                      element={
+                        <ProtectedPage>
+                          <MensajesMobileClient />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
                       path="/favoritesboy" 
                       element={
                         <ProtectedPage>
@@ -204,6 +215,14 @@ function App() {
                       element={
                         <ProtectedPage>
                           <Mensajes />
+                        </ProtectedPage>
+                      } 
+                    />
+                    <Route 
+                      path="/mensajesmobile" 
+                      element={
+                        <ProtectedPage>
+                          <MensajesMobile />
                         </ProtectedPage>
                       } 
                     />

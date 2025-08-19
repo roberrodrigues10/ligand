@@ -135,7 +135,7 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
       let token = null;
       
       // 🔑 SEGÚN TUS LOGS, EL TOKEN ESTÁ EN sessionStorage con nombre 'token'
-      token = sessionStorage.getItem('token');
+      token = localStorage.getItem('token');
       
       // Fallback: Intentar otras ubicaciones
       if (!token) {
@@ -420,15 +420,6 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
                       >
                         <MessageSquare size={18} />
                         <span className="hidden sm:block">Mensaje</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => handleCall(model.id, model.name)}
-                        className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-lg transition-colors flex items-center gap-2 font-medium"
-                        title="Hacer llamada"
-                      >
-                        <Phone size={18} />
-                        <span className="hidden sm:block">Llamar</span>
                       </button>
                     </div>
                   </div>

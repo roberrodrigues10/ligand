@@ -198,7 +198,7 @@ export default function VerificacionIdentidad() {
       return;
     }
 
-    console.log('📤 Enviando verificación desde:', {
+    console.log('📤 Enviando verificación con chunks desde:', {
       dispositivo: navigator.userAgent.includes('Mobile') ? 'Móvil' : 'Desktop',
       userAgent: navigator.userAgent,
       archivos: {
@@ -209,7 +209,7 @@ export default function VerificacionIdentidad() {
       }
     });
 
-    // Validaciones adicionales para móvil
+    // Validaciones de tamaño
     const maxImageSize = 5 * 1024 * 1024; // 5MB
     const maxVideoSize = 100 * 1024 * 1024; // 100MB
     
@@ -233,48 +233,123 @@ export default function VerificacionIdentidad() {
       return;
     }
 
-    const formData = new FormData();
-    
-    // Agregar archivos con validación
     try {
+      setEnviando(true);
+      setMensaje({ tipo: "info", texto: `📤 Preparando archivos...` });
+
+              // ========== FUNCIÓN PARA SUBIR VIDEO POR CHUNKS ==========
+      const subirVideoPorChunks = async (videoFile) => {
+        // Chunks más grandes para reducir requests
+        const CHUNK_SIZE = 1.5 * 1024 * 1024; // 1.5MB por chunk (bajo límite de 2MB)
+        const totalChunks = Math.ceil(videoFile.size / CHUNK_SIZE);
+        const uploadId = `upload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        console.log(`🎬 Iniciando subida por chunks optimizada:`, {
+          videoSize: `${(videoFile.size / 1024 / 1024).toFixed(2)}MB`,
+          totalChunks,
+          chunkSize: `${(CHUNK_SIZE / 1024 / 1024).toFixed(1)}MB`,
+          uploadId
+        });
+
+        // Subir chunks con reintentos
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+          const start = chunkIndex * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, videoFile.size);
+          const chunk = videoFile.slice(start, end);
+          
+          const progreso = Math.round(((chunkIndex + 1) / totalChunks) * 70); // 70% para video chunks
+          setMensaje({ 
+            tipo: "info", 
+            texto: `📤 Subiendo video... ${progreso}% (${chunkIndex + 1}/${totalChunks} partes)` 
+          });
+
+          // Función para subir un chunk con reintentos
+          const subirChunkConReintentos = async (intentos = 3) => {
+            for (let intento = 1; intento <= intentos; intento++) {
+              try {
+                const chunkFormData = new FormData();
+                chunkFormData.append('chunk', chunk);
+                chunkFormData.append('chunkIndex', chunkIndex);
+                chunkFormData.append('totalChunks', totalChunks);
+                chunkFormData.append('uploadId', uploadId);
+                chunkFormData.append('originalName', videoFile.name || 'video.mp4');
+                
+                const response = await api.post(`${API_BASE_URL}/api/verificacion/upload-chunk`, chunkFormData, {
+                  headers: { 'Content-Type': 'multipart/form-data' },
+                  timeout: 15000 // 15 segundos por chunk (más rápido)
+                });
+                
+                console.log(`✅ Chunk ${chunkIndex + 1}/${totalChunks} subido (intento ${intento}):`, response.data);
+                return; // Éxito, salir del loop de reintentos
+                
+              } catch (chunkError) {
+                console.warn(`⚠️ Chunk ${chunkIndex + 1} falló en intento ${intento}:`, chunkError.message);
+                
+                if (intento === intentos) {
+                  // Último intento, lanzar error
+                  throw new Error(`Chunk ${chunkIndex + 1} falló después de ${intentos} intentos: ${chunkError.response?.data?.message || chunkError.message}`);
+                }
+                
+                // Esperar antes del siguiente intento
+                await new Promise(resolve => setTimeout(resolve, 1000 * intento));
+              }
+            }
+          };
+
+          await subirChunkConReintentos();
+        }
+        
+        return uploadId;
+      };
+
+      // 1. Subir video por chunks (si es mayor a 1.5MB)
+      let videoUploadId = null;
+      if (video.size > 1.5 * 1024 * 1024) { // Si es mayor a 1.5MB, usar chunks
+        videoUploadId = await subirVideoPorChunks(video);
+        setMensaje({ tipo: "info", texto: `✅ Video subido por chunks. Enviando imágenes...` });
+      }
+
+      // 2. Crear FormData con imágenes y referencia del video
+      const formData = new FormData();
       formData.append("selfie", imagenes.selfie, imagenes.selfie.name || 'selfie.jpg');
       formData.append("documento", imagenes.documento, imagenes.documento.name || 'documento.jpg');
       formData.append("selfie_doc", imagenes.selfieDoc, imagenes.selfieDoc.name || 'selfie_doc.jpg');
-      formData.append("video", video, video.name || 'video.mp4');
       
-      console.log('📋 FormData creado exitosamente con archivos:', {
+      if (videoUploadId) {
+        // Si se subió por chunks, enviar solo el ID
+        formData.append("video_upload_id", videoUploadId);
+      } else {
+        // Si es pequeño, enviar normal
+        formData.append("video", video, video.name || 'video.mp4');
+      }
+      
+      console.log('📋 FormData final creado:', {
         selfie: formData.get('selfie'),
         documento: formData.get('documento'), 
         selfie_doc: formData.get('selfie_doc'),
-        video: formData.get('video')
+        video_upload_id: formData.get('video_upload_id'),
+        video_directo: formData.get('video')
       });
-      
-    } catch (error) {
-      console.error('❌ Error creando FormData:', error);
-      setMensaje({ tipo: "error", texto: "Error preparando archivos para envío. Intenta nuevamente." });
-      return;
-    }
 
-    try {
-      setEnviando(true);
-      setMensaje({ tipo: "info", texto: `📤 ${t('verificacion.messages.sending')}` });
+      // 3. Enviar verificación final
+      setMensaje({ tipo: "info", texto: `📤 Finalizando verificación...` });
       
       const response = await api.post(`${API_BASE_URL}/api/verificacion`, formData, {
-        headers: { 
-          'Content-Type': 'multipart/form-data'
-        },
-        timeout: 120000, // 2 minutos timeout para móviles
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000, // 1 minuto para el request final
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          const progresoTotal = 70 + Math.round(percentCompleted * 0.3); // 70% video + 30% imágenes
           setMensaje({ 
             tipo: "info", 
-            texto: `📤 Subiendo... ${percentCompleted}%` 
+            texto: `📤 Finalizando... ${progresoTotal}%` 
           });
         }
       });
 
       console.log('✅ Verificación enviada exitosamente:', response.data);
 
+      // Limpiar estado
       setImagenes({ selfie: null, documento: null, selfieDoc: null });
       setPreviewImagenes({ selfie: null, documento: null, selfieDoc: null });
       setVideo(null);
@@ -290,13 +365,9 @@ export default function VerificacionIdentidad() {
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
-        message: error.message,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          timeout: error.config?.timeout
-        }
+        message: error.message
       });
+
       if (error.response?.status === 422) {
         const errores = error.response.data.errors || {};
         let mensajeError = `❌ ${t('verificacion.messages.validationError')}\n\n`;
@@ -306,6 +377,8 @@ export default function VerificacionIdentidad() {
         setMensaje({ tipo: "error", texto: mensajeError });
       } else if (error.response?.status === 413) {
         setMensaje({ tipo: "error", texto: `📁 ${t('verificacion.messages.fileTooLarge')}` });
+      } else if (error.message.includes('chunk')) {
+        setMensaje({ tipo: "error", texto: `❌ Error subiendo video: ${error.message}` });
       } else {
         setMensaje({ tipo: "error", texto: `❌ ${t('verificacion.messages.genericError')}` });
       }

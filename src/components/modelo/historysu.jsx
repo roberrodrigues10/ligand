@@ -226,7 +226,7 @@ export default function SubirHistoria() {
   // 🆕 Verificar si puede subir historia
   const checkCanUpload = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       
       if (!token || token === 'null' || token === 'undefined') {
         console.warn('❌ Token inválido o no encontrado');
@@ -302,7 +302,7 @@ export default function SubirHistoria() {
     try {
       setLoadingStory(true);
       
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       
       if (!token || token === 'null' || token === 'undefined') {
         console.warn('❌ Token inválido o no encontrado');

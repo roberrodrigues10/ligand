@@ -84,9 +84,12 @@ export default function ChatPrivado() {
   const globalPollingInterval = useRef(null);
   const openChatWith = location.state?.openChatWith;
   const hasOpenedSpecificChat = useRef(false);
-  // 🔥 FUNCIONES MEMOIZADAS (DEFINIR PRIMERO)
+
+
+
+
   const getAuthHeaders = useCallback(() => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -1370,9 +1373,119 @@ const cargarMensajes = useCallback(async (roomName) => {
       }
     }
   }, [usuario.id, usuario.rol, cargarEstadosIniciales]);
+  useEffect(() => {
+    const checkPendingChat = () => {
+      try {
+        const pendingChat = localStorage.getItem('pendingChatOpen');
+        
+        if (pendingChat) {
+          const chatInfo = JSON.parse(pendingChat);
+          console.log('🔍 Chat pendiente detectado:', chatInfo);
+          
+          // Verificar que sea reciente (menos de 10 segundos)
+          const now = Date.now();
+          const timeDiff = now - chatInfo.timestamp;
+          
+          if (timeDiff < 10000 && chatInfo.shouldOpen) { // 10 segundos
+            console.log('✅ Abriendo chat pendiente...');
+            
+            // Buscar si la conversación ya existe
+            const existingConv = conversaciones.find(conv => 
+              conv.other_user_id === chatInfo.clientId || 
+              conv.room_name === chatInfo.roomName
+            );
+            
+            if (existingConv) {
+              console.log('📂 Conversación existente encontrada');
+              abrirConversacion(existingConv);
+            } else {
+              console.log('📝 Creando nueva conversación...');
+              
+              // Crear conversación temporal
+              const nuevaConversacion = {
+                id: chatInfo.conversationId || Date.now(),
+                other_user_id: chatInfo.clientId,
+                other_user_name: chatInfo.clientName,
+                other_user_role: 'cliente',
+                room_name: chatInfo.roomName,
+                last_message: "Conversación iniciada - Envía tu primer mensaje",
+                last_message_time: new Date().toISOString(),
+                last_message_sender_id: null,
+                unread_count: 0,
+                avatar: `https://i.pravatar.cc/40?u=${chatInfo.clientId}`
+              };
+              
+              // Agregar a la lista
+              setConversaciones(prev => {
+                // Verificar que no existe
+                const exists = prev.some(conv => 
+                  conv.other_user_id === chatInfo.clientId ||
+                  conv.room_name === chatInfo.roomName
+                );
+                
+                if (!exists) {
+                  console.log('➕ Agregando nueva conversación');
+                  return [nuevaConversacion, ...prev];
+                }
+                return prev;
+              });
+              
+              // Abrir la conversación
+              setTimeout(() => {
+                abrirConversacion(nuevaConversacion);
+              }, 100);
+            }
+            
+            // Limpiar localStorage
+            localStorage.removeItem('pendingChatOpen');
+            console.log('🧹 Chat pendiente procesado y limpiado');
+            
+          } else {
+            console.log('⏰ Chat pendiente expirado o ya procesado');
+            localStorage.removeItem('pendingChatOpen');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error procesando chat pendiente:', error);
+        localStorage.removeItem('pendingChatOpen');
+      }
+    };
 
-  // Polling de mensajes en conversación activa - TIEMPO REAL
- // 🔥 REEMPLAZA tu useEffect actual con esta versión modificada:
+    // Verificar cada vez que cambien las conversaciones (cuando se carguen)
+    if (conversaciones.length > 0) {
+      checkPendingChat();
+    }
+    
+    // También verificar al cargar el componente
+    if (usuario.id) {
+      setTimeout(checkPendingChat, 500); // Pequeño delay para asegurar que todo esté cargado
+    }
+
+  }, [conversaciones, usuario.id, abrirConversacion]);
+
+  useEffect(() => {
+    cargarDatosUsuario();
+    
+    // Cargar última vez visto desde localStorage
+    const savedLastSeen = JSON.parse(localStorage.getItem('chatLastSeen') || '{}');
+    setLastSeenMessages(savedLastSeen);
+    
+    // Pedir permisos para notificaciones
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        console.log(`🔔 Permisos de notificación: ${permission}`);
+      });
+    }
+    
+    // 🔥 VERIFICAR CHAT PENDIENTE AL CARGAR
+    setTimeout(() => {
+      const pendingChat = localStorage.getItem('pendingChatOpen');
+      if (pendingChat) {
+        console.log('🔍 Chat pendiente detectado al cargar componente');
+      }
+    }, 1000);
+    
+  }, []); // 👈 Mantén las dependencias como están
 
   useEffect(() => {
     let interval;
@@ -1616,78 +1729,91 @@ const cargarMensajes = useCallback(async (roomName) => {
 
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1c20] to-[#2b2d31] text-white p-6">
-      <div className="relative">
-        <Header />
-        
-        {/* Botón chat móvil */}
-        {isMobile && conversacionActiva && !showSidebar && (
-          <button
-            onClick={() => setShowSidebar(true)}
-            className="fixed top-[29px] right-24 z-[100] bg-[#ff007a] hover:bg-[#cc0062] p-2 rounded-full shadow-xl transition-colors"
-          >
-            <MessageSquare size={18} className="text-white" />
-            {/* Mostrar conteo global en botón móvil */}
-            {totalUnreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse border-2 border-white">
-                {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
-              </div>
-            )}
-          </button>
-        )}
-      </div>
+  <div className="min-h-screen bg-gradient-to-br from-[#1a1c20] to-[#2b2d31] text-white">
+    {/* 🔥 AGREGAR META VIEWPORT SI NO EXISTE */}
+    <div className="relative">
+      <Header />
+      
+      {/* Botón chat móvil - ARREGLADO */}
+      {isMobile && conversacionActiva && !showSidebar && (
+        <button
+          onClick={() => setShowSidebar(true)}
+          className="fixed top-4 right-4 z-[60] bg-[#ff007a] hover:bg-[#cc0062] p-3 rounded-full shadow-xl transition-colors"
+        >
+          <MessageSquare size={20} className="text-white" />
+          {totalUnreadCount > 0 && (
+            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse border-2 border-white">
+              {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+            </div>
+          )}
+        </button>
+      )}
+    </div>
 
-      <div className="p-2">
-        <div className={`flex rounded-xl overflow-hidden shadow-lg ${
-          isMobile ? 'h-[calc(100vh-80px)]' : 'h-[83vh]'
-        } border border-[#ff007a]/10 relative`}>
+    {/* 🔥 CONTENEDOR PRINCIPAL CON ALTURA FIJA MÓVIL */}
+    <div className="px-2 pb-2">
+      <div className={`flex rounded-xl overflow-hidden shadow-lg border border-[#ff007a]/10 relative ${
+        isMobile 
+          ? 'h-[calc(100vh-80px)] min-h-[500px]' // Altura fija en móvil
+          : 'h-[83vh]'
+      }`}>
+        
+        {/* Sidebar de conversaciones - ARREGLADO */}
+        <aside className={`${
+          isMobile
+            ? `fixed inset-0 z-50 bg-[#2b2d31] transform transition-transform duration-300 ease-in-out ${
+                showSidebar ? 'translate-x-0' : '-translate-x-full'
+              }`
+            : 'w-1/3 bg-[#2b2d31]'
+        } flex flex-col overflow-hidden`}>
           
-          {/* Sidebar de conversaciones */}
-          <aside className={`${
-            isMobile
-              ? `fixed inset-y-0 left-0 z-40 w-full bg-[#2b2d31] transform transition-transform ${
-                  showSidebar ? 'translate-x-0' : '-translate-x-full'
-                }`
-              : 'w-1/3 bg-[#2b2d31]'
-          } p-4 overflow-y-auto`}>
-            
-            {isMobile && (
+          {/* Header sidebar móvil */}
+          {isMobile && (
+            <div className="flex justify-between items-center p-4 border-b border-[#ff007a]/20">
+              <h2 className="text-lg font-semibold text-white">Conversaciones</h2>
               <button
                 onClick={() => setShowSidebar(false)}
-                className="absolute top-4 right-4 text-white/60 hover:text-white"
+                className="text-white/60 hover:text-white p-2 hover:bg-[#3a3d44] rounded-lg transition-colors"
               >
-                <X size={20} />
+                <X size={24} />
               </button>
-            )}
+            </div>
+          )}
 
+          {/* Contenido del sidebar */}
+          <div className="flex-1 overflow-hidden flex flex-col p-4">
             {/* Búsqueda */}
-            <div className="relative mb-4">
+            <div className="relative mb-4 flex-shrink-0">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/50" />
               <input
                 type="text"
-                placeholder={t('chat.searchPlaceholder')}
+                placeholder="Buscar conversaciones..."
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-[#1a1c20] text-white placeholder-white/60 outline-none focus:ring-2 focus:ring-[#ff007a]/50"
                 value={busquedaConversacion}
                 onChange={(e) => setBusquedaConversacion(e.target.value)}
               />
             </div>
 
-            {/* Lista de conversaciones */}
-            <div className="space-y-2">
+            {/* Lista de conversaciones - SCROLL ARREGLADO */}
+            <div className="flex-1 overflow-y-auto space-y-2" style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#ff007a #2b2d31'
+            }}>
               {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#ff007a] mx-auto mb-2"></div>
-                  <p className="text-xs text-white/60">{t('chat.loading')}</p>
+                  <p className="text-xs text-white/60">Cargando...</p>
                 </div>
               ) : conversacionesFiltradas.length === 0 ? (
                 <div className="text-center py-8">
                   <MessageSquare size={32} className="text-white/30 mx-auto mb-2" />
-                  <p className="text-sm text-white/60">{t('chat.noConversations')}</p>
+                  <p className="text-sm text-white/60">No hay conversaciones</p>
                 </div>
               ) : (
                 conversacionesFiltradas.map((conv) => {
                   const isOnline = onlineUsers.has(conv.other_user_id);
                   const unreadCount = calculateUnreadCount(conv);
+                  const blockStatus = getBlockStatus(conv.other_user_id);
 
                   return (
                     <div
@@ -1700,14 +1826,13 @@ const cargarMensajes = useCallback(async (roomName) => {
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="relative">
+                        <div className="relative flex-shrink-0">
                           <div className="w-10 h-10 bg-gradient-to-br from-[#ff007a] to-[#cc0062] rounded-full flex items-center justify-center text-white font-bold text-sm">
                             {getInitial(getDisplayName(conv.other_user_id, conv.other_user_name))}
                           </div>
                           
-                          {/* Indicador de estado: Online/Offline o Bloqueado */}
+                          {/* Indicador de estado */}
                           {(() => {
-                            const blockStatus = getBlockStatus(conv.other_user_id);
                             if (blockStatus === 'yo_bloquee') {
                               return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#2b2d31]" title="Bloqueado por ti" />;
                             } else if (blockStatus === 'me_bloquearon') {
@@ -1734,14 +1859,14 @@ const cargarMensajes = useCallback(async (roomName) => {
                           </p>
                           <div className="text-xs text-white/60 truncate">
                             {conv.last_message_sender_id === usuario.id ? (
-                              <span><span className="text-white/40">{t('chat.you')}</span> {conv.last_message}</span>
+                              <span><span className="text-white/40">Tú:</span> {conv.last_message}</span>
                             ) : (
                               conv.last_message
                             )}
                           </div>
                         </div>
 
-                        <div className="text-right">
+                        <div className="text-right flex-shrink-0">
                           <span className="text-xs text-white/40">
                             {formatearTiempo(conv.last_message_time)}
                           </span>
@@ -1752,468 +1877,378 @@ const cargarMensajes = useCallback(async (roomName) => {
                 })
               )}
             </div>
-          </aside>
+          </div>
+        </aside>
 
-          {/* Panel de chat */}
-          <section className={`${
-            isMobile
-              ? `${showSidebar ? 'hidden' : 'w-full h-full'}`
-              : 'w-2/3'
-          } bg-[#0a0d10] flex flex-col relative overflow-hidden`}>
-            
-            {!conversacionActiva ? (
-              !isMobile && (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <MessageSquare size={48} className="text-white/30 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold mb-2">{t('chat.selectConversation')}</h3>
-                    <p className="text-white/60">{t('chat.selectConversationDesc')}</p>
+        {/* Panel de chat - ARREGLADO PARA MÓVIL */}
+        <section className={`${
+          isMobile
+            ? `${showSidebar ? 'hidden' : 'w-full h-full'}`
+            : 'w-2/3'
+        } bg-[#0a0d10] flex flex-col relative overflow-hidden`}>
+          
+          {!conversacionActiva ? (
+            !isMobile && (
+              <div className="flex-1 flex items-center justify-center p-4">
+                <div className="text-center">
+                  <MessageSquare size={48} className="text-white/30 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">Selecciona una conversación</h3>
+                  <p className="text-white/60">Elige una conversación para ver los mensajes</p>
+                </div>
+              </div>
+            )
+          ) : (
+            <>
+              {/* Header de conversación - ARREGLADO */}
+              <div className="bg-[#2b2d31] px-4 py-3 flex justify-between items-center border-b border-[#ff007a]/20 flex-shrink-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  {/* Botón volver en móvil */}
+                  {isMobile && (
+                    <button
+                      onClick={() => setShowSidebar(true)}
+                      className="text-white hover:text-[#ff007a] transition-colors p-1 mr-2"
+                    >
+                      <ArrowLeft size={20} />
+                    </button>
+                  )}
+                  
+                  <div className="relative flex-shrink-0">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#ff007a] to-[#cc0062] rounded-full flex items-center justify-center text-white font-bold text-sm">
+                      {getInitial(conversacionSeleccionada?.other_user_name)}
+                    </div>
+                    {/* Indicador estado en header */}
+                    {(() => {
+                      const blockStatus = getBlockStatus(conversacionSeleccionada?.other_user_id);
+                      if (blockStatus === 'yo_bloquee') {
+                        return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#2b2d31]" />;
+                      } else if (blockStatus === 'me_bloquearon') {
+                        return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-[#2b2d31]" />;
+                      } else if (blockStatus === 'mutuo') {
+                        return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-700 rounded-full border-2 border-[#2b2d31]" />;
+                      } else {
+                        return <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${
+                          onlineUsers.has(conversacionSeleccionada?.other_user_id) ? 'bg-green-500' : 'bg-gray-500'
+                        }`} />;
+                      }
+                    })()}
+                  </div>
+                  
+                  <div className="min-w-0 flex-1">
+                    <span className="font-semibold block truncate">
+                      {getDisplayName(conversacionSeleccionada?.other_user_id, conversacionSeleccionada?.other_user_name)}
+                    </span>
+                    {/* Estado de bloqueo */}
+                    {conversacionSeleccionada && (() => {
+                      const blockStatus = getBlockStatus(conversacionSeleccionada.other_user_id);
+                      if (blockStatus === 'yo_bloquee') {
+                        return (
+                          <span className="text-xs text-red-400 flex items-center">
+                            <Ban size={12} className="mr-1" />
+                            Bloqueado por ti
+                          </span>
+                        );
+                      } else if (blockStatus === 'me_bloquearon') {
+                        return (
+                          <span className="text-xs text-orange-400 flex items-center">
+                            <Ban size={12} className="mr-1" />
+                            Te bloqueó
+                          </span>
+                        );
+                      } else if (blockStatus === 'mutuo') {
+                        return (
+                          <span className="text-xs text-red-600 flex items-center">
+                            <Ban size={12} className="mr-1" />
+                            Bloqueo mutuo
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
-              )
-            ) : (
-              <>
-                {/* Header de conversación */}
-                <div className="bg-[#2b2d31] px-5 py-3 flex justify-between items-center border-b border-[#ff007a]/20">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 bg-gradient-to-br from-[#ff007a] to-[#cc0062] rounded-full flex items-center justify-center text-white font-bold text-sm">
-                        {getInitial(conversacionSeleccionada?.other_user_name)}
-                      </div>
-                      {/* Indicador de estado en header */}
-                      {(() => {
-                        const blockStatus = getBlockStatus(conversacionSeleccionada?.other_user_id);
-                        if (blockStatus === 'yo_bloquee') {
-                          return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#2b2d31]" title="Bloqueado por ti" />;
-                        } else if (blockStatus === 'me_bloquearon') {
-                          return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-[#2b2d31]" title="Te bloqueó" />;
-                        } else if (blockStatus === 'mutuo') {
-                          return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-700 rounded-full border-2 border-[#2b2d31]" title="Bloqueo mutuo" />;
-                        } else {
-                          return <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${
-                            onlineUsers.has(conversacionSeleccionada?.other_user_id) ? 'bg-green-500' : 'bg-gray-500'
-                          }`} title={onlineUsers.has(conversacionSeleccionada?.other_user_id) ? 'En línea' : 'Desconectado'} />;
-                        }
-                      })()}
-                    </div>
-                    <div>
-                      <span className="font-semibold block">
-                        {getDisplayName(conversacionSeleccionada?.other_user_id, conversacionSeleccionada?.other_user_name)}
-                      </span>
-                      {/* Mostrar estado de bloqueo */}
-                      {conversacionSeleccionada && (() => {
-                        const blockStatus = getBlockStatus(conversacionSeleccionada.other_user_id);
-                        if (blockStatus === 'yo_bloquee') {
-                          return (
-                            <span className="text-xs text-red-400">
-                              <Ban size={12} className="inline mr-1" />
-                              {t('chat.status.blockedByYou')}
-                            </span>
-                          );
-                        } else if (blockStatus === 'me_bloquearon') {
-                          return (
-                            <span className="text-xs text-orange-400">
-                              <Ban size={12} className="inline mr-1" />
-                              {t('chat.status.blockedYou')}
-                            </span>
-                          );
-                        } else if (blockStatus === 'mutuo') {
-                          return (
-                            <span className="text-xs text-red-600">
-                              <Ban size={12} className="inline mr-1" />
-                              {t('chat.status.mutualBlock')}
-                            </span>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-2">
+                {/* Botones de acción - RESPONSIVE */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => iniciarLlamadaReal(
+                      conversacionSeleccionada?.other_user_id,
+                      conversacionSeleccionada?.other_user_name
+                    )}
+                    disabled={isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))}
+                    className={`px-2 py-2 rounded-lg text-sm transition-colors flex items-center gap-1 ${
+                      isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))
+                        ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
+                        : 'bg-[#ff007a]/20 hover:bg-[#ff007a]/30 text-[#ff007a]'
+                    }`}
+                  >
+                    <Video size={16} />
+                    {!isMobile && (
+                      conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
+                        ? 'Bloqueado'
+                        : isCallActive
+                          ? 'Llamando...'
+                          : 'Video'
+                    )}
+                  </button>
+
+                  {usuario.rol === 'modelo' && (
                     <button
-                      onClick={() => iniciarLlamadaReal(
-                        conversacionSeleccionada?.other_user_id,
-                        conversacionSeleccionada?.other_user_name
-                      )}
-                      disabled={isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))}
-                      className={`px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${
-                        isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))
+                      onClick={() => setShowGiftsModal(true)}
+                      disabled={conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)}
+                      className={`px-2 py-2 rounded-lg text-xs hover:scale-105 transition-transform flex items-center gap-1 ${
+                        conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
                           ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
-                          : 'bg-[#ff007a]/20 hover:bg-[#ff007a]/30 text-[#ff007a]'
+                          : 'bg-gradient-to-r from-purple-500 to-pink-500'
                       }`}
-                      title={
-                        conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
-                          ? 'No disponible - usuario bloqueado'
-                          : isCallActive
-                            ? 'Llamada en curso'
-                            : 'Iniciar videochat'
-                      }
                     >
-                      <Video size={16} />
-                      {!isMobile && (
-                        conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
-                          ? 'Bloqueado'
-                          : isCallActive
-                            ? 'Llamando...'
-                            : 'Videochat'
-                      )}
+                      <Gift size={14} />
+                      {!isMobile && 'Regalo'}
+                    </button>
+                  )}
+
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowMainSettings(!showMainSettings)}
+                      className="text-white hover:text-[#ff007a] transition-colors p-2 hover:bg-[#3a3d44] rounded-lg"
+                    >
+                      <Settings size={18} />
                     </button>
 
-                    {usuario.rol === 'modelo' && (
-                      <button
-                        onClick={() => setShowGiftsModal(true)}
-                        disabled={conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)}
-                        className={`px-4 py-2 rounded-full text-xs hover:scale-105 transition-transform flex items-center gap-2 ${
-                          conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
-                            ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-purple-500 to-pink-500'
-                        }`}
-                        title={conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id) ? 'No disponible - usuario bloqueado' : 'Pedir regalos'}
-                      >
-                        <Gift size={16} />
-                        {!isMobile && (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id) ? 'Bloqueado' : 'Pedir Regalo')}
-                      </button>
-                    )}
-
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowMainSettings(!showMainSettings)}
-                        className="text-white hover:text-[#ff007a] transition-colors p-2 hover:bg-[#3a3d44] rounded-lg"
-                      >
-                        <Settings size={20} />
-                      </button>
-
-                      {showMainSettings && (
-                        <div className="absolute right-0 mt-2 bg-[#1f2125] border border-[#ff007a]/30 rounded-xl shadow-lg z-50 w-64">
-                          <button
-                            onClick={() => {
-                              setShowTranslationSettings(true);
-                              setShowMainSettings(false);
-                            }}
-                            className="w-full flex items-center gap-3 p-3 hover:bg-[#2b2d31] transition text-left group"
-                          >
-                            <Globe className="text-[#ff007a]" size={20} />
-                            <div className="flex-1">
-                              <span className="text-white text-sm font-medium">{t('chat.menu.translation')}</span>
-                              <div className="text-xs text-gray-400">
-                                {translationSettings?.enabled ? 'Activa' : 'Inactiva'}
-                              </div>
+                    {/* Menú settings responsivo */}
+                    {showMainSettings && (
+                      <div className={`absolute ${isMobile ? 'right-0' : 'right-0'} mt-2 bg-[#1f2125] border border-[#ff007a]/30 rounded-xl shadow-lg z-50 ${
+                        isMobile ? 'w-56' : 'w-64'
+                      }`}>
+                        {/* Contenido del menú igual pero más compacto en móvil */}
+                        <button
+                          onClick={() => {
+                            setShowTranslationSettings(true);
+                            setShowMainSettings(false);
+                          }}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-[#2b2d31] transition text-left group"
+                        >
+                          <Globe className="text-[#ff007a]" size={18} />
+                          <div className="flex-1">
+                            <span className="text-white text-sm font-medium">Traducción</span>
+                            <div className="text-xs text-gray-400">
+                              {translationSettings?.enabled ? 'Activa' : 'Inactiva'}
                             </div>
-                            <ArrowRight className="text-gray-400" size={16} />
-                          </button>
+                          </div>
+                          <ArrowRight className="text-gray-400" size={14} />
+                        </button>
 
-                          <button
-                            onClick={() => {
-                              toggleFavorito(
-                                conversacionSeleccionada?.other_user_id,
-                                conversacionSeleccionada?.other_user_name
+                        <button
+                          onClick={() => {
+                            toggleFavorito(
+                              conversacionSeleccionada?.other_user_id,
+                              conversacionSeleccionada?.other_user_name
+                            );
+                            setShowMainSettings(false);
+                          }}
+                          disabled={loadingActions}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#2b2d31] text-sm text-white"
+                        >
+                          {loadingActions ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ff007a]"></div>
+                          ) : (
+                            <Star 
+                              size={16} 
+                              className={favoritos.has(conversacionSeleccionada?.other_user_id) ? 'fill-yellow-400 text-yellow-400' : 'text-white'} 
+                            />
+                          )}
+                          {favoritos.has(conversacionSeleccionada?.other_user_id)
+                            ? 'Quitar Favorito'
+                            : 'Agregar Favorito'
+                          }
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (conversacionSeleccionada) {
+                              abrirModalApodo(
+                                conversacionSeleccionada.other_user_id,
+                                conversacionSeleccionada.other_user_name
                               );
-                              setShowMainSettings(false);
-                            }}
-                            disabled={loadingActions}
-                            className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm text-white"
-                          >
-                            {loadingActions ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ff007a]"></div>
-                            ) : (
-                              <Star 
-                                size={16} 
-                                className={favoritos.has(conversacionSeleccionada?.other_user_id) ? 'fill-yellow-400 text-yellow-400' : 'text-white'} 
-                              />
-                            )}
-                            {favoritos.has(conversacionSeleccionada?.other_user_id)
-                              ? 'Quitar Favorito'
-                              : 'Agregar Favorito'
                             }
-                          </button>
+                            setShowMainSettings(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 hover:bg-[#2b2d31] text-sm text-white transition-colors"
+                        >
+                          <Pencil size={14} />
+                          Cambiar apodo
+                        </button>
 
-                          <button
-                            onClick={() => {
-                              if (conversacionSeleccionada) {
-                                abrirModalApodo(
-                                  conversacionSeleccionada.other_user_id,
-                                  conversacionSeleccionada.other_user_name
-                                );
-                              }
-                              setShowMainSettings(false);
-                            }}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#2b2d31] text-sm text-white transition-colors"
-                          >
-                            <Pencil size={16} />
-                            {t('chat.menu.changeNickname')}
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              if (conversacionSeleccionada) {
-                                toggleBloquear(
-                                  conversacionSeleccionada.other_user_id,
-                                  conversacionSeleccionada.other_user_name
-                                );
-                              }
-                              setShowMainSettings(false);
-                            }}
-                            disabled={loadingActions}
-                            className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#2b2d31] text-sm text-red-400"
-                          >
-                            {loadingActions ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
-                            ) : (
-                              <Ban size={16} />
-                            )}
-                            {bloqueados.has(conversacionSeleccionada?.other_user_id)
-                              ? 'Desbloquear'
-                              : 'Bloquear'
+                        <button
+                          onClick={() => {
+                            if (conversacionSeleccionada) {
+                              toggleBloquear(
+                                conversacionSeleccionada.other_user_id,
+                                conversacionSeleccionada.other_user_name
+                              );
                             }
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                            setShowMainSettings(false);
+                          }}
+                          disabled={loadingActions}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#2b2d31] text-sm text-red-400"
+                        >
+                          {loadingActions ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
+                          ) : (
+                            <Ban size={14} />
+                          )}
+                          {bloqueados.has(conversacionSeleccionada?.other_user_id)
+                            ? 'Desbloquear'
+                            : 'Bloquear'
+                          }
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
+              </div>
 
-                {/* Mensajes + Indicador de bloqueo */}
-                <div
-                  ref={mensajesRef}
-                  className="flex-1 overflow-y-auto p-4 space-y-3"
-                  style={{
-                    scrollbarWidth: 'thin',
-                    scrollbarColor: '#ff007a #2b2d31'
-                  }}
-                >
-                  {/* INDICADOR DE USUARIO BLOQUEADO */}
-                  {conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id) && (
-                    <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-3">
-                        <Ban size={20} className="text-red-400" />
-                        <div className="flex-1">
-                          <p className="text-red-300 font-semibold">🚫 {t('chat.status.userBlocked')}</p>
-                          <p className="text-red-200 text-sm mb-3">
-                            {t('chat.status.userBlockedDesc', { 
-                              name: getDisplayName(conversacionSeleccionada.other_user_id, conversacionSeleccionada.other_user_name) 
-                            })}
-                          </p>
-                          <button
-                            onClick={() => {
-                              if (confirm(t('chat.status.confirmUnblock', { name: conversacionSeleccionada.other_user_name }))) {
-                                toggleBloquear(conversacionSeleccionada.other_user_id, conversacionSeleccionada.other_user_name);
-                              }
-                            }}
-                            disabled={loadingActions}
-                            className="bg-[#ff007a] hover:bg-[#e6006f] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-                          >
-                            {loadingActions ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                {t('chat.status.unblocking')}
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                                </svg>
-                                {t('chat.status.unblockUser')}
-                              </>
-                            )}
-                          </button>
-                        </div>
+              {/* Mensajes - SCROLL ARREGLADO PARA MÓVIL */}
+              <div
+                ref={mensajesRef}
+                className="flex-1 overflow-y-auto p-4 space-y-3"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#ff007a #2b2d31',
+                  // 🔥 IMPORTANTE: Webkit scroll para móviles
+                  WebkitOverflowScrolling: 'touch'
+                }}
+              >
+                {/* Indicador de bloqueo */}
+                {conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id) && (
+                  <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <Ban size={20} className="text-red-400 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-red-300 font-semibold">🚫 Usuario Bloqueado</p>
+                        <p className="text-red-200 text-sm mb-3">
+                          Has bloqueado a <span className="font-bold">{getDisplayName(conversacionSeleccionada.other_user_id, conversacionSeleccionada.other_user_name)}</span>.
+                        </p>
+                        <button
+                          onClick={() => {
+                            if (confirm(`¿Desbloquear a ${conversacionSeleccionada.other_user_name}?`)) {
+                              toggleBloquear(conversacionSeleccionada.other_user_id, conversacionSeleccionada.other_user_name);
+                            }
+                          }}
+                          disabled={loadingActions}
+                          className="bg-[#ff007a] hover:bg-[#e6006f] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                        >
+                          {loadingActions ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              Desbloqueando...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                              </svg>
+                              Desbloquear Usuario
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* NOTIFICACIÓN DE MENSAJE NUEVO EN TIEMPO REAL */}
-                  {conversacionActiva && (
-                    <div className="hidden" id="mensaje-nuevo-sound">
-                      {/* Audio para notificación de mensaje (opcional) */}
-                      <audio id="message-sound" preload="auto">
-                        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmYgBTGH0fPTgjMIHm7A7qONLwcZat3lqOm8dKVMf7zNwpO/tPe0BQAABCQ=" type="audio/wav"/>
-                      </audio>
-                    </div>
-                  )}
+                {mensajes.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <p className="text-white/60">No hay mensajes aún</p>
+                  </div>
+                ) : (
+                  mensajes.map((mensaje) => {
+                    const esUsuarioActual = mensaje.user_id === usuario.id;
 
-                  {mensajes.length === 0 ? (
-                    <div className="flex-1 flex items-center justify-center">
-                      <p className="text-white/60">{t('chat.noMessages')}</p>
-                    </div>
-                  ) : (
-                    mensajes.map((mensaje) => {
-                      const esUsuarioActual = mensaje.user_id === usuario.id;
-
-                      return (
-                        <div key={mensaje.id} className={`flex ${esUsuarioActual ? "justify-end" : "justify-start"}`}>
-                          <div className="flex flex-col max-w-sm">
-                            {!esUsuarioActual && (
-                              <div className="flex items-center gap-2 mb-1 px-2">
-                                <div className="w-5 h-5 bg-gradient-to-br from-[#ff007a] to-[#cc0062] rounded-full flex items-center justify-center text-white font-bold text-xs">
-                                  {getInitial(mensaje.user_name)}
-                                </div>
-                                <span className="text-xs text-white/60">{mensaje.user_name}</span>
+                    return (
+                      <div key={mensaje.id} className={`flex ${esUsuarioActual ? "justify-end" : "justify-start"}`}>
+                        <div className={`flex flex-col ${isMobile ? 'max-w-[280px]' : 'max-w-sm'}`}>
+                          {!esUsuarioActual && (
+                            <div className="flex items-center gap-2 mb-1 px-2">
+                              <div className="w-5 h-5 bg-gradient-to-br from-[#ff007a] to-[#cc0062] rounded-full flex items-center justify-center text-white font-bold text-xs">
+                                {getInitial(mensaje.user_name)}
                               </div>
-                            )}
-                            <div
-                              className={`relative px-4 py-2 rounded-2xl text-sm ${
+                              <span className="text-xs text-white/60">{mensaje.user_name}</span>
+                            </div>
+                          )}
+                          <div
+                            className={`relative px-4 py-2 rounded-2xl text-sm ${
                               mensaje.type === 'gift_request' || mensaje.type === 'gift_sent' || mensaje.type === 'gift_received'
-                                  ? '' // Sin fondo para gift_request
-                                  : esUsuarioActual
-                                    ? "bg-[#ff007a] text-white rounded-br-md shadow-lg"
-                                    : mensaje.type === 'gift'
-                                      ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-bl-md shadow-lg"
-                                      : "bg-[#2b2d31] text-white/80 rounded-bl-md shadow-lg"
-                              }`}
-                            >
-                              {renderMensaje(mensaje)}
-                              <div className="text-xs opacity-70 mt-1">
-                                {formatearTiempo(mensaje.created_at)}
-                              </div>
+                                ? '' // Sin fondo para regalos
+                                : esUsuarioActual
+                                  ? "bg-[#ff007a] text-white rounded-br-md shadow-lg"
+                                  : mensaje.type === 'gift'
+                                    ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-bl-md shadow-lg"
+                                    : "bg-[#2b2d31] text-white/80 rounded-bl-md shadow-lg"
+                            }`}
+                          >
+                            {renderMensaje(mensaje)}
+                            <div className="text-xs opacity-70 mt-1">
+                              {formatearTiempo(mensaje.created_at)}
                             </div>
                           </div>
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* Panel de regalos y emojis - DESHABILITADO SI ESTÁ BLOQUEADO */}
-                <div className="bg-[#2b2d31] px-4 py-2 border-t border-[#ff007a]/10">
-                  {isChatBlocked() ? (
-                    // Mensaje cuando está bloqueado
-                    <div className="text-center py-3">
-                      <p className="text-red-400 text-sm">
-                        <Ban size={16} className="inline mr-2" />
-                        {bloqueados.has(conversacionSeleccionada?.other_user_id) 
-                          ? t('chat.status.cannotSendGiftsBlocked')
-                          : t('chat.status.userBlockedYouGifts')
-                        }
-                      </p>
-                    </div>
-                  ) : (
-                    // Panel normal de regalos y emojis
-                    <div className={`flex gap-2 mb-2 ${isMobile ? 'flex-wrap' : ''}`}>
-                      
-                    </div>
-                  )}
-                </div>
-
-                {/* Input mensaje */}
-                <div className={`bg-[#2b2d31] border-t border-[#ff007a]/20 flex gap-3 ${
-                  isMobile ? 'p-3 pb-safe-area-inset-bottom sticky bottom-0 z-10' : 'p-4'
-                }`}>
-                  <input
-                    type="text"
-                    placeholder={
-                      isChatBlocked()
-                        ? bloqueados.has(conversacionSeleccionada?.other_user_id)
-                          ? t('chat.status.cannotSendBlocked')
-                          : t('chat.status.userBlockedYou')
-                        : t('chat.messagePlaceholder')
-                    }
-                    className={`flex-1 px-4 py-2 rounded-full outline-none placeholder-white/60 ${
-                      isChatBlocked()
-                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                        : 'bg-[#1a1c20] text-white focus:ring-2 focus:ring-[#ff007a]/50'
-                    }`}
-                    value={nuevoMensaje}
-                    onChange={(e) => {
-                      if (!isChatBlocked()) {
-                        setNuevoMensaje(e.target.value);
-                      }
-                    }}
-                    onKeyDown={(e) => e.key === "Enter" && !isChatBlocked() && enviarMensaje()}
-                    disabled={isChatBlocked()}
-                  />
-                  <button
-                    onClick={() => enviarMensaje()}
-                    disabled={!nuevoMensaje.trim() || isChatBlocked()}
-                    className={`px-6 py-2 rounded-full font-semibold transition-colors flex items-center gap-2 ${
-                      isChatBlocked()
-                        ? 'bg-gray-600 cursor-not-allowed text-gray-400'
-                        : !nuevoMensaje.trim()
-                          ? 'bg-gray-600 cursor-not-allowed text-gray-400'
-                          : 'bg-[#ff007a] hover:bg-[#e6006e] text-white'
-                    }`}
-                  >
-                    <Send size={16} />
-                    {!isMobile && (
-                      isChatBlocked() 
-                        ? bloqueados.has(conversacionSeleccionada?.other_user_id) 
-                          ? t('chat.blocked') 
-                          : t('chat.status.blockedYou')
-                        : t('chat.send')
-                    )}
-                  </button>
-                </div>
-              </>
-            )}
-          </section>
-        </div>
-      </div>
-
-      {/* Modal de apodos */}
-      {showNicknameModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-[#1f2125] border border-[#ff007a]/30 rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6 border-b border-[#ff007a]/20">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white">{t('chat.nickname.title')}</h3>
-                <button
-                  onClick={() => {
-                    setShowNicknameModal(false);
-                    setNicknameTarget(null);
-                    setNicknameValue('');
-                  }}
-                  className="text-white/60 hover:text-white p-2 hover:bg-[#3a3d44] rounded-lg transition-colors"
-                >
-                  <X size={20} />
-                </button>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-              <p className="text-white/70 text-sm mt-2">
-                {t('chat.nickname.description', { name: nicknameTarget?.userName })}
-              </p>
-            </div>
 
-            <div className="p-6">
-              <div className="mb-4">
-                <label className="block text-white text-sm font-medium mb-2">
-                  {t('chat.nickname.label')}
-                </label>
+              {/* Input mensaje - ARREGLADO PARA MÓVIL */}
+              <div className={`bg-[#2b2d31] border-t border-[#ff007a]/20 flex gap-2 flex-shrink-0 ${
+                isMobile ? 'p-3 safe-area-inset-bottom' : 'p-4'
+              }`}>
                 <input
                   type="text"
-                  value={nicknameValue}
-                  onChange={(e) => setNicknameValue(e.target.value)}
-                  maxLength={20}
-                  placeholder={t('chat.nickname.placeholder')}
-                  className="w-full px-4 py-3 bg-[#1a1c20] text-white placeholder-white/60 rounded-lg outline-none focus:ring-2 focus:ring-[#ff007a]/50 border border-[#3a3d44]"
+                  placeholder={
+                    isChatBlocked()
+                      ? bloqueados.has(conversacionSeleccionada?.other_user_id)
+                        ? "Usuario bloqueado"
+                        : "Te bloqueó"
+                      : "Escribe un mensaje..."
+                  }
+                  className={`flex-1 px-4 py-3 rounded-full outline-none placeholder-white/60 text-sm ${
+                    isChatBlocked()
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1a1c20] text-white focus:ring-2 focus:ring-[#ff007a]/50'
+                  }`}
+                  value={nuevoMensaje}
+                  onChange={(e) => {
+                    if (!isChatBlocked()) {
+                      setNuevoMensaje(e.target.value);
+                    }
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && !isChatBlocked() && enviarMensaje()}
+                  disabled={isChatBlocked()}
                 />
-                <p className="text-xs text-white/50 mt-1">
-                  {t('chat.nickname.charactersCount', { current: nicknameValue.length, max: 20 })}
-                </p>
+                <button
+                  onClick={() => enviarMensaje()}
+                  disabled={!nuevoMensaje.trim() || isChatBlocked()}
+                  className={`px-4 py-3 rounded-full font-semibold transition-colors flex items-center gap-2 flex-shrink-0 ${
+                    isChatBlocked()
+                      ? 'bg-gray-600 cursor-not-allowed text-gray-400'
+                      : !nuevoMensaje.trim()
+                        ? 'bg-gray-600 cursor-not-allowed text-gray-400'
+                        : 'bg-[#ff007a] hover:bg-[#e6006e] text-white'
+                  }`}
+                >
+                  <Send size={16} />
+                  {!isMobile && (
+                    isChatBlocked() 
+                      ? 'Bloqueado'
+                      : 'Enviar'
+                  )}
+                </button>
               </div>
-            </div>
-
-            <div className="p-6 border-t border-[#ff007a]/20 flex gap-3">
-              <button
-                onClick={() => {
-                  setShowNicknameModal(false);
-                  setNicknameTarget(null);
-                  setNicknameValue('');
-                }}
-                className="flex-1 bg-[#3a3d44] hover:bg-[#4a4d54] text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                {t('chat.nickname.cancel')}
-              </button>
-              <button
-                onClick={guardarApodo}
-                disabled={!nicknameValue.trim()}
-                className="flex-1 bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {t('chat.nickname.save')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+            </>
+          )}
+        </section>
+      </div>
+    </div>
       {/* Overlay móvil */}
       {isMobile && showSidebar && (
         <div

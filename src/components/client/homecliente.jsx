@@ -874,23 +874,6 @@ export default function InterfazCliente() {
             <span className="text-white/50">Minutos:</span>
             <span className="text-white/70">{userBalance.minutes_available || 0}</span>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-white/50">Estado:</span>
-            <span className={
-              (userBalance.total_coins || userBalance.total_available || 0) <= 29
-                ? "text-red-400"
-                : (userBalance.total_coins || userBalance.total_available || 0) <= 39
-                  ? "text-yellow-400"
-                  : "text-green-400"
-            }>
-              {(userBalance.total_coins || userBalance.total_available || 0) <= 29
-                ? "❌ Insuficiente"
-                : (userBalance.total_coins || userBalance.total_available || 0) <= 39
-                  ? "⚠️ Mínimo"
-                  : "✅ Estable"
-              }
-            </span>
-          </div>
         </div>
       </div>
     );
@@ -1001,7 +984,7 @@ export default function InterfazCliente() {
           <aside className="flex flex-col gap-2 h-[82vh] overflow-y-auto">
             <SaldoWidget />
             {/* Chicas activas */}
-            <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg h-1/2">
+            <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg h-[44vh]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-[#ff007a]">
                   Chicas Activas
@@ -1115,27 +1098,14 @@ export default function InterfazCliente() {
               )}
             </section>
 
-            {/* Historial */}
-            <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg h-1/2">
-              <h3 className="text-lg font-bold text-[#ff007a] mb-4 text-center">Tu Historial</h3>
-              <div className="space-y-3 h-[calc(100%-4rem)] overflow-y-auto pr-2">
-                {historial.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex justify-between items-start bg-[#1f2125] p-3 rounded-xl hover:bg-[#25282c] transition-colors duration-200"
-                  >
-                    <div className="flex gap-3 items-center">
-                      <div className="w-9 h-9 bg-pink-400 text-[#1a1c20] font-bold rounded-full flex items-center justify-center text-sm">
-                        {item.nombre.charAt(0)}
-                      </div>
-                      <div className="text-sm">
-                        <p className="font-medium">{item.nombre}</p>
-                        <p className="text-white/60 text-xs">{item.accion}</p>
-                      </div>
-                    </div>
-                    <div className="text-right text-white/40 text-xs">{item.hora}</div>
-                  </div>
-                ))}
+            <section className="bg-[#2b2d31] rounded-2xl p-5 shadow-lg h-[20vh]">
+              <h3 className="text-lg font-bold text-[#ff007a] mb-4 text-center">
+                Tu Historial
+              </h3>
+              <div className="space-y-3 h-[calc(100%-4rem)] overflow-y-auto pr-2 flex flex-col items-center justify-center">
+                <p className="text-gray-400 text-center text-sm">
+                  Próximamente disponible
+                </p>
               </div>
             </section>
           </aside>

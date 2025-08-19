@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import LanguageSelector from "../languageSelector.jsx";
 import ModelEarnings from './ModelEarnings.jsx';
 import MiniChatVideocall, { useVideocallChat } from './MiniChatVideocall.jsx';
-import SearchClientsModal from './SearchClientsModal.jsx'; // 👈 IMPORTAR EL MODAL DE BÚSQUEDA
+import SearchClientsModal from './SearchClientsModal.jsx';
 
 // 🔥 IMPORTAR TU SISTEMA DE TRADUCCIÓN
 import {
@@ -49,17 +49,6 @@ export default function Header() {
   const toggleMenu = () => setMenuAbierto(!menuAbierto);
   const toggleMobileMenu = () => setMobileMenuAbierto(!mobileMenuAbierto);
 
-  // 👈 FUNCIÓN PARA ABRIR MODAL DE BÚSQUEDA
-  const handleOpenSearch = () => {
-    console.log('🔍 Abriendo modal de búsqueda de clientes...');
-    setShowSearchModal(true);
-  };
-
-  // 👈 FUNCIÓN PARA CERRAR MODAL DE BÚSQUEDA
-  const handleCloseSearch = () => {
-    console.log('🚪 Cerrando modal de búsqueda...');
-  };
-
   // 👈 FUNCIÓN PARA ABRIR MODAL DE HISTORIAS
   const handleOpenStories = () => {
     console.log('🎬 Abriendo modal de historias...');
@@ -72,136 +61,39 @@ export default function Header() {
     setShowStoriesModal(false);
   };
 
-  // 👈 FUNCIÓN PARA MANEJAR MENSAJES DESDE LA BÚSQUEDA
-  const handleMessageFromSearch = async (clientId, clientName) => {
-    console.log('🚀 [DEBUG] Iniciando handleMessageFromSearch');
-    console.log('📩 [DEBUG] Datos recibidos:', { clientId, clientName });
+  // 👈 FUNCIÓN PARA MANEJAR BÚSQUEDA
+  const handleOpenSearch = () => {
+    console.log('🔍 Abriendo modal de búsqueda...');
+    setShowSearchModal(true);
+  };
+
+  // Función para cerrar modal
+  const handleCloseSearch = () => {
+    console.log('🚪 Cerrando modal de búsqueda...');
+    setShowSearchModal(false);
+  };
+
+  // 🔥 FUNCIÓN PARA DETECTAR SI ES MÓVIL
+  const isMobile = () => {
+    return window.innerWidth < 768;
+  };
+
+  // 🔥 NUEVA FUNCIÓN SIMPLE - Solo navega al chat
+  const handleMessageFromSearch = (clientId, clientName) => {
+    console.log('📩 Navegando al chat con:', clientName);
     
-    try {
-      // 🔥 STEP 1: Verificar token
-      const token = localStorage.getItem('token');
-      console.log('🔑 [DEBUG] Token:', token ? 'ENCONTRADO' : 'NO ENCONTRADO');
-      
-      if (!token) {
-        console.error('❌ [DEBUG] No hay token de autenticación');
-        alert('Error de autenticación');
-        return;
-      }
-
-      // 🔥 STEP 2: Preparar datos del request
-      const API_URL = 'http://localhost:8000/api/chat/start-conversation';
-      const payload = { other_user_id: parseInt(clientId) }; // Asegurar que sea número
-      
-      console.log('🔧 [DEBUG] Configuración del request:', {
-        url: API_URL,
-        method: 'POST',
-        payload,
-        headers: {
-          'Authorization': `Bearer ${token.substring(0, 10)}...`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-
-      // 🔥 STEP 3: Hacer el request
-      console.log('📡 [DEBUG] Enviando request...');
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      console.log('📡 [DEBUG] Respuesta del servidor:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
-      // 🔥 STEP 4: Procesar respuesta
-      let data;
-      try {
-        data = await response.json();
-        console.log('📥 [DEBUG] Data recibida completa:', JSON.stringify(data, null, 2));
-      } catch (parseError) {
-        console.error('❌ [DEBUG] Error parseando JSON:', parseError);
-        const textResponse = await response.text();
-        console.error('❌ [DEBUG] Respuesta como texto:', textResponse);
-        throw new Error(`Error parseando respuesta: ${parseError.message}`);
-      }
-
-      // 🔥 STEP 5: Verificar éxito
-      if (data.success) {
-        console.log('✅ [DEBUG] Conversación iniciada exitosamente');
-        console.log('✅ [DEBUG] Datos de conversación:', data.conversation);
-
-        setShowSearchModal(false);
-        
-        // 🔥 STEP 6: Preparar navegación
-        const navigationState = { 
-          openChatWith: {
-            id: data.conversation.id,
-            room_name: data.conversation.room_name,
-            other_user_id: parseInt(clientId),
-            other_user_name: clientName,
-            other_user_role: data.conversation.other_user_role,
-            session_id: data.session_id
-          }
-        };
-        
-        console.log('🧭 [DEBUG] State para navegación:', JSON.stringify(navigationState, null, 2));
-        
-        // 🔥 STEP 7: Cerrar modal ANTES de navegar
-        console.log('🚪 [DEBUG] Cerrando modal de búsqueda...');
-        setShowSearchModal(false);
-        
-        // 🔥 STEP 8: Navegar
-        console.log('🧭 [DEBUG] Navegando a /mensajes...');
-        navigate('/mensajes', { state: navigationState });
-        
-        // 🔥 STEP 9: Mostrar confirmación
-        console.log('✅ [DEBUG] Navegación completada');
-        // alert(`Abriendo chat con ${clientName}`); // Comentar para evitar interrupciones
-        
-      } else {
-        console.error('❌ [DEBUG] Error del servidor:', data.error);
-        console.error('❌ [DEBUG] Mensaje del servidor:', data.message);
-        
-        // 🔥 MANEJAR ERRORES ESPECÍFICOS
-        if (data.error === 'blocked_by_you') {
-          alert('Has bloqueado a este usuario');
-        } else if (data.error === 'blocked_by_them') {
-          alert('Este usuario te ha bloqueado');
-        } else {
-          alert(data.message || 'Error iniciando conversación');
-        }
-      }
-      
-    } catch (error) {
-      console.error('❌ [DEBUG] Error completo en handleMessageFromSearch:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-      
-      // 🔥 MOSTRAR ERROR DETALLADO AL USUARIO
-      if (error.message.includes('Failed to fetch')) {
-        alert('Error de conexión. Verifica que el servidor esté ejecutándose en localhost:8000');
-      } else if (error.message.includes('NetworkError')) {
-        alert('Error de red. Verifica tu conexión a internet.');
-      } else {
-        alert(`Error de conexión: ${error.message}`);
-      }
+    if (isMobile()) {
+      // Navegar a la versión móvil
+      navigate('/mensajesmobile');
+    } else {
+      // Navegar a la versión desktop
+      navigate('/mensajes');
     }
   };
 
-  // 👈 FUNCIÓN PARA MANEJAR LLAMADAS DESDE LA BÚSQUEDA
+  // Función para llamadas
   const handleCallFromSearch = (clientId, clientName) => {
-    console.log('📞 Iniciando llamada con cliente:', { clientId, clientName });
+    console.log('📞 Llamada con:', clientName);
     alert(`Iniciando llamada con ${clientName}...`);
   };
 
@@ -221,8 +113,10 @@ export default function Header() {
     return headers;
   };
 
-  // 🔥 MANEJAR CLICK EN MENSAJES
+  // 🔥 MANEJAR CLICK EN MENSAJES - VERSIÓN CORREGIDA
   const handleMessagesClick = () => {
+    console.log('📱 handleMessagesClick - isInCall:', isInCall, 'isMobile:', isMobile());
+    
     if (isInCall) {
       // Si está en videollamada, abrir modal de chat
       setShowChatModal(true);
@@ -231,9 +125,34 @@ export default function Header() {
         cargarConversaciones();
       }
     } else {
-      // Si no está en videollamada, navegar a mensajes
-      navigate("/mensajes");
+      // Si no está en videollamada, navegar según el dispositivo
+      if (isMobile()) {
+        console.log('📱 Navegando a mensajes móvil...');
+        navigate("/mensajesmobile");
+      } else {
+        console.log('💻 Navegando a mensajes desktop...');
+        navigate("/mensajes");
+      }
     }
+  };
+
+  // 🔥 NUEVA FUNCIÓN ESPECÍFICA PARA MÓVIL
+  const handleMobileMessagesClick = () => {
+    console.log('📱 handleMobileMessagesClick - isInCall:', isInCall);
+    
+    if (isInCall) {
+      // Si está en videollamada, abrir modal de chat
+      setShowChatModal(true);
+      if (conversaciones.length === 0) {
+        cargarConversaciones();
+      }
+    } else {
+      // Siempre ir a la versión móvil desde el menú móvil
+      console.log('📱 Navegando a mensajes móvil desde menú...');
+      navigate("/mensajesmobile");
+    }
+    // Cerrar el menú móvil
+    setMobileMenuAbierto(false);
   };
 
   // 🔥 CARGAR CONVERSACIONES PARA EL MODAL
@@ -815,12 +734,9 @@ export default function Header() {
                   {t('header.home', 'Inicio')}
                 </button>
                 
-                {/* 🔔 MENSAJES CON LÓGICA DUAL EN MÓVIL */}
+                {/* 🔔 MENSAJES CON LÓGICA DUAL EN MÓVIL - VERSIÓN CORREGIDA */}
                 <button
-                  onClick={() => {
-                    handleMessagesClick();
-                    setMobileMenuAbierto(false);
-                  }}
+                  onClick={handleMobileMessagesClick}
                   className="flex items-center justify-between w-full px-4 py-3 text-sm text-white hover:bg-[#2b2d31] transition"
                 >
                   <div className="flex items-center">
@@ -912,7 +828,7 @@ export default function Header() {
 
       {/* 👈 MODAL DE BÚSQUEDA DE CLIENTES */}
       {showSearchModal && (
-        <SearchClientsModal
+       <SearchClientsModal
           isOpen={showSearchModal}
           onClose={handleCloseSearch}
           onMessage={handleMessageFromSearch}

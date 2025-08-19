@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MessageCircle, X, ChevronDown, Gift, Settings, Globe } from 'lucide-react';
+import { useGlobalTranslation } from '../../../contexts/GlobalTranslationContext';
 
 const FloatingMessagesImprovedClient = ({ 
   messages = [], 
@@ -15,31 +16,638 @@ const FloatingMessagesImprovedClient = ({
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
 
-  // 🔥 ESTADO PARA MODAL DE CONFIGURACIÓN Y TRADUCCIÓN
+  // 🔥 OBTENER CONTEXTO GLOBAL COMPLETO DE TRADUCCIÓN
+  const { 
+    translateGlobalText, 
+    isEnabled: translationEnabled,
+    changeGlobalLanguage,
+    currentLanguage: globalCurrentLanguage 
+  } = useGlobalTranslation();
+
+  // 🔥 ESTADOS PARA MODAL DE CONFIGURACIÓN Y TRADUCCIÓN
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(() => {
-    return localStorage.getItem('selectedLanguage') || 'es';
+    return localStorage.getItem('selectedLanguage') || globalCurrentLanguage || 'es';
   });
 
-  // 🔥 ESTADO LOCAL PARA TRADUCCIÓN
+  // 🔥 ESTADO LOCAL PARA TRADUCCIÓN - HABILITAR POR DEFECTO PARA TESTING
   const [localTranslationEnabled, setLocalTranslationEnabled] = useState(() => {
-    return localStorage.getItem('translationEnabled') === 'true';
+    const saved = localStorage.getItem('translationEnabled');
+    // 🔥 HABILITAR POR DEFECTO PARA TESTING
+    return saved === 'true' || saved === null;
   });
 
-  // 🔥 SOLUCIÓN DE TRADUCCIÓN SIMPLIFICADA
+  // 🔥 ESTADOS PARA EL SISTEMA DE TRADUCCIÓN
   const [translations, setTranslations] = useState(new Map());
   const [translatingIds, setTranslatingIds] = useState(new Set());
 
-  // 🔥 IDIOMAS DISPONIBLES
+  // 🔥 FUNCIÓN PARA DETECTAR IDIOMA DEL TEXTO
+  const detectLanguage = useCallback((text) => {
+    const cleanText = text.toLowerCase().trim();
+    
+    // Palabras características de cada idioma
+    const spanishWords = ['hola', 'como', 'estás', 'gracias', 'por', 'favor', 'buenas', 'noches', 'días', 'tardes', 'hermosa', 'bonita', 'guapa'];
+    const englishWords = ['hello', 'how', 'are', 'you', 'thank', 'thanks', 'please', 'good', 'morning', 'night', 'afternoon', 'beautiful', 'pretty'];
+    const frenchWords = ['bonjour', 'comment', 'allez', 'vous', 'merci', 'sil', 'vous', 'plait', 'bonne', 'nuit', 'jour', 'belle'];
+    
+    // Contar coincidencias
+    const spanishMatches = spanishWords.filter(word => cleanText.includes(word)).length;
+    const englishMatches = englishWords.filter(word => cleanText.includes(word)).length;
+    const frenchMatches = frenchWords.filter(word => cleanText.includes(word)).length;
+    
+    if (spanishMatches > 0) return 'es';
+    if (englishMatches > 0) return 'en';
+    if (frenchMatches > 0) return 'fr';
+    
+    // Si no detecta, asumir español por defecto
+    return 'es';
+  }, []);
+
+  // 🔥 FUNCIÓN FALLBACK PARA TRADUCCIÓN - EXPANDIDA Y MEJORADA
+  const translateWithFallback = useCallback(async (text, targetLang) => {
+    try {
+      console.log('🔄 [FLOATING-CLIENT] Usando traducción fallback para:', `"${text}"`, 'a idioma:', targetLang);
+      
+      const cleanText = text.toLowerCase().trim();
+      const detectedLang = detectLanguage(text);
+      
+      console.log('🔍 [FLOATING-CLIENT] Idioma detectado:', detectedLang, 'Target:', targetLang);
+      
+      // Si el texto ya está en el idioma objetivo, no traducir
+      if (detectedLang === targetLang) {
+        console.log('⏸️ [FLOATING-CLIENT] Texto ya está en idioma objetivo');
+        return null;
+      }
+      
+      // 🔥 DICCIONARIO EXPANDIDO CON MÁS PALABRAS
+      const translations = {
+        // Español a otros idiomas
+        'es-en': {
+          // Saludos básicos
+          'hola': 'hello',
+          'hi': 'hi',
+          'buenas': 'hi',
+          'buenos dias': 'good morning',
+          'buenos días': 'good morning',
+          'buenas noches': 'good night',
+          'buenas tardes': 'good afternoon',
+          
+          // Preguntas comunes
+          'como estas': 'how are you',
+          'como estás': 'how are you',
+          'como estas?': 'how are you?',
+          'como estás?': 'how are you?',
+          'que tal': 'how are you',
+          'qué tal': 'how are you',
+          'que': 'what',
+          'qué': 'what',
+          'cuando': 'when',
+          'cuándo': 'when',
+          'donde': 'where',
+          'dónde': 'where',
+          'como': 'how',
+          'cómo': 'how',
+          'por que': 'why',
+          'por qué': 'why',
+          'porque': 'because',
+          
+          // Respuestas básicas
+          'bien': 'good',
+          'mal': 'bad',
+          'si': 'yes',
+          'sí': 'yes',
+          'no': 'no',
+          'tal vez': 'maybe',
+          'quizas': 'maybe',
+          'quizás': 'maybe',
+          
+          // Cortesía
+          'gracias': 'thank you',
+          'por favor': 'please',
+          'disculpa': 'excuse me',
+          'lo siento': 'sorry',
+          'perdón': 'sorry',
+          
+          // Emociones y sentimientos
+          'te amo': 'I love you',
+          'te quiero': 'I love you',
+          'amor': 'love',
+          'corazón': 'heart',
+          'beso': 'kiss',
+          'besos': 'kisses',
+          
+          // Apariencia
+          'hermosa': 'beautiful',
+          'guapa': 'beautiful',
+          'bonita': 'pretty',
+          'linda': 'cute',
+          'sexy': 'sexy',
+          'bella': 'beautiful',
+          
+          // Velocidad y tiempo
+          'lento': 'slow',
+          'muy lento': 'very slow',
+          'rapido': 'fast',
+          'rápido': 'fast',
+          'despacio': 'slowly',
+          'pronto': 'soon',
+          'ahora': 'now',
+          'después': 'later',
+          'antes': 'before',
+          
+          // Palabras comunes
+          'real': 'real',
+          'verdad': 'truth',
+          'mentira': 'lie',
+          'grande': 'big',
+          'pequeño': 'small',
+          'nuevo': 'new',
+          'viejo': 'old',
+          'joven': 'young',
+          'alto': 'tall',
+          'bajo': 'short',
+          
+          // Frases específicas del chat
+          'que gnr traducción': 'what a great translation',
+          'pero entonces dios mío': 'but then my god',
+          'si traduce va': 'if it translates go',
+          'traducción': 'translation',
+          'traduce': 'translate',
+          'idioma': 'language',
+          'hablar': 'speak',
+          'decir': 'say',
+          'escribir': 'write',
+          
+          // Palabras sueltas comunes
+          'pero': 'but',
+          'entonces': 'then',
+          'dios': 'god',
+          'mío': 'mine',
+          'va': 'go',
+          'vamos': 'let\'s go',
+          'ven': 'come',
+          'dame': 'give me',
+          'toma': 'take',
+          'mira': 'look',
+          'ver': 'see',
+          'oír': 'hear',
+          'sentir': 'feel'
+        },
+        // Inglés a español  
+        'en-es': {
+          'hello': 'hola',
+          'hi': 'hola',
+          'how are you': 'cómo estás',
+          'how are you?': 'cómo estás?',
+          'good': 'bien',
+          'bad': 'mal',
+          'thank you': 'gracias',
+          'thanks': 'gracias',
+          'please': 'por favor',
+          'yes': 'sí',
+          'no': 'no',
+          'maybe': 'tal vez',
+          'good morning': 'buenos días',
+          'good night': 'buenas noches',
+          'good afternoon': 'buenas tardes',
+          'i love you': 'te amo',
+          'love': 'amor',
+          'beautiful': 'hermosa',
+          'pretty': 'bonita',
+          'cute': 'linda',
+          'slow': 'lento',
+          'very slow': 'muy lento',
+          'fast': 'rápido',
+          'real': 'real',
+          'truth': 'verdad',
+          'lie': 'mentira',
+          'big': 'grande',
+          'small': 'pequeño',
+          'translation': 'traducción',
+          'translate': 'traduce',
+          'language': 'idioma',
+          'but': 'pero',
+          'then': 'entonces',
+          'god': 'dios',
+          'mine': 'mío',
+          'go': 'va'
+        },
+        // Español a alemán
+        'es-de': {
+          'hola': 'hallo',
+          'como estas': 'wie geht es dir',
+          'como estás': 'wie geht es dir',
+          'bien': 'gut',
+          'gracias': 'danke',
+          'por favor': 'bitte',
+          'si': 'ja',
+          'sí': 'ja',
+          'no': 'nein',
+          'buenas noches': 'gute nacht',
+          'buenos días': 'guten tag',
+          'hermosa': 'schön',
+          'bonita': 'hübsch',
+          'lento': 'langsam',
+          'muy lento': 'sehr langsam'
+        },
+        // Español a francés
+        'es-fr': {
+          'hola': 'bonjour',
+          'como estas': 'comment allez-vous',
+          'como estás': 'comment allez-vous',
+          'bien': 'bien',
+          'gracias': 'merci',
+          'por favor': 's\'il vous plaît',
+          'si': 'oui',
+          'sí': 'oui',
+          'no': 'non',
+          'buenas noches': 'bonne nuit',
+          'buenos días': 'bonjour',
+          'hermosa': 'belle',
+          'bonita': 'jolie',
+          'lento': 'lent',
+          'muy lento': 'très lent'
+        },
+        // Francés a español
+        'fr-es': {
+          'bonjour': 'hola',
+          'comment allez-vous': 'cómo estás',
+          'bien': 'bien',
+          'merci': 'gracias',
+          'oui': 'sí',
+          'non': 'no',
+          'bonne nuit': 'buenas noches',
+          'belle': 'hermosa',
+          'jolie': 'bonita'
+        },
+        // Inglés a francés
+        'en-fr': {
+          'hello': 'bonjour',
+          'hi': 'salut',
+          'how are you': 'comment allez-vous',
+          'good': 'bien',
+          'thank you': 'merci',
+          'thanks': 'merci',
+          'please': 's\'il vous plaît',
+          'yes': 'oui',
+          'no': 'non',
+          'good morning': 'bonjour',
+          'good night': 'bonne nuit',
+          'beautiful': 'belle',
+          'pretty': 'jolie'
+        },
+        // Francés a inglés
+        'fr-en': {
+          'bonjour': 'hello',
+          'salut': 'hi',
+          'comment allez-vous': 'how are you',
+          'bien': 'good',
+          'merci': 'thank you',
+          'oui': 'yes',
+          'non': 'no',
+          'bonne nuit': 'good night',
+          'belle': 'beautiful',
+          'jolie': 'pretty'
+        },
+        // Español a italiano
+        'es-it': {
+          'hola': 'ciao',
+          'como estas': 'come stai',
+          'como estás': 'come stai',
+          'bien': 'bene',
+          'gracias': 'grazie',
+          'por favor': 'per favore',
+          'si': 'sì',
+          'sí': 'sì',
+          'no': 'no',
+          'buenas noches': 'buona notte',
+          'buenos días': 'buongiorno',
+          'hermosa': 'bella',
+          'bonita': 'carina'
+        },
+        // Español a portugués
+        'es-pt': {
+          'hola': 'olá',
+          'como estas': 'como está',
+          'como estás': 'como está',
+          'bien': 'bem',
+          'gracias': 'obrigado',
+          'por favor': 'por favor',
+          'si': 'sim',
+          'sí': 'sim',
+          'no': 'não',
+          'buenas noches': 'boa noite',
+          'buenos días': 'bom dia',
+          'hermosa': 'linda',
+          'bonita': 'bonita'
+        },
+        // Español a ruso
+        'es-ru': {
+          'hola': 'привет',
+          'como estas': 'как дела',
+          'como estás': 'как дела',
+          'bien': 'хорошо',
+          'gracias': 'спасибо',
+          'por favor': 'пожалуйста',
+          'si': 'да',
+          'sí': 'да',
+          'no': 'нет',
+          'hermosa': 'красивая',
+          'bonita': 'милая'
+        },
+        // Español a japonés
+        'es-ja': {
+          'hola': 'こんにちは',
+          'como estas': 'げんきですか',
+          'como estás': 'げんきですか',
+          'bien': 'いいです',
+          'gracias': 'ありがとう',
+          'por favor': 'おねがいします',
+          'si': 'はい',
+          'sí': 'はい',
+          'no': 'いいえ',
+          'hermosa': 'きれい',
+          'bonita': 'かわいい'
+        },
+        // Español a coreano
+        'es-ko': {
+          'hola': '안녕하세요',
+          'como estas': '어떻게 지내세요',
+          'como estás': '어떻게 지내세요',
+          'bien': '좋아요',
+          'gracias': '감사합니다',
+          'por favor': '부탁합니다',
+          'si': '네',
+          'sí': '네',
+          'no': '아니요',
+          'hermosa': '아름다워요',
+          'bonita': '예뻐요'
+        },
+        // Español a chino
+        'es-zh': {
+          'hola': '你好',
+          'como estas': '你好吗',
+          'como estás': '你好吗',
+          'bien': '好',
+          'gracias': '谢谢',
+          'por favor': '请',
+          'si': '是',
+          'sí': '是',
+          'no': '不',
+          'hermosa': '美丽',
+          'bonita': '漂亮'
+        }
+      };
+      
+      // Crear clave de traducción
+      const translationKey = `${detectedLang}-${targetLang}`;
+      const translationDict = translations[translationKey];
+      
+      // 🔥 DEBUGGING: VERIFICAR SI ENCUENTRA LA TRADUCCIÓN
+      if (translationDict) {
+        console.log('📚 [FLOATING-CLIENT-FALLBACK] Diccionario encontrado para:', translationKey);
+        console.log('📚 [FLOATING-CLIENT-FALLBACK] Buscando:', cleanText);
+        
+        const translated = translationDict[cleanText];
+        if (translated) {
+          console.log('✅ [FLOATING-CLIENT-FALLBACK] Traducción encontrada:', `"${cleanText}"`, '->', `"${translated}"`);
+          return translated;
+        } else {
+          console.log('❌ [FLOATING-CLIENT-FALLBACK] No se encontró traducción exacta para:', `"${cleanText}"`);
+          
+          // 🔥 INTENTAR BÚSQUEDA DE PALABRAS INDIVIDUALES
+          console.log('🔍 [FLOATING-CLIENT-FALLBACK] Intentando traducción por palabras...');
+          const words = cleanText.split(/\s+/);
+          const translatedWords = words.map(word => {
+            const wordTranslation = translationDict[word.toLowerCase()];
+            console.log(`🔍 [FLOATING-CLIENT-FALLBACK] Palabra "${word}" → "${wordTranslation || word}"`);
+            return wordTranslation || word;
+          });
+          
+          const wordBasedTranslation = translatedWords.join(' ');
+          if (wordBasedTranslation !== cleanText) {
+            console.log('🎯 [FLOATING-CLIENT-FALLBACK] Traducción por palabras exitosa:', wordBasedTranslation);
+            return wordBasedTranslation;
+          }
+        }
+      } else {
+        console.log('❌ [FLOATING-CLIENT-FALLBACK] No existe diccionario para:', translationKey);
+        console.log('🔍 [FLOATING-CLIENT-FALLBACK] Diccionarios disponibles:', Object.keys(translations));
+      }
+      
+      // 🔥 SI NO ENCUENTRA TRADUCCIÓN, RETORNAR NULL EN LUGAR DEL TEXTO ORIGINAL
+      console.log('🚫 [FLOATING-CLIENT-FALLBACK] No se pudo traducir, retornando null');
+      return null;
+      
+    } catch (error) {
+      console.error('❌ [FLOATING-CLIENT] Error en traducción fallback:', error);
+      return `[ERROR] ${text}`;
+    }
+  }, [detectLanguage]);
+  // 🌐 FUNCIÓN PARA TRADUCIR MENSAJES - CLEAN VERSION
+  const translateMessage = useCallback(async (message) => {
+    if (!localTranslationEnabled || !message?.id) return;
+    
+    const originalText = message.text || message.content || message.message;
+    if (!originalText || originalText.trim() === '' || translations.has(message.id) || translatingIds.has(message.id)) return;
+
+    setTranslatingIds(prev => new Set(prev).add(message.id));
+
+    try {
+      let result = null;
+      
+      // PASO 1: Contexto global
+      if (typeof translateGlobalText === 'function') {
+        try {
+          result = await translateGlobalText(originalText, message.id);
+          if (result && result !== originalText && result.trim() !== '') {
+            // Contexto global funcionó
+          } else {
+            result = null;
+          }
+        } catch (error) {
+          result = null;
+        }
+      }
+      
+      // PASO 2: APIs de traducción
+      if (!result) {
+        try {
+          // Google Translate API
+          const googleTranslateUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${currentLanguage}&dt=t&q=${encodeURIComponent(originalText)}`;
+          
+          try {
+            const response = await fetch(googleTranslateUrl);
+            const data = await response.json();
+            
+            if (data && data[0] && data[0][0] && data[0][0][0]) {
+              result = data[0][0][0];
+            }
+          } catch (googleError) {
+            // LibreTranslate API
+            try {
+              const libreResponse = await fetch('https://libretranslate.de/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  q: originalText,
+                  source: 'es',
+                  target: currentLanguage,
+                  format: 'text'
+                })
+              });
+              
+              if (libreResponse.ok) {
+                const libreData = await libreResponse.json();
+                if (libreData.translatedText) {
+                  result = libreData.translatedText;
+                }
+              }
+            } catch (libreError) {
+              // MyMemory API
+              try {
+                const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(originalText)}&langpair=es|${currentLanguage}`;
+                const myMemoryResponse = await fetch(myMemoryUrl);
+                const myMemoryData = await myMemoryResponse.json();
+                
+                if (myMemoryData.responseStatus === 200 && myMemoryData.responseData.translatedText) {
+                  result = myMemoryData.responseData.translatedText;
+                }
+              } catch (myMemoryError) {
+                // Silenciar error
+              }
+            }
+          }
+          
+        } catch (apiError) {
+          // Silenciar error
+        }
+      }
+      
+      // PASO 3: Traducción básica
+      if (!result) {
+        result = await translateWithFallback(originalText, currentLanguage);
+      }
+      
+      // Guardar resultado
+      if (result && result !== originalText && result.trim() !== '') {
+        setTranslations(prev => new Map(prev).set(message.id, result));
+      } else {
+        setTranslations(prev => new Map(prev).set(message.id, null));
+      }
+      
+    } catch (error) {
+      setTranslations(prev => new Map(prev).set(message.id, null));
+    } finally {
+      setTranslatingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(message.id);
+        return newSet;
+      });
+    }
+  }, [localTranslationEnabled, translateGlobalText, currentLanguage, translateWithFallback, translations, translatingIds]);
+
+  // 🌐 EFECTO PARA TRADUCIR MENSAJES AUTOMÁTICAMENTE - CLEAN VERSION
+  useEffect(() => {
+    if (!localTranslationEnabled || messages.length === 0) return;
+
+    messages.forEach((message) => {
+      const shouldTranslate = (
+        message.type !== 'system' && 
+        !['gift_request', 'gift_sent', 'gift_received', 'gift'].includes(message.type) &&
+        !translations.has(message.id) &&
+        !translatingIds.has(message.id) &&
+        (message.text || message.content || message.message) &&
+        (message.text || message.content || message.message).trim() !== ''
+      );
+      
+      if (shouldTranslate) {
+        translateMessage(message);
+      }
+    });
+
+  }, [messages, localTranslationEnabled, translateMessage, currentLanguage]);
+
+  // 🌐 COMPONENTE DE MENSAJE CON TRADUCCIÓN - CLEAN VERSION
+  const renderMessageWithTranslation = useCallback((message, isOwn = false) => {
+    const originalText = message.text || message.content || message.message;
+    const translatedText = translations.get(message.id);
+    const isTranslating = translatingIds.has(message.id);
+    
+    const hasTranslation = translatedText && translatedText !== originalText && translatedText.trim() !== '';
+
+    return (
+      <div className="space-y-1">
+        {/* TEXTO ORIGINAL */}
+        <div className="text-white">
+          {originalText || 'Mensaje sin contenido'}
+          {isTranslating && (
+            <span className="ml-2 inline-flex items-center">
+              <div className="animate-spin rounded-full h-2 w-2 border-b border-current opacity-50"></div>
+            </span>
+          )}
+        </div>
+
+        {/* TRADUCCIÓN */}
+        {hasTranslation && (
+          <div className={`text-xs italic border-l-2 pl-2 py-1 ${
+            isOwn 
+              ? 'border-blue-300 text-blue-200 bg-blue-500/10' 
+              : 'border-green-300 text-green-200 bg-green-500/10'
+          } rounded-r`}>
+            <span className="text-xs opacity-80">🌍 </span> {translatedText}
+          </div>
+        )}
+      </div>
+    );
+  }, [translations, translatingIds, localTranslationEnabled]);
+
+  // 🔥 IDIOMAS DISPONIBLES - EXPANDIDO A 10 IDIOMAS
   const languages = [
     { code: 'es', name: 'Español', flag: '🇪🇸' },
     { code: 'en', name: 'English', flag: '🇺🇸' },
     { code: 'fr', name: 'Français', flag: '🇫🇷' },
     { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
     { code: 'it', name: 'Italiano', flag: '🇮🇹' },
-    { code: 'pt', name: 'Português', flag: '🇵🇹' }
+    { code: 'pt', name: 'Português', flag: '🇵🇹' },
+    { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+    { code: 'ja', name: '日本語', flag: '🇯🇵' },
+    { code: 'ko', name: '한국어', flag: '🇰🇷' },
+    { code: 'zh', name: '中文', flag: '🇨🇳' }
   ];
+
+  // 🔥 FUNCIÓN PARA CAMBIAR IDIOMA - CLEAN VERSION
+  const handleLanguageChange = (languageCode) => {
+    setCurrentLanguage(languageCode);
+    localStorage.setItem('selectedLanguage', languageCode);
     
+    const shouldEnableTranslation = languageCode !== 'es';
+    setLocalTranslationEnabled(shouldEnableTranslation);
+    localStorage.setItem('translationEnabled', shouldEnableTranslation.toString());
+    
+    if (typeof changeGlobalLanguage === 'function') {
+      try {
+        changeGlobalLanguage(languageCode);
+      } catch (error) {
+        // Silenciar error
+      }
+    }
+    
+    setTranslations(new Map());
+    setTranslatingIds(new Set());
+    
+    // Re-traducir mensajes existentes
+    setTimeout(() => {
+      messages.forEach((mensaje) => {
+        if (mensaje.text || mensaje.content || mensaje.message) {
+          translateMessage(mensaje);
+        }
+      });
+    }, 100);
+    
+    setShowSettingsModal(false);
+  };
+
   // 🎵 FUNCIONES DE SONIDO PARA SOLICITUDES DE REGALO
   const playGiftRequestSound = useCallback(async () => {
     try {
@@ -98,224 +706,6 @@ const FloatingMessagesImprovedClient = ({
       console.error('❌ Error con sonido alternativo:', error);
     }
   }, []);
-
-  // 🔥 FUNCIÓN FALLBACK PARA TRADUCCIÓN
-  const translateWithFallback = useCallback(async (text, targetLang) => {
-    try {
-      console.log('🔄 Usando traducción fallback para:', `"${text}"`, 'a idioma:', targetLang);
-      
-      const cleanText = text.toLowerCase().trim();
-      
-      if (targetLang === 'en') {
-        const translations = {
-          'hola': 'hello',
-          'como estas': 'how are you',
-          'como estás': 'how are you',
-          'bien': 'good',
-          'mal': 'bad',
-          'gracias': 'thank you',
-          'por favor': 'please',
-          'si': 'yes',
-          'sí': 'yes',
-          'no': 'no',
-          'hermosa': 'beautiful',
-          'guapa': 'beautiful',
-          'bonita': 'pretty'
-        };
-        
-        const translated = translations[cleanText];
-        if (translated) {
-          console.log('✅ Traducción EN encontrada:', `"${cleanText}"`, '->', `"${translated}"`);
-          return translated;
-        }
-      }
-      
-      if (targetLang === 'es') {
-        const translations = {
-          'hello': 'hola',
-          'hi': 'hola',
-          'how are you': 'cómo estás',
-          'good': 'bien',
-          'bad': 'mal',
-          'thank you': 'gracias',
-          'beautiful': 'hermosa',
-          'pretty': 'bonita'
-        };
-        
-        const translated = translations[cleanText];
-        if (translated) {
-          console.log('✅ Traducción ES encontrada:', `"${cleanText}"`, '->', `"${translated}"`);
-          return translated;
-        }
-      }
-      
-      // Fallback simulado
-      return `[${targetLang.toUpperCase()}] ${text}`;
-      
-    } catch (error) {
-      console.error('❌ Error en traducción fallback:', error);
-      return `[ERROR-${targetLang.toUpperCase()}] ${text}`;
-    }
-  }, []);
-
-  // 🌐 FUNCIÓN PARA TRADUCIR MENSAJES
-  const translateMessage = useCallback(async (message) => {
-    if (!localTranslationEnabled || !message?.id) {
-      console.log('🌍 [TRANSLATION] Saltando traducción:', { 
-        enabled: localTranslationEnabled, 
-        hasId: !!message?.id 
-      });
-      return;
-    }
-    
-    const originalText = message.text || message.message;
-    if (!originalText || originalText.trim() === '' || translations.has(message.id) || translatingIds.has(message.id)) {
-      console.log('🌍 [TRANSLATION] Saltando por condiciones:', {
-        hasText: !!originalText,
-        alreadyTranslated: translations.has(message.id),
-        currentlyTranslating: translatingIds.has(message.id)
-      });
-      return;
-    }
-
-    console.log('🌍 [TRANSLATION] Iniciando traducción para mensaje:', {
-      id: message.id,
-      text: originalText.substring(0, 30),
-      targetLang: currentLanguage
-    });
-
-    setTranslatingIds(prev => new Set(prev).add(message.id));
-
-    try {
-      let result = await translateWithFallback(originalText, currentLanguage);
-      
-      console.log('🌍 [TRANSLATION] Resultado de traducción:', {
-        original: originalText.substring(0, 30),
-        translated: result?.substring(0, 30),
-        same: result === originalText
-      });
-      
-      if (result && result !== originalText && result.trim() !== '' && result.toLowerCase() !== originalText.toLowerCase()) {
-        setTranslations(prev => new Map(prev).set(message.id, result));
-        console.log('✅ [TRANSLATION] Traducción guardada para mensaje', message.id);
-      } else {
-        setTranslations(prev => new Map(prev).set(message.id, null));
-        console.log('❌ [TRANSLATION] Traducción no válida para mensaje', message.id);
-      }
-    } catch (error) {
-      console.error('❌ Error traduciendo mensaje:', error);
-      setTranslations(prev => new Map(prev).set(message.id, null));
-    } finally {
-      setTranslatingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(message.id);
-        return newSet;
-      });
-    }
-  }, [localTranslationEnabled, currentLanguage, translateWithFallback, translations, translatingIds]);
-
-  // 🌐 EFECTO PARA TRADUCIR MENSAJES AUTOMÁTICAMENTE
-  useEffect(() => {
-    console.log('🌍 [TRANSLATION] useEffect triggered:', {
-      translationEnabled: localTranslationEnabled,
-      messagesLength: messages.length,
-      currentLanguage: currentLanguage
-    });
-
-    if (!localTranslationEnabled) {
-      console.log('🌍 [TRANSLATION] Traducción deshabilitada, saltando...');
-      return;
-    }
-
-    const messagesToTranslate = messages.filter(message => {
-      const shouldTranslate = (
-        message.type !== 'system' && 
-        !['gift_request', 'gift_sent', 'gift_received', 'gift'].includes(message.type) &&
-        !translations.has(message.id) && 
-        !translatingIds.has(message.id) && 
-        (message.text || message.message) && 
-        (message.text || message.message).trim() !== ''
-      );
-      
-      if (shouldTranslate) {
-        console.log('🌍 [TRANSLATION] Mensaje elegible para traducción:', {
-          id: message.id,
-          text: (message.text || message.message).substring(0, 30),
-          type: message.type
-        });
-      }
-      
-      return shouldTranslate;
-    });
-
-    console.log('🌍 [TRANSLATION] Total mensajes a traducir:', messagesToTranslate.length);
-
-    messagesToTranslate.forEach((message, index) => {
-      setTimeout(() => {
-        translateMessage(message);
-      }, index * 100);
-    });
-
-  }, [messages.length, localTranslationEnabled, translateMessage, currentLanguage]);
-
-  // 🌐 COMPONENTE DE MENSAJE CON TRADUCCIÓN
-  const renderMessageWithTranslation = useCallback((message, isOwn = false) => {
-    const originalText = message.text || message.content || message.message;
-    const translatedText = translations.get(message.id);
-    const isTranslating = translatingIds.has(message.id);
-    
-    const hasTranslation = translatedText && translatedText !== originalText && translatedText.trim() !== '';
-
-    return (
-      <div className="space-y-1">
-        {/* TEXTO ORIGINAL */}
-        <div className="text-white">
-          {originalText || 'Mensaje sin contenido'}
-          {isTranslating && (
-            <span className="ml-2 inline-flex items-center">
-              <div className="animate-spin rounded-full h-2 w-2 border-b border-current opacity-50"></div>
-            </span>
-          )}
-        </div>
-
-        {/* TRADUCCIÓN */}
-        {hasTranslation && (
-          <div className={`text-xs italic border-l-2 pl-2 py-1 ${
-            isOwn 
-              ? 'border-blue-300 text-blue-200 bg-blue-500/10' 
-              : 'border-green-300 text-green-200 bg-green-500/10'
-          } rounded-r`}>
-            <span className="text-xs opacity-80"></span> {translatedText}
-          </div>
-        )}
-      </div>
-    );
-  }, [translations, translatingIds]);
-
-  // 🔥 FUNCIÓN PARA CAMBIAR IDIOMA
-  const handleLanguageChange = (languageCode) => {
-    console.log('🌍 [TRANSLATION] Cambiando idioma a:', languageCode);
-    
-    setCurrentLanguage(languageCode);
-    localStorage.setItem('selectedLanguage', languageCode);
-    
-    const shouldEnableTranslation = languageCode !== 'es';
-    console.log('🌍 [TRANSLATION] ¿Habilitar traducción?', shouldEnableTranslation);
-    
-    setLocalTranslationEnabled(shouldEnableTranslation);
-    localStorage.setItem('translationEnabled', shouldEnableTranslation.toString());
-    
-    // Limpiar traducciones existentes para forzar re-traducción
-    setTranslations(new Map());
-    setTranslatingIds(new Set());
-    
-    console.log('🌍 [TRANSLATION] Estado actualizado:', {
-      idioma: languageCode,
-      traduccionHabilitada: shouldEnableTranslation
-    });
-    
-    setShowSettingsModal(false);
-  };
 
   // Debug: mostrar mensajes en consola
   useEffect(() => {
@@ -529,8 +919,7 @@ const FloatingMessagesImprovedClient = ({
     
     return finalUrl;
   };
-
-  // 🔥 FUNCIÓN renderGiftCard CORREGIDA
+  // 🔥 FUNCIÓN renderGiftCard CORREGIDA CON TRADUCCIÓN
   const renderGiftCard = (msg) => {
     const giftData = parseGiftData(msg);
     const imageUrl = buildCompleteImageUrl(giftData.gift_image);
@@ -554,25 +943,10 @@ const FloatingMessagesImprovedClient = ({
     const isGiftRequest = isGiftRequestByType || isGiftRequestByText;
     const isGiftSent = isGiftSentByType || isGiftSentByText;
 
-    // 🔥 DEBUG ESPECÍFICO PARA REGALO ENVIADO
-    if (isGiftSent || isGiftSentByText) {
-      console.log('🎁 [MOBILE] REGALO ENVIADO DETECTADO:', {
-        id: msg.id,
-        type: msg.type,
-        text: (msg.text || '').substring(0, 50),
-        isGiftSentByType: isGiftSentByType,
-        isGiftSentByText: isGiftSentByText,
-        isFromCurrentUser: isFromCurrentUser,
-        willRenderSentCard: true
-      });
-    }
-
-    console.log('🎁 [MOBILE] renderGiftCard debug:', {
+    console.log('🎁 [MOBILE-CLIENT] renderGiftCard debug:', {
       id: msg.id,
       type: msg.type,
       text: (msg.text || '').substring(0, 50),
-      isGiftRequestByType: isGiftRequestByType,
-      isGiftRequestByText: isGiftRequestByText,
       isGiftRequest: isGiftRequest,
       isGiftSent: isGiftSent,
       isFromCurrentUser: isFromCurrentUser
@@ -580,7 +954,7 @@ const FloatingMessagesImprovedClient = ({
 
     // 🎁 SOLICITUD DE REGALO (de la modelo al cliente)
     if (isGiftRequest && !isFromCurrentUser) {
-      console.log('🎁 [MOBILE] Renderizando card interactiva de solicitud');
+      console.log('🎁 [MOBILE-CLIENT] Renderizando card interactiva de solicitud');
       
       return (
         <div className="bg-gradient-to-br from-[#ff007a]/20 via-[#cc0062]/20 to-[#990047]/20 rounded-xl p-3 max-w-sm border border-[#ff007a]/30 shadow-lg backdrop-blur-sm">
@@ -636,7 +1010,7 @@ const FloatingMessagesImprovedClient = ({
 
     // 🎁 REGALO ENVIADO (del cliente) - DETECCIÓN MEJORADA
     if (isGiftSent || (isFromCurrentUser && (msg.type === 'gift_sent' || isGiftSentByText))) {
-      console.log('🎁 [MOBILE] Renderizando card de regalo enviado');
+      console.log('🎁 [MOBILE-CLIENT] Renderizando card de regalo enviado');
       
       return (
         <div className="bg-gradient-to-br from-blue-900/40 via-blue-800/40 to-blue-900/40 rounded-xl p-3 max-w-sm border border-blue-400/30 shadow-lg backdrop-blur-sm ml-auto">
@@ -734,7 +1108,7 @@ const FloatingMessagesImprovedClient = ({
       );
     }
 
-    console.log('🚫 [MOBILE] Mensaje no es regalo o no cumple condiciones');
+    console.log('🚫 [MOBILE-CLIENT] Mensaje no es regalo o no cumple condiciones');
     return null;
   };
 
@@ -768,16 +1142,17 @@ const FloatingMessagesImprovedClient = ({
         </button>
       </div>
 
-      {/* Burbuja de chat - TAMAÑO MUCHO MÁS PEQUEÑO PARA NO TAPAR CÁMARA */}
+      {/* Burbuja de chat - TAMAÑO COMPACTO PARA NO TAPAR CÁMARA */}
       {isOpen && (
         <div className="fixed top-4 right-4 w-80 max-w-[calc(100vw-2rem)] pointer-events-auto z-[9999]" 
              style={{ 
-               height: '250px',  // ALTURA FIJA MUCHO MÁS PEQUEÑA
+               height: '250px',
                maxHeight: '250px',
                minHeight: '250px' 
              }}>
           <div className="bg-gray-900/95 backdrop-blur-lg rounded-2xl border border-gray-700/50 shadow-2xl overflow-hidden h-full flex flex-col">
-            {/* Header del chat CON BOTÓN DE TRADUCCIÓN - ALTURA FIJA */}
+            
+            {/* Header del chat CON BOTÓN DE TRADUCCIÓN */}
             <div className="flex items-center justify-between p-3 border-b border-gray-700/50 bg-gradient-to-r from-[#ff007a]/20 to-transparent flex-shrink-0 h-14">
               <div className="flex items-center gap-2">
                 <MessageCircle size={16} className="text-[#ff007a]" />
@@ -786,7 +1161,7 @@ const FloatingMessagesImprovedClient = ({
               </div>
               
               <div className="flex items-center gap-2">
-                {/* 🔥 BOTÓN DE TRADUCCIÓN MÓVIL - MÁS VISIBLE */}
+                {/* 🔥 BOTÓN DE TRADUCCIÓN DESTACADO */}
                 <button
                   onClick={() => {
                     console.log('🌍 [TRANSLATION] Abriendo modal de traducción');
@@ -811,7 +1186,7 @@ const FloatingMessagesImprovedClient = ({
               </div>
             </div>
 
-            {/* Área de mensajes scrolleable - TAMAÑO FIJO */}
+            {/* Área de mensajes scrolleable */}
             <div 
               ref={messagesContainerRef}
               className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-3"
@@ -829,20 +1204,20 @@ const FloatingMessagesImprovedClient = ({
                 </div>
               ) : (
                 <div className="flex flex-col space-y-3">
-                  {/* 🔥 MAP DE MENSAJES CORREGIDO */}
+                  {/* 🔥 MAP DE MENSAJES COMPLETO CON TRADUCCIÓN */}
                   {[...recentMessages].reverse().map((message, index) => {
-                    // Detectar tipo de mensaje:
+                    // Detectar tipo de mensaje
                     const isUserMessage = message.type === 'local' && message.senderRole === 'cliente';
                     const isSystemMessage = message.type === 'system';
                     const isRemoteMessage = message.type === 'remote' && message.senderRole === 'modelo';
 
-                    // ✅ CÓDIGO NUEVO (COMPLETO):
+                    // Detectar mensajes de regalo
                     const isGiftRequest = message.type === 'gift_request';
                     const isGiftSent = message.type === 'gift_sent';
                     const isGiftReceived = message.type === 'gift_received';
                     const isGiftRejected = message.type === 'gift_rejected';
 
-                    // 🔥 TAMBIÉN DETECTAR POR CONTENIDO DE TEXTO
+                    // También detectar por contenido de texto
                     const isGiftByText = (message.text || message.message || '').includes('🎁 Solicitud de regalo:') ||
                                         (message.text || message.message || '').includes('Solicitud de regalo:') ||
                                         (message.text || message.message || '').includes('🎁 Enviaste:') ||
@@ -851,54 +1226,13 @@ const FloatingMessagesImprovedClient = ({
                     const isGiftMessage = isGiftRequest || isGiftSent || isGiftReceived || isGiftRejected || 
                                           message.type === 'gift' || isGiftByText;
 
-                    // 🔥 DEBUGGING ESPECÍFICO PARA SOLICITUDES
-                    if (message.text && message.text.includes('Solicitud de regalo')) {
-                      console.log('🎁 [CLIENT] SOLICITUD DE REGALO DETECTADA EN MAP:', {
-                        id: message.id,
-                        type: message.type,
-                        text: message.text,
-                        isGiftByText: isGiftByText,
-                        isGiftMessage: isGiftMessage,
-                        willRenderCard: isGiftMessage
-                      });
-                    }
-
-                    // 🔥 NUEVO FILTRADO MEJORADO - Permitir TODOS los mensajes de regalo
-                    const messageText = (message.text || message.message || '').toLowerCase();
-
-                    // ✅ NO FILTRAR NINGÚN MENSAJE DE REGALO
-                    const isGiftTextMessage = false; // ← CAMBIO CLAVE: No filtrar nada que sea regalo
-
-                    // 🔥 DEBUGGING ESPECÍFICO PARA gift_request
-                    if (message.type === 'gift_request') {
-                      console.log('🎁 [CLIENT] GIFT_REQUEST encontrado:', {
-                        id: message.id,
-                        type: message.type,
-                        text: message.text,
-                        isGiftMessage: isGiftMessage,
-                        isGiftTextMessage: isGiftTextMessage,
-                        willFilter: isGiftTextMessage,
-                        willRender: !isGiftTextMessage
-                      });
-                    }
+                    // NO FILTRAR NINGÚN MENSAJE DE REGALO
+                    const isGiftTextMessage = false;
                     
-                    // No mostrar mensajes de texto que son duplicados de regalos
                     if (isGiftTextMessage) {
-                      console.log('🚫 [CLIENT] Filtrando mensaje duplicado (pero NO gift_request):', message.text || message.message);
+                      console.log('🚫 [CLIENT] Filtrando mensaje duplicado:', message.text || message.message);
                       return null;
                     }
-                    
-                    // Debug para cada mensaje que SÍ se va a renderizar
-                    console.log('💬 [CLIENT] Mensaje a renderizar:', {
-                      index,
-                      text: message.text?.substring(0, 30),
-                      type: message.type,
-                      sender: message.sender,
-                      senderRole: message.senderRole,
-                      isUserMessage: isUserMessage,
-                      isRemoteMessage: isRemoteMessage,
-                      isGiftMessage: isGiftMessage
-                    });
                     
                     return (
                       <div
@@ -908,26 +1242,10 @@ const FloatingMessagesImprovedClient = ({
                         {/* 🎁 RENDERIZAR CARDS DE REGALO */}
                         {isGiftMessage ? (
                           <div className={`flex ${isUserMessage || message.senderRole === 'cliente' ? 'justify-end' : 'justify-start'}`}>
-                            {/* 🔥 DEBUGGING ANTES DE LLAMAR renderGiftCard */}
-                            {(() => {
-                              console.log('🎨 [CLIENT] Llamando renderGiftCard para:', {
-                                id: message.id,
-                                type: message.type,
-                                text: message.text?.substring(0, 50)
-                              });
-                              
-                              const cardResult = renderGiftCard(message);
-                              
-                              console.log('🎨 [CLIENT] renderGiftCard retornó:', {
-                                hasCard: !!cardResult,
-                                cardType: cardResult ? 'Card válida' : 'null/undefined'
-                              });
-                              
-                              return cardResult;
-                            })()}
+                            {renderGiftCard(message)}
                           </div>
                         ) : (
-                          /* 💬 MENSAJES NORMALES */
+                          /* 💬 MENSAJES NORMALES CON TRADUCCIÓN */
                           <div className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'}`}>
                             <div
                               className={`
@@ -940,7 +1258,6 @@ const FloatingMessagesImprovedClient = ({
                                 }
                               `}
                             >
-                              {/* Contenido del mensaje */}
                               <div className="flex flex-col">
                                 {/* Nombre del remitente (solo para mensajes remotos) */}
                                 {isRemoteMessage && message.sender && (
@@ -971,7 +1288,7 @@ const FloatingMessagesImprovedClient = ({
               )}
             </div>
 
-            {/* Footer compacto - ALTURA FIJA */}
+            {/* Footer compacto con información de traducción */}
             <div className="px-3 py-2 border-t border-gray-700/50 bg-gray-800/50 flex-shrink-0 h-16">
               <div className="text-xs text-gray-400 text-center">
                 💬 Conversación en vivo
@@ -995,17 +1312,18 @@ const FloatingMessagesImprovedClient = ({
         </div>
       )}
 
-      {/* 🔥 MODAL DE CONFIGURACIÓN MÓVIL MUY COMPACTO */}
+      {/* 🔥 MODAL DE CONFIGURACIÓN Y TRADUCCIÓN ULTRA COMPACTO */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
           <div className="bg-gradient-to-b from-[#0a0d10] to-[#131418] rounded-xl border border-[#ff007a]/30 shadow-2xl w-72 max-h-[75vh] overflow-hidden">
+            
             {/* Header del modal */}
             <div className="flex items-center justify-between p-2.5 border-b border-gray-700/50">
               <div className="flex items-center gap-2">
                 <div className="p-1 bg-[#ff007a]/20 rounded-lg border border-[#ff007a]/30">
-                  <Settings size={14} className="text-[#ff007a]" />
+                  <Globe size={14} className="text-[#ff007a]" />
                 </div>
-                <h2 className="text-sm font-bold text-white">Traductor Móvil</h2>
+                <h2 className="text-sm font-bold text-white">Traductor Cliente</h2>
               </div>
               <button
                 onClick={() => setShowSettingsModal(false)}
@@ -1017,6 +1335,7 @@ const FloatingMessagesImprovedClient = ({
 
             {/* Contenido del modal */}
             <div className="p-2.5 overflow-y-auto max-h-[calc(75vh-80px)]">
+              
               {/* Advertencia temporal */}
               <div className="mb-2.5 p-2 bg-amber-500/10 border border-amber-400/30 rounded-lg">
                 <div className="flex items-start gap-1.5">
@@ -1033,34 +1352,34 @@ const FloatingMessagesImprovedClient = ({
                 </div>
               </div>
 
+              {/* Estado actual de traducción */}
+              <div className="mb-2.5 p-2 bg-gray-800/50 rounded-lg border border-gray-600/30">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-300">Estado actual:</span>
+                  <div className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    localTranslationEnabled 
+                      ? 'bg-green-500/20 text-green-300 border border-green-400/30' 
+                      : 'bg-gray-500/20 text-gray-400 border border-gray-400/30'
+                  }`}>
+                    {localTranslationEnabled ? 'Activada' : 'Desactivada'}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-300">Idioma:</span>
+                  <div className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-[#ff007a]/20 text-[#ff007a] border border-[#ff007a]/30">
+                    {languages.find(l => l.code === currentLanguage)?.name || 'Español'}
+                  </div>
+                </div>
+              </div>
+
               {/* Sección de idioma */}
               <div className="mb-2.5">
                 <div className="flex items-center gap-1.5 mb-2">
                   <Globe size={12} className="text-[#ff007a]" />
                   <h3 className="text-xs font-semibold text-white">Cambiar Idioma</h3>
                 </div>
-
-                {/* Estado actual */}
-                <div className="mb-2.5 p-2 bg-gray-800/50 rounded-lg border border-gray-600/30">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-300">Actual:</span>
-                    <div className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                      localTranslationEnabled 
-                        ? 'bg-green-500/20 text-green-300 border border-green-400/30' 
-                        : 'bg-gray-500/20 text-gray-400 border border-gray-400/30'
-                    }`}>
-                      {languages.find(l => l.code === currentLanguage)?.name || 'Español'}
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    {localTranslationEnabled 
-                      ? `Traduce mensajes a ${languages.find(l => l.code === currentLanguage)?.name}`
-                      : 'Sin traducción activa'
-                    }
-                  </p>
-                </div>
                 
-                {/* Grid de idiomas - Ultra compacto */}
+                {/* Grid de idiomas - 10 idiomas en 2 columnas */}
                 <div className="grid grid-cols-2 gap-1">
                   {languages.map((lang) => (
                     <button
@@ -1094,7 +1413,7 @@ const FloatingMessagesImprovedClient = ({
                   <div>
                     <h4 className="text-blue-300 font-semibold text-xs mb-0.5">Configuración Permanente</h4>
                     <p className="text-blue-200/80 text-xs leading-tight">
-                      Menú → Configuración → Idiomas
+                      Para cambios permanentes, ve a: Menú → Configuración → Idiomas
                     </p>
                   </div>
                 </div>
@@ -1105,7 +1424,7 @@ const FloatingMessagesImprovedClient = ({
             <div className="p-2 border-t border-gray-700/50 bg-gray-900/50">
               <div className="flex items-center justify-between">
                 <div className="text-xs text-gray-500">
-                  Temporal
+                  Configuración temporal
                 </div>
                 <button
                   onClick={() => setShowSettingsModal(false)}

@@ -108,6 +108,37 @@ export const loginWithoutRedirect = async (email, password) => {
       localStorage.setItem("token", token);
       console.log("✅ Token guardado en login:", token.substring(0, 10) + "...");
       
+      // 🔥 CARGAR IDIOMA INMEDIATAMENTE DESPUÉS DEL LOGIN
+      try {
+        console.log('🔄 Cargando idioma del usuario...');
+        const userResponse = await axios.get(`${API_BASE_URL}/api/profile/info`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (userResponse.data.success && userResponse.data.user.preferred_language) {
+          localStorage.setItem('userPreferredLanguage', userResponse.data.user.preferred_language);
+          localStorage.setItem('selectedLanguage', userResponse.data.user.preferred_language);
+          localStorage.setItem('i18nextLng', userResponse.data.user.preferred_language); // 🔥 AGREGAR ESTA LÍNEA
+          localStorage.setItem('lang', userResponse.data.user.preferred_language); // 🔥 AGREGAR ESTA LÍNEA
+          console.log('🌍 Idioma cargado en login:', userResponse.data.user.preferred_language);
+          
+          // Actualizar i18next si está disponible
+          if (window.i18n && typeof window.i18n.changeLanguage === 'function') {
+            window.i18n.changeLanguage(userResponse.data.user.preferred_language);
+            console.log('🌍 i18next actualizado a:', userResponse.data.user.preferred_language);
+          }
+        } else {
+          console.log('⚠️ No se encontró idioma preferido, usando español por defecto');
+          localStorage.setItem('userPreferredLanguage', 'es');
+          localStorage.setItem('selectedLanguage', 'es');
+        }
+      } catch (languageError) {
+        console.error('❌ Error cargando idioma post-login:', languageError);
+        // Fallback a español si falla
+        localStorage.setItem('userPreferredLanguage', 'es');
+        localStorage.setItem('selectedLanguage', 'es');
+      }
+      
       // 🔥 LIMPIAR CACHE AL HACER LOGIN
       userCache.clearCache();
       
