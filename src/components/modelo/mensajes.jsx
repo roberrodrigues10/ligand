@@ -78,6 +78,10 @@ export default function ChatPrivado() {
   const [showNicknameModal, setShowNicknameModal] = useState(false);
   const [nicknameTarget, setNicknameTarget] = useState(null);
   const [nicknameValue, setNicknameValue] = useState('');
+  const [isReceivingCall, setIsReceivingCall] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [incomingCallPollingInterval, setIncomingCallPollingInterval] = useState(null);
+  const audioRef = useRef(null);
 
   // Refs
   const mensajesRef = useRef(null);
@@ -97,6 +101,203 @@ export default function ChatPrivado() {
       ...(token && { 'Authorization': `Bearer ${token}` })
     };
   }, []);
+
+
+  const playIncomingCallSound = useCallback(async () => {
+  try {
+    if (audioRef.current) {
+      return;
+    }
+    
+    const audio = new Audio('/sounds/incoming-call.mp3');
+    audio.loop = true;
+    audio.volume = 0.8;
+    audio.preload = 'auto';
+    
+    audioRef.current = audio;
+    
+    try {
+      await audio.play();
+    } catch (playError) {
+      if (playError.name === 'NotAllowedError') {
+        // Usuario no ha interactuado aún
+      }
+    }
+  } catch (error) {
+    console.error('Error reproduciendo sonido:', error);
+  }
+}, []);
+
+const stopIncomingCallSound = useCallback(() => {
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    audioRef.current = null;
+  }
+}, []);
+
+// 🔥 FUNCIÓN: POLLING PARA LLAMADAS ENTRANTES (AGREGAR)
+const verificarLlamadasEntrantes = useCallback(async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/calls/check-incoming`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.has_incoming && data.incoming_call) {
+        // Verificar que no sea mi propia llamada saliente
+        const isMyOutgoingCall = currentCall && 
+                               currentCall.callId === data.incoming_call.id;
+        
+        if (isMyOutgoingCall) {
+          return;
+        }
+        
+        if (!isReceivingCall && !isCallActive) {
+          await playIncomingCallSound();
+          setIncomingCall(data.incoming_call);
+          setIsReceivingCall(true);
+        }
+      } else if (isReceivingCall && !data.has_incoming) {
+        stopIncomingCallSound();
+        setIsReceivingCall(false);
+        setIncomingCall(null);
+      }
+    }
+  } catch (error) {
+    console.error('Error verificando llamadas:', error);
+  }
+}, [isReceivingCall, isCallActive, currentCall, getAuthHeaders, playIncomingCallSound, stopIncomingCallSound]);
+
+// 🔥 FUNCIÓN: RESPONDER LLAMADA ENTRANTE (AGREGAR)
+const responderLlamada = useCallback(async (accion) => {
+  if (!incomingCall) return;
+  
+  try {
+    stopIncomingCallSound();
+    
+    const response = await fetch(`${API_BASE_URL}/api/calls/answer`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        call_id: incomingCall.id,
+        action: accion
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok && data.success) {
+      if (accion === 'accept') {
+        setIsReceivingCall(false);
+        setIncomingCall(null);
+        redirigirAVideochat(data);
+      } else {
+        setIsReceivingCall(false);
+        setIncomingCall(null);
+      }
+    } else {
+      setIsReceivingCall(false);
+      setIncomingCall(null);
+    }
+  } catch (error) {
+    console.error('Error respondiendo llamada:', error);
+    setIsReceivingCall(false);
+    setIncomingCall(null);
+  }
+}, [incomingCall, getAuthHeaders, stopIncomingCallSound]);
+
+// 🔥 FUNCIÓN: REDIRIGIR AL VIDEOCHAT (AGREGAR)
+const redirigirAVideochat = useCallback((callData) => {
+  // Guardar datos de la llamada
+  sessionStorage.setItem('roomName', callData.room_name);
+  sessionStorage.setItem('userName', usuario.name || 'Usuario');
+  sessionStorage.setItem('currentRoom', callData.room_name);
+  sessionStorage.setItem('inCall', 'true');
+  sessionStorage.setItem('videochatActive', 'true');
+  
+  // Limpiar estados de llamada
+  setIsCallActive(false);
+  setCurrentCall(null);
+  setIsReceivingCall(false);
+  setIncomingCall(null);
+  
+  // Limpiar intervals
+  if (callPollingInterval) {
+    clearInterval(callPollingInterval);
+    setCallPollingInterval(null);
+  }
+  
+  // Redirigir al videochat
+  navigate('/videochat', {
+    state: {
+      roomName: callData.room_name,
+      userName: usuario.name || 'Usuario',
+      callId: callData.call_id || callData.id,
+      from: 'call',
+      callData: callData
+    }
+  });
+}, [usuario.name, callPollingInterval, navigate]);
+
+// 🔥 USEEFFECTS ADICIONALES (AGREGAR AL FINAL DE LOS USEEFFECTS EXISTENTES)
+
+// Polling para llamadas entrantes
+useEffect(() => {
+  if (!usuario.id) return;
+
+  verificarLlamadasEntrantes();
+  
+  const interval = setInterval(verificarLlamadasEntrantes, 3000);
+  setIncomingCallPollingInterval(interval);
+
+  return () => {
+    if (interval) {
+      clearInterval(interval);
+    }
+  };
+}, [usuario.id, verificarLlamadasEntrantes]);
+
+// Configurar sistema de audio
+useEffect(() => {
+  const enableAudioContext = async () => {
+    try {
+      const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAAABAABABkAAgAAACAJAAEAAABkYXRhBAAAAAEA');
+      silentAudio.volume = 0.01;
+      await silentAudio.play();
+    } catch (e) {
+      // Esperado en algunos navegadores
+    }
+    
+    document.removeEventListener('click', enableAudioContext);
+    document.removeEventListener('touchstart', enableAudioContext);
+  };
+  
+  document.addEventListener('click', enableAudioContext, { once: true });
+  document.addEventListener('touchstart', enableAudioContext, { once: true });
+  
+  return () => {
+    document.removeEventListener('click', enableAudioContext);
+    document.removeEventListener('touchstart', enableAudioContext);
+  };
+}, []);
+
+// Cleanup al desmontar componente
+useEffect(() => {
+  return () => {
+    stopIncomingCallSound();
+    if (callPollingInterval) {
+      clearInterval(callPollingInterval);
+    }
+    if (incomingCallPollingInterval) {
+      clearInterval(incomingCallPollingInterval);  
+    }
+  };
+}, [callPollingInterval, incomingCallPollingInterval, stopIncomingCallSound]);
+
 
   // 🔥 SISTEMA DE REGALOS (DESPUÉS DE getAuthHeaders)
   const {
@@ -1848,27 +2049,6 @@ const cargarMensajes = useCallback(async (roomName) => {
 
                 {/* Botones de acción - RESPONSIVE */}
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    onClick={() => iniciarLlamadaReal(
-                      conversacionSeleccionada?.other_user_id,
-                      conversacionSeleccionada?.other_user_name
-                    )}
-                    disabled={isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))}
-                    className={`px-2 py-2 rounded-lg text-sm transition-colors flex items-center gap-1 ${
-                      isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))
-                        ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
-                        : 'bg-[#ff007a]/20 hover:bg-[#ff007a]/30 text-[#ff007a]'
-                    }`}
-                  >
-                    <Video size={16} />
-                    {!isMobile && (
-                      conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
-                        ? 'Bloqueado'
-                        : isCallActive
-                          ? 'Llamando...'
-                          : 'Video'
-                    )}
-                  </button>
 
                   {usuario.rol === 'modelo' && (
                     <button
@@ -2162,6 +2342,12 @@ const cargarMensajes = useCallback(async (roomName) => {
         gifts={gifts}
         onRequestGift={handleRequestGift}
         loading={loadingGift}
+      />
+      <IncomingCallOverlay
+        isVisible={isReceivingCall}
+        callData={incomingCall}
+        onAnswer={() => responderLlamada('accept')} // 🔥 FUNCIÓN REAL
+        onDecline={() => responderLlamada('reject')} // 🔥 FUNCIÓN REAL
       />
     </div>
   );

@@ -48,15 +48,7 @@ export function useRegistrationAccess() {
         const verificacionEstado = user.verificacion_estado;
         const isPending = verificacionEstado === 'pendiente';
         
-        console.log(`🔍 [modelo_waiting_admin] Evaluando:`, {
-          hasEmailVerified,
-          isModelo,
-          hasMainVerification,
-          verificacionEstado,
-          isPending,
-          result: hasEmailVerified && isModelo && hasMainVerification && isPending
-        });
-        
+                
         return hasEmailVerified && isModelo && hasMainVerification && isPending;
       },
       allowedPaths: ['/esperando'],
@@ -75,14 +67,7 @@ export function useRegistrationAccess() {
         const verificacionEstado = user.verificacion_estado;
         const isRejected = verificacionEstado === 'rechazada';
         
-        console.log(`🔍 [modelo_rejected] Evaluando:`, {
-          hasEmailVerified,
-          isModelo,
-          verificacionEstado,
-          isRejected,
-          result: hasEmailVerified && isModelo && isRejected
-        });
-        
+                
         return hasEmailVerified && isModelo && isRejected;
       },
       allowedPaths: ['/anteveri', '/verificacion'],
@@ -103,17 +88,7 @@ export function useRegistrationAccess() {
         const notPending = verificacionEstado !== 'pendiente';
         const notApproved = verificacionEstado !== 'aprobada';
         
-        console.log(`🔍 [modelo_document_submission] Evaluando:`, {
-          hasEmailVerified,
-          isModelo,
-          noMainVerification,
-          verificacionEstado,
-          notRejected,
-          notPending,
-          notApproved,
-          result: hasEmailVerified && isModelo && noMainVerification && notRejected && notPending && notApproved
-        });
-        
+                
         return hasEmailVerified && isModelo && noMainVerification && notRejected && notPending && notApproved;
       },
       allowedPaths: ['/anteveri', '/verificacion'],
@@ -134,16 +109,7 @@ export function useRegistrationAccess() {
         // 🎯 LÓGICA: Si está aprobado, está completo (incluso si verificacion_completa es false por inconsistencia de datos)
         const isCompleted = isApproved || (user.verificacion_completa && isApproved);
         
-        console.log(`🔍 [modelo_completed] Evaluando:`, {
-          hasEmailVerified,
-          isModelo,
-          verificacion_completa: user.verificacion_completa,
-          verificacionEstado,
-          isApproved,
-          isCompleted,
-          result: hasEmailVerified && isModelo && isCompleted
-        });
-        
+                
         return hasEmailVerified && isModelo && isCompleted;
       },
       allowedPaths: [], // 🚫 BLOQUEAR: No puede acceder a rutas de registro
@@ -157,12 +123,7 @@ export function useRegistrationAccess() {
         const hasEmailVerified = user.email_verified_at;
         const isCliente = user.rol === 'cliente';
         
-        console.log(`🔍 [cliente_completed] Evaluando:`, {
-          hasEmailVerified,
-          isCliente,
-          result: hasEmailVerified && isCliente
-        });
-        
+                
         return hasEmailVerified && isCliente;
       },
       allowedPaths: [], // 🚫 BLOQUEAR: No puede acceder a rutas de registro
@@ -181,15 +142,7 @@ export function useRegistrationAccess() {
         const verificacionEstado = user.verificacion_estado;
         const isApproved = verificacionEstado === 'aprobada';
         
-        console.log(`🔍 [admin_completed] Evaluando:`, {
-          hasEmailVerified,
-          isAdmin,
-          hasMainVerification,
-          verificacionEstado,
-          isApproved,
-          result: hasEmailVerified && isAdmin && hasMainVerification && isApproved
-        });
-        
+                
         return hasEmailVerified && isAdmin && hasMainVerification && isApproved;
       },
       allowedPaths: [], // 🚫 BLOQUEAR: No puede acceder a rutas de registro
@@ -208,14 +161,7 @@ export function useRegistrationAccess() {
 
   // 🎯 DETERMINAR PASO ACTUAL DEL USUARIO
   const determineCurrentStep = (user) => {
-    console.log(`🔍 [useRegistrationAccess] Determinando paso para usuario:`, {
-      email_verified_at: user.email_verified_at,
-      rol: user.rol,
-      verificacion_completa: user.verificacion_completa,
-      verificacion_estado: user.verificacion_estado, // Solo usar este campo
-      user_full: user // Para debug completo
-    });
-
+    
     // 🔧 IMPORTANTE: Evaluar en orden específico para modelos
     const stepOrder = [
       'email_verification',           // 1. Sin email verificado
@@ -231,21 +177,18 @@ export function useRegistrationAccess() {
     for (const stepKey of stepOrder) {
       const stepConfig = REGISTRATION_STEPS[stepKey];
       if (stepConfig.condition(user)) {
-        console.log(`✅ [useRegistrationAccess] Usuario en paso: ${stepKey} (${stepConfig.stepName})`);
-        return { key: stepKey, config: stepConfig };
+                return { key: stepKey, config: stepConfig };
       }
     }
 
-    console.log(`❓ [useRegistrationAccess] No se pudo determinar el paso del usuario`);
-    return null;
+        return null;
   };
 
   useEffect(() => {
     const checkRegistrationStep = async () => {
       // 🛑 PREVENIR MÚLTIPLES EJECUCIONES
       if (hasFetched.current || GLOBAL_PROCESSING) {
-        console.log(`🛑 [useRegistrationAccess-${componentId.current}] Ya procesando, saltando...`);
-        return;
+                return;
       }
 
       const currentPath = location.pathname;
@@ -253,30 +196,26 @@ export function useRegistrationAccess() {
       // 🏃‍♂️ SI ACABA DE VERIFICAR EMAIL, NO INTERCEPTAR
       const justVerified = localStorage.getItem('email_just_verified');
       if (justVerified) {
-        console.log(`🏃‍♂️ [useRegistrationAccess] Email recién verificado, permitiendo navegación libre`);
-        localStorage.removeItem('email_just_verified'); // Limpiar bandera
+                localStorage.removeItem('email_just_verified'); // Limpiar bandera
         setLoading(false);
         return;
       }
 
       // 🔓 Si está en ruta pública, no verificar
       if (PUBLIC_ROUTES.includes(currentPath)) {
-        console.log(`🔓 [useRegistrationAccess] Ruta pública: ${currentPath}`);
-        setLoading(false);
+                setLoading(false);
         return;
       }
 
       // Verificar token
       const token = localStorage.getItem('token');
       if (!token) {
-        console.log(`🚨 [useRegistrationAccess] No hay token - redirigiendo a /home`);
-        navigate("/home", { replace: true });
+                navigate("/home", { replace: true });
         return;
       }
 
       try {
-        console.log(`🔍 [useRegistrationAccess-${componentId.current}] Verificando paso de registro para: ${currentPath}`);
-        
+                
         hasFetched.current = true;
         GLOBAL_PROCESSING = true;
 
@@ -285,8 +224,7 @@ export function useRegistrationAccess() {
         const user = response?.user || response;
 
         if (!user) {
-          console.log(`❌ [useRegistrationAccess] No se pudo obtener información del usuario`);
-          navigate("/home", { replace: true });
+                    navigate("/home", { replace: true });
           return;
         }
 
@@ -294,8 +232,7 @@ export function useRegistrationAccess() {
         const userStep = determineCurrentStep(user);
         
         if (!userStep) {
-          console.log(`❌ [useRegistrationAccess] No se pudo determinar el paso del usuario`);
-          navigate("/verificaremail", { replace: true }); // Fallback seguro
+                    navigate("/verificaremail", { replace: true }); // Fallback seguro
           return;
         }
 
@@ -303,20 +240,16 @@ export function useRegistrationAccess() {
 
         // 🔄 SI EL REGISTRO ESTÁ COMPLETO, BLOQUEAR RUTAS DE REGISTRO
         if (userStep.key.includes('_completed')) {
-          console.log(`✅ [useRegistrationAccess] Registro completo para ${user.rol}`);
-          
+                    
           // 🚫 BLOQUEAR: Si intenta acceder a cualquier ruta de registro, redirigir a su home
           const allRegistrationPaths = ['/verificaremail', '/genero', '/anteveri', '/verificacion', '/esperando'];
           if (allRegistrationPaths.includes(currentPath)) {
-            console.log(`🚫 [useRegistrationAccess] BLOQUEANDO acceso de usuario completo a ruta de registro: ${currentPath}`);
-            console.log(`🔄 [useRegistrationAccess] Redirigiendo a home del rol: ${userStep.config.redirectTo}`);
-            navigate(userStep.config.redirectTo, { replace: true });
+                                    navigate(userStep.config.redirectTo, { replace: true });
             return;
           }
           
           // ✅ Si no está en ruta de registro, delegar a usePageAccess
-          console.log(`✅ [useRegistrationAccess] Usuario completo no en ruta de registro, delegando a usePageAccess`);
-          setLoading(false);
+                    setLoading(false);
           return;
         }
 
@@ -324,16 +257,13 @@ export function useRegistrationAccess() {
         const isAllowedPath = userStep.config.allowedPaths.includes(currentPath);
 
         if (!isAllowedPath) {
-          console.log(`🔄 [useRegistrationAccess] Redirigiendo de ${currentPath} a ${userStep.config.redirectTo} (Paso: ${userStep.config.stepName})`);
-          navigate(userStep.config.redirectTo, { replace: true });
+                    navigate(userStep.config.redirectTo, { replace: true });
           return;
         }
 
-        console.log(`✅ [useRegistrationAccess] Usuario en ruta correcta: ${currentPath} (Paso: ${userStep.config.stepName})`);
-
-      } catch (error) {
-        console.error(`❌ [useRegistrationAccess-${componentId.current}] Error:`, error);
         
+      } catch (error) {
+                
         // Si hay error de autenticación, redirigir a home
         if (error.response?.status === 401 || error.response?.status === 403) {
           navigate("/home", { replace: true });

@@ -65,8 +65,7 @@ export const useTranslation = (userId = null) => {
   // 🌐 FUNCIÓN FALLBACK PARA TRADUCCIÓN
   const translateWithFallback = useCallback(async (text, targetLang) => {
     try {
-      console.log('🔄 [TRANSLATION] Usando traducción fallback para:', `"${text}"`, 'a idioma:', targetLang);
-      
+            
       const cleanText = text.toLowerCase().trim();
       
       const translations = {
@@ -191,25 +190,21 @@ export const useTranslation = (userId = null) => {
       if (langDict) {
         const translated = langDict[cleanText];
         if (translated) {
-          console.log('✅ [TRANSLATION] Traducción encontrada:', `"${cleanText}"`, '->', `"${translated}"`);
-          return translated;
+                    return translated;
         }
         
         // Buscar traducciones parciales
         for (const [key, value] of Object.entries(langDict)) {
           if (cleanText.includes(key) || key.includes(cleanText)) {
-            console.log('✅ [TRANSLATION] Traducción parcial encontrada:', `"${cleanText}"`, '->', `"${value}"`);
-            return value;
+                        return value;
           }
         }
       }
       
-      console.log('❌ [TRANSLATION] No se encontró traducción para:', `"${cleanText}"`);
-      return null;
+            return null;
       
     } catch (error) {
-      console.error('❌ [TRANSLATION] Error en traducción fallback:', error);
-      return null;
+            return null;
     }
   }, []);
 
@@ -234,8 +229,7 @@ export const useTranslation = (userId = null) => {
       return;
     }
 
-    console.log('🌍 [TRANSLATION] Iniciando traducción para:', originalText);
-
+    
     setTranslatingIds(prev => new Set(prev).add(message.id));
 
     try {
@@ -258,13 +252,11 @@ export const useTranslation = (userId = null) => {
       
       if (result && result !== originalText && result.trim() !== '' && result.toLowerCase() !== originalText.toLowerCase()) {
         setTranslations(prev => new Map(prev).set(message.id, result));
-        console.log('✅ [TRANSLATION] Traducción guardada:', result);
-      } else {
+              } else {
         setTranslations(prev => new Map(prev).set(message.id, null));
       }
     } catch (error) {
-      console.error('❌ [TRANSLATION] Error traduciendo mensaje:', error);
-      setTranslations(prev => new Map(prev).set(message.id, null));
+            setTranslations(prev => new Map(prev).set(message.id, null));
     } finally {
       setTranslatingIds(prev => {
         const newSet = new Set(prev);
@@ -290,8 +282,7 @@ export const useTranslation = (userId = null) => {
     if (typeof changeGlobalLanguage === 'function') {
       try {
         changeGlobalLanguage(languageCode);
-        console.log('🌍 [TRANSLATION] Idioma cambiado en contexto global a:', languageCode);
-      } catch (error) {
+              } catch (error) {
         console.warn('❌ [TRANSLATION] No se pudo cambiar idioma en contexto global:', error);
       }
     }
@@ -300,8 +291,7 @@ export const useTranslation = (userId = null) => {
     setTranslations(new Map());
     setTranslatingIds(new Set());
     
-    console.log(`💬 [TRANSLATION] Idioma cambiado a: ${languageCode}`);
-  }, [changeGlobalLanguage]);
+      }, [changeGlobalLanguage]);
 
   // 🌐 CARGAR CONFIGURACIÓN INICIAL
   useEffect(() => {

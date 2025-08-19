@@ -85,6 +85,10 @@ export default function ChatPrivado() {
   const globalPollingInterval = useRef(null);
   const openChatWith = location.state?.openChatWith;
   const hasOpenedSpecificChat = useRef(false);
+  const [isReceivingCall, setIsReceivingCall] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [incomingCallPollingInterval, setIncomingCallPollingInterval] = useState(null);
+  const audioRef = useRef(null)
 
   // 🔥 FUNCIONES MEMOIZADAS (DEFINIR PRIMERO)
   const getAuthHeaders = useCallback(() => {
@@ -96,7 +100,260 @@ export default function ChatPrivado() {
       ...(token && { 'Authorization': `Bearer ${token}` })
     };
   }, []);
+const iniciarPollingLlamada = useCallback((callId) => {
+  console.log('🔄 Iniciando polling para llamada:', callId);
+  
+  const interval = setInterval(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/calls/status`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ call_id: callId })
+      });
+      
+      if (!response.ok) {
+        console.error('❌ Error en response del polling:', response.status);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('📞 Polling response:', data);
+      
+      if (data.success && data.call) {
+        const callStatus = data.call.status;
+        console.log('📊 Estado de llamada:', callStatus);
+                
+        if (callStatus === 'active') {
+          // ✅ ¡Llamada aceptada por la modelo!
+          console.log('🎉 ¡Llamada ACEPTADA! Redirigiendo...');
+          clearInterval(interval);
+          setCallPollingInterval(null);
+          
+          // 🔥 CRITICAL: Asegurar que tenemos room_name
+          const roomName = data.call.room_name || data.room_name;
+          if (!roomName) {
+            console.error('❌ No se recibió room_name en la respuesta');
+            alert('Error: No se pudo obtener información de la sala');
+            setIsCallActive(false);
+            setCurrentCall(null);
+            return;
+          }
+          
+          redirigirAVideochatCliente({
+            ...data.call,
+            room_name: roomName,
+            call_id: callId
+          });
+          
+        } else if (callStatus === 'rejected') {
+          // ❌ Llamada rechazada por la modelo
+          console.log('😞 Llamada RECHAZADA');
+          clearInterval(interval);
+          setCallPollingInterval(null);
+          setIsCallActive(false);
+          setCurrentCall(null);
+          alert('La llamada fue rechazada');
+          
+        } else if (callStatus === 'cancelled') {
+          // ⏰ Llamada cancelada por timeout
+          console.log('⏰ Llamada CANCELADA por timeout');
+          clearInterval(interval);
+          setCallPollingInterval(null);
+          setIsCallActive(false);
+          setCurrentCall(null);
+          alert('La llamada expiró');
+          
+        } else if (callStatus === 'pending') {
+          // 🕐 Llamada aún pendiente (normal)
+          console.log('⏳ Llamada aún pendiente...');
+          
+        } else {
+          // ❓ Estado desconocido
+          console.log('❓ Estado desconocido:', callStatus);
+        }
+      } else {
+        console.error('❌ Respuesta inválida del polling:', data);
+      }
+      
+    } catch (error) {
+      console.error('💥 Error en polling:', error);
+    }
+  }, 2000); // Cada 2 segundos
+  
+  setCallPollingInterval(interval);
+  
+  // ⏰ Timeout de seguridad - más largo para dar tiempo
+  setTimeout(() => {
+    if (interval) {
+      console.log('⏰ Timeout de seguridad activado');
+      clearInterval(interval);
+      setCallPollingInterval(null);
+      
+      if (isCallActive) {
+        setIsCallActive(false);
+        setCurrentCall(null);
+        alert('La llamada expiró por tiempo de espera');
+      }
+    }
+  }, 45000); // 45 segundos
+}, [getAuthHeaders, isCallActive, setCallPollingInterval, setIsCallActive, setCurrentCall]);
 
+// ============================================================================
+// 2. FUNCIÓN: REDIRIGIR AL VIDEOCHAT DEL CLIENTE
+// ============================================================================
+
+const redirigirAVideochatCliente = useCallback((callData) => {
+  console.log('🚀 Redirigiendo a videochat CLIENTE con datos:', callData);
+  
+  // Verificar que tenemos datos mínimos
+  if (!callData.room_name) {
+    console.error('❌ Error: No room_name en callData');
+    alert('Error: Información de llamada incompleta');
+    return;
+  }
+  
+  // Guardar datos de la llamada en sessionStorage (más seguro)
+  sessionStorage.setItem('roomName', callData.room_name);
+  sessionStorage.setItem('userName', usuario.name || 'Cliente');
+  sessionStorage.setItem('currentRoom', callData.room_name);
+  sessionStorage.setItem('inCall', 'true');
+  sessionStorage.setItem('videochatActive', 'true');
+  
+  // 🔥 TAMBIÉN EN localStorage para compatibilidad
+  localStorage.setItem('roomName', callData.room_name);
+  localStorage.setItem('userName', usuario.name || 'Cliente');
+  localStorage.setItem('currentRoom', callData.room_name);
+  localStorage.setItem('inCall', 'true');
+  localStorage.setItem('videochatActive', 'true');
+  
+  // Limpiar estados de llamada
+  setIsCallActive(false);
+  setCurrentCall(null);
+  setIsReceivingCall(false);
+  setIncomingCall(null);
+  
+  // Limpiar intervals
+  if (callPollingInterval) {
+    clearInterval(callPollingInterval);
+    setCallPollingInterval(null);
+  }
+  if (incomingCallPollingInterval) {
+    clearInterval(incomingCallPollingInterval);
+    setIncomingCallPollingInterval(null);
+  }
+  
+  console.log('📱 Navegando a videochatclient...');
+  
+  // 🔥 CRÍTICO: Redirigir al videochat DEL CLIENTE, NO de la modelo
+  navigate('/videochatclient', {
+    state: {
+      roomName: callData.room_name,
+      userName: usuario.name || 'Cliente',
+      callId: callData.call_id || callData.id,
+      from: 'call',
+      callData: callData
+    }
+  });
+}, [usuario.name, callPollingInterval, incomingCallPollingInterval, navigate]);
+
+// ============================================================================
+// 3. MODIFICAR LA FUNCIÓN iniciarLlamadaReal EXISTENTE
+// ============================================================================
+
+// 🔥 REEMPLAZA tu función iniciarLlamadaReal actual con esta versión mejorada:
+
+const iniciarLlamadaRealMejorada = useCallback(async (otherUserId, otherUserName) => {
+  try {
+    console.log('📞 Iniciando llamada a:', {
+      userId: otherUserId,
+      userName: otherUserName
+    });
+    
+    setCurrentCall({ id: otherUserId, name: otherUserName, status: 'initiating' });
+    setIsCallActive(true);
+
+    const response = await fetch(`${API_BASE_URL}/api/calls/start`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ receiver_id: otherUserId, call_type: 'video' })
+    });
+
+    const data = await response.json();
+    console.log('✅ Respuesta del servidor:', data);
+    
+    if (data.success) {
+      setCurrentCall({
+        id: otherUserId,
+        name: otherUserName,
+        callId: data.call_id,
+        roomName: data.room_name,
+        status: 'calling'
+      });
+      
+      // 🔥 INICIAR EL POLLING AQUÍ - ESTO ES LO QUE FALTABA
+      iniciarPollingLlamada(data.call_id);
+      
+    } else {
+      console.error('❌ Error en llamada:', data);
+      setIsCallActive(false);
+      setCurrentCall(null);
+      alert(data.error || 'No se pudo iniciar la llamada');
+    }
+  } catch (error) {
+    console.error('💥 Error iniciando llamada:', error);
+    setIsCallActive(false);
+    setCurrentCall(null);
+    alert('Error de conexión al iniciar llamada');
+  }
+}, [getAuthHeaders, iniciarPollingLlamada]);
+
+// ============================================================================
+// 4. FUNCIÓN MEJORADA PARA CANCELAR LLAMADA
+// ============================================================================
+
+const cancelarLlamadaMejorada = useCallback(async () => {
+  try {
+    console.log('🛑 Cancelando llamada...');
+    
+    if (currentCall?.callId) {
+      const response = await fetch(`${API_BASE_URL}/api/calls/cancel`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          call_id: currentCall.callId
+        })
+      });
+      
+      if (response.ok) {
+        console.log('✅ Llamada cancelada exitosamente');
+      } else {
+        console.error('❌ Error cancelando llamada:', response.status);
+      }
+    }
+    
+    // Limpiar polling sin importar el resultado
+    if (callPollingInterval) {
+      clearInterval(callPollingInterval);
+      setCallPollingInterval(null);
+    }
+    
+  } catch (error) {
+    console.error('💥 Error cancelando llamada:', error);
+  } finally {
+    // Siempre limpiar estado
+    setIsCallActive(false);
+    setCurrentCall(null);
+  }
+}, [currentCall, callPollingInterval, getAuthHeaders]);
+
+useEffect(() => {
+  console.log('🔍 Estado actual de llamadas:', {
+    isCallActive,
+    currentCall: currentCall?.callId,
+    callPollingInterval: !!callPollingInterval,
+    user: usuario?.id
+  });
+}, [isCallActive, currentCall, callPollingInterval, usuario]);
   // 🔥 SISTEMA DE REGALOS (DESPUÉS DE getAuthHeaders)
   const {
     gifts,
@@ -2160,43 +2417,6 @@ const renderMensaje = useCallback((mensaje) => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                      <button
-                    onClick={() => iniciarLlamadaReal(
-                      conversacionSeleccionada?.other_user_id,
-                      conversacionSeleccionada?.other_user_name
-                    )}
-                    disabled={isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))}
-                    className={`px-2 py-2 rounded-lg text-sm transition-colors flex items-center gap-1 ${
-                      isCallActive || (conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id))
-                        ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
-                        : 'bg-[#ff007a]/20 hover:bg-[#ff007a]/30 text-[#ff007a]'
-                    }`}
-                  >
-                    <Video size={16} />
-                    {!isMobile && (
-                      conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
-                        ? 'Bloqueado'
-                        : isCallActive
-                          ? 'Llamando...'
-                          : 'Video'
-                    )}
-                  </button>
-
-                  {/* Botón PEDIR regalo solo para modelos */}
-                  {usuario.rol === 'modelo' && (
-                    <button
-                      onClick={() => setShowGiftsModal(true)}
-                      disabled={conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)}
-                      className={`px-2 py-2 rounded-lg text-xs hover:scale-105 transition-transform flex items-center gap-1 ${
-                        conversacionSeleccionada && bloqueados.has(conversacionSeleccionada.other_user_id)
-                          ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-purple-500 to-pink-500'
-                      }`}
-                    >
-                      <Gift size={14} />
-                      {!isMobile && 'Pedir'}
-                    </button>
-                  )}
 
                     <div className="relative">
                       <button
@@ -2556,7 +2776,7 @@ const renderMensaje = useCallback((mensaje) => {
       <CallingSystem
         isVisible={isCallActive}
         callerName={currentCall?.name}
-        onCancel={cancelarLlamada}
+        onCancel={cancelarLlamadaMejorada}
         callStatus={currentCall?.status || 'initiating'}
       />
 
@@ -2584,6 +2804,12 @@ const renderMensaje = useCallback((mensaje) => {
         onReject={handleRejectGift}
         onClose={() => setPendingRequests([])}
         isVisible={pendingRequests.length > 0}
+      />
+      <IncomingCallOverlay
+        isVisible={isReceivingCall}
+        callData={incomingCall}
+        onAnswer={() => responderLlamada('accept')}
+        onDecline={() => responderLlamada('reject')}
       />
     </div>
   );
