@@ -28,16 +28,14 @@ async function sendHeartbeatToServer(activityType, roomName) {
 
     return res.ok;
   } catch (err) {
-    console.error("🔥 Error enviando heartbeat", err);
-    return false;
+        return false;
   }
 }
 
 // Función para convertirse en master
 function becomeMaster(activityType, roomName, interval = 25000) {
   if (isMaster) return;
-  console.log("🧠 Esta pestaña es el MASTER del heartbeat");
-
+  
   isMaster = true;
   heartbeatInterval = setInterval(() => {
     sendHeartbeatToServer(activityType, roomName);

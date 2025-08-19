@@ -42,8 +42,7 @@ const CameraAudioSettings = ({
         setSelectedMicrophone(audioDevices[0].deviceId);
       }
     } catch (error) {
-      console.error('Error obteniendo dispositivos:', error);
-    } finally {
+          } finally {
       setIsLoadingDevices(false);
     }
   };
@@ -59,15 +58,13 @@ const CameraAudioSettings = ({
   const handleCameraChange = (deviceId) => {
     setSelectedCamera(deviceId);
     // Aquí podrías emitir un evento o llamar una función del componente padre
-    console.log('Cámara seleccionada:', deviceId);
-  };
+      };
 
   // Manejar cambio de micrófono
   const handleMicrophoneChange = (deviceId) => {
     setSelectedMicrophone(deviceId);
     // Aquí podrías emitir un evento o llamar una función del componente padre
-    console.log('Micrófono seleccionado:', deviceId);
-  };
+      };
 
   if (!isOpen) return null;
 
@@ -240,8 +237,7 @@ const CameraAudioSettings = ({
           <button
             onClick={() => {
               // Aquí podrías guardar la configuración
-              console.log('Configuración guardada');
-              onClose();
+                            onClose();
             }}
             className="px-6 py-2 bg-gradient-to-r from-[#ff007a] to-[#e91e63] text-white rounded-lg hover:from-[#e91e63] hover:to-[#ff007a] transition-all"
           >

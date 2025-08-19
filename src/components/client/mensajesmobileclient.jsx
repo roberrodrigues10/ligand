@@ -145,17 +145,14 @@ export default function ChatPrivadoMobile() {
   // 🔥 FUNCIÓN FALLBACK PARA TRADUCCIÓN - MEJORADA
   const translateWithFallback = useCallback(async (text, targetLang) => {
     try {
-      console.log('🔄 [MOBILE-CLIENT] Usando traducción fallback para:', `"${text}"`, 'a idioma:', targetLang);
-      
+            
       const cleanText = text.toLowerCase().trim();
       const detectedLang = detectLanguage(text);
       
-      console.log('🔍 [MOBILE-CLIENT] Idioma detectado:', detectedLang, 'Target:', targetLang);
-      
+            
       // Si el texto ya está en el idioma objetivo, no traducir
       if (detectedLang === targetLang) {
-        console.log('⏸️ [MOBILE-CLIENT] Texto ya está en idioma objetivo');
-        return null;
+                return null;
       }
       
       // 🔥 DICCIONARIO EXPANDIDO CON MÁS PALABRAS
@@ -396,45 +393,32 @@ export default function ChatPrivadoMobile() {
       
       // 🔥 DEBUGGING: VERIFICAR SI ENCUENTRA LA TRADUCCIÓN
       if (translationDict) {
-        console.log('📚 [MOBILE-CLIENT-FALLBACK] Diccionario encontrado para:', translationKey);
-        console.log('📚 [MOBILE-CLIENT-FALLBACK] Buscando:', cleanText);
-        console.log('📚 [MOBILE-CLIENT-FALLBACK] Diccionario completo:', translationDict);
-        
+                                
         const translated = translationDict[cleanText];
         if (translated) {
-          console.log('✅ [MOBILE-CLIENT-FALLBACK] Traducción encontrada:', `"${cleanText}"`, '->', `"${translated}"`);
-          return translated;
+                    return translated;
         } else {
-          console.log('❌ [MOBILE-CLIENT-FALLBACK] No se encontró traducción exacta para:', `"${cleanText}"`);
-          console.log('🔍 [MOBILE-CLIENT-FALLBACK] Claves disponibles:', Object.keys(translationDict));
-          
+                              
           // 🔥 INTENTAR BÚSQUEDA DE PALABRAS INDIVIDUALES
-          console.log('🔍 [MOBILE-CLIENT-FALLBACK] Intentando traducción por palabras...');
-          const words = cleanText.split(/\s+/);
+                    const words = cleanText.split(/\s+/);
           const translatedWords = words.map(word => {
             const wordTranslation = translationDict[word.toLowerCase()];
-            console.log(`🔍 [MOBILE-CLIENT-FALLBACK] Palabra "${word}" → "${wordTranslation || word}"`);
-            return wordTranslation || word;
+                        return wordTranslation || word;
           });
           
           const wordBasedTranslation = translatedWords.join(' ');
           if (wordBasedTranslation !== cleanText) {
-            console.log('🎯 [MOBILE-CLIENT-FALLBACK] Traducción por palabras exitosa:', wordBasedTranslation);
-            return wordBasedTranslation;
+                        return wordBasedTranslation;
           }
         }
       } else {
-        console.log('❌ [MOBILE-CLIENT-FALLBACK] No existe diccionario para:', translationKey);
-        console.log('🔍 [MOBILE-CLIENT-FALLBACK] Diccionarios disponibles:', Object.keys(translations));
-      }
+                      }
       
       // 🔥 SI NO ENCUENTRA TRADUCCIÓN, RETORNAR NULL EN LUGAR DEL TEXTO ORIGINAL
-      console.log('🚫 [MOBILE-CLIENT-FALLBACK] No se pudo traducir, retornando null');
-      return null;
+            return null;
       
     } catch (error) {
-      console.error('❌ [MOBILE-CLIENT] Error en traducción fallback:', error);
-      return `[ERROR] ${text}`;
+            return `[ERROR] ${text}`;
     }
   }, [detectLanguage]);
   // 🌐 FUNCIÓN PARA TRADUCIR MENSAJES - CLEAN VERSION
@@ -841,21 +825,18 @@ export default function ChatPrivadoMobile() {
   const handleAcceptGift = async (requestId) => {
     try {
       setLoadingGift(true);
-      console.log(`🎁 Cliente aceptando regalo ${requestId}`);
-      
+            
       const result = await acceptGiftRequest(requestId);
       
       if (result.success) {
-        console.log('✅ Regalo aceptado exitosamente');
-        alert('¡Regalo aceptado exitosamente!');
+                alert('¡Regalo aceptado exitosamente!');
       } else {
         alert(result.error || 'Error aceptando el regalo');
       }
       
       return result;
     } catch (error) {
-      console.error('❌ Error manejando aceptación de regalo:', error);
-      alert('Error inesperado');
+            alert('Error inesperado');
       return { success: false, error: 'Error inesperado' };
     } finally {
       setLoadingGift(false);
@@ -869,15 +850,13 @@ export default function ChatPrivadoMobile() {
       const result = await rejectGiftRequest(requestId);
       
       if (result.success) {
-        console.log('✅ Regalo rechazado correctamente');
-      } else {
+              } else {
         alert(result.error || 'Error rechazando el regalo');
       }
       
       return result;
     } catch (error) {
-      console.error('❌ Error manejando rechazo de regalo:', error);
-      alert('Error inesperado');
+            alert('Error inesperado');
       return { success: false, error: 'Error inesperado' };
     } finally {
       setLoadingGift(false);
@@ -887,18 +866,15 @@ export default function ChatPrivadoMobile() {
   // 🔥 CARGAR DATOS DE USUARIO
   const cargarDatosUsuario = async () => {
     try {
-      console.log('🔍 [MOBILE-CLIENT] Cargando datos de usuario...');
-      const userData = await getUser();
-      console.log('✅ [MOBILE-CLIENT] Usuario cargado:', userData);
-      
+            const userData = await getUser();
+            
       setUsuario({
         id: userData.id,
         name: userData.name || userData.alias || `Usuario_${userData.id}`,
         rol: userData.rol
       });
     } catch (error) {
-      console.error('❌ [MOBILE-CLIENT] Error cargando usuario:', error);
-      setUsuario({
+            setUsuario({
         id: 1,
         name: "Usuario Demo",
         rol: "cliente"
@@ -915,8 +891,7 @@ export default function ChatPrivadoMobile() {
         setLoading(true);
       }
       
-      console.log('🔍 [MOBILE-CLIENT] Cargando conversaciones...');
-      
+            
       const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
@@ -924,13 +899,11 @@ export default function ChatPrivadoMobile() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ [MOBILE-CLIENT] Conversaciones recibidas:', data);
-        
+                
         const newConversations = data.conversations || [];
         setConversaciones(newConversations);
       } else {
-        console.log('🔧 [MOBILE-CLIENT] Usando datos de ejemplo...');
-        const exampleConversations = [
+                const exampleConversations = [
           {
             id: 1,
             other_user_id: 2,
@@ -957,8 +930,7 @@ export default function ChatPrivadoMobile() {
         setConversaciones(exampleConversations);
       }
     } catch (error) {
-      console.error('❌ [MOBILE-CLIENT] Error de conexión:', error);
-    } finally {
+          } finally {
       if (conversaciones.length === 0) {
         setLoading(false);
       }
@@ -1030,8 +1002,7 @@ export default function ChatPrivadoMobile() {
           return prevMensajes;
         });
         
-        console.log('✅ [MOBILE-CLIENT] Mensajes cargados:', allMessages.length);
-      } else if (!isPolling) {
+              } else if (!isPolling) {
         // Mensajes de ejemplo con regalo solo en primera carga
         const exampleMessages = [
           {
@@ -1071,8 +1042,7 @@ export default function ChatPrivadoMobile() {
         setMensajes(exampleMessages);
       }
     } catch (error) {
-      console.error('❌ [MOBILE-CLIENT] Error cargando mensajes:', error);
-    }
+          }
   };
 
   // 🔥 FUNCIÓN PARA INICIAR POLLING EN TIEMPO REAL
@@ -1151,8 +1121,7 @@ export default function ChatPrivadoMobile() {
         setMensajes(prev => prev.filter(m => m.id !== mensajeLocal.id));
       }
     } catch (error) {
-      console.error('❌ [MOBILE-CLIENT] Error enviando mensaje:', error);
-      // Si falla, remover el mensaje local
+            // Si falla, remover el mensaje local
       setMensajes(prev => prev.filter(m => m.id !== mensajeLocal.id));
     }
   };
@@ -1231,25 +1200,21 @@ export default function ChatPrivadoMobile() {
         
         if (pendingChat) {
           const chatInfo = JSON.parse(pendingChat);
-          console.log('🔍 [MOBILE-CLIENT] Chat pendiente detectado:', chatInfo);
-          
+                    
           const now = Date.now();
           const timeDiff = now - chatInfo.timestamp;
           
           if (timeDiff < 10000 && chatInfo.shouldOpen) {
-            console.log('✅ [MOBILE-CLIENT] Abriendo chat pendiente...');
-            
+                        
             const existingConv = conversaciones.find(conv => 
               conv.other_user_id === chatInfo.clientId || 
               conv.room_name === chatInfo.roomName
             );
             
             if (existingConv) {
-              console.log('📂 [MOBILE-CLIENT] Conversación existente encontrada');
-              abrirConversacion(existingConv);
+                            abrirConversacion(existingConv);
             } else {
-              console.log('📝 [MOBILE-CLIENT] Creando nueva conversación...');
-              
+                            
               const nuevaConversacion = {
                 id: chatInfo.conversationId || Date.now(),
                 other_user_id: chatInfo.clientId,
@@ -1269,8 +1234,7 @@ export default function ChatPrivadoMobile() {
                 );
                 
                 if (!exists) {
-                  console.log('➕ [MOBILE-CLIENT] Agregando nueva conversación');
-                  return [nuevaConversacion, ...prev];
+                                    return [nuevaConversacion, ...prev];
                 }
                 return prev;
               });
@@ -1281,15 +1245,12 @@ export default function ChatPrivadoMobile() {
             }
             
             localStorage.removeItem('pendingChatOpen');
-            console.log('🧹 [MOBILE-CLIENT] Chat pendiente procesado y limpiado');
-          } else {
-            console.log('⏰ [MOBILE-CLIENT] Chat pendiente expirado');
-            localStorage.removeItem('pendingChatOpen');
+                      } else {
+                        localStorage.removeItem('pendingChatOpen');
           }
         }
       } catch (error) {
-        console.error('❌ [MOBILE-CLIENT] Error procesando chat pendiente:', error);
-        localStorage.removeItem('pendingChatOpen');
+                localStorage.removeItem('pendingChatOpen');
       }
     };
 
@@ -1377,20 +1338,17 @@ export default function ChatPrivadoMobile() {
   useEffect(() => {
     if (!usuario.id || usuario.rol !== 'cliente') return;
     
-    console.log('🔄 [MOBILE-CLIENT] Iniciando polling de solicitudes pendientes...');
-    
+        
     const interval = setInterval(async () => {
       try {
         await loadPendingRequests();
       } catch (error) {
-        console.error('❌ Error en polling de solicitudes pendientes:', error);
-      }
+              }
     }, 5000);
     
     return () => {
       clearInterval(interval);
-      console.log('🛑 [MOBILE-CLIENT] Polling de solicitudes detenido');
-    };
+          };
   }, [usuario.id, usuario.rol]);
 
   // 🔥 RENDER

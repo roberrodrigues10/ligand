@@ -29,8 +29,7 @@ const TimeDisplayImproved = ({
  const clearSessionTime = () => {
    localStorage.removeItem('sessionTime');
    localStorage.removeItem('sessionStartTime');
-   console.log('🧹 Tiempo de sesión limpiado desde TimeDisplay');
- };
+    };
  
  function truncateName(name, maxLength = 8) {
   if (!name) return '';
@@ -48,15 +47,13 @@ const TimeDisplayImproved = ({
      const totalTime = parseInt(savedTime) + Math.floor(elapsed / 1000);
      setPersistentTime(totalTime);
      setSessionStarted(true);
-     console.log('🔄 Tiempo restaurado:', totalTime);
-   }
+        }
  }, []);
 
  // 🔥 INICIAR TIEMPO CUANDO SE CONECTA
  useEffect(() => {
    if (connected && otherUser && !sessionStarted) {
-     console.log('🚀 Iniciando nueva sesión de tiempo');
-     setSessionStarted(true);
+          setSessionStarted(true);
      setPersistentTime(0);
    }
  }, [connected, otherUser, sessionStarted]);

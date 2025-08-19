@@ -40,14 +40,12 @@ instance.interceptors.response.use(
 
     // 🆕 NO INTERCEPTAR errores 409 de sesión duplicada en LOGIN
     if (status === 409 && codigo === 'SESSION_DUPLICATED' && url.includes('/login')) {
-      console.log("🔥 Error 409 de login detectado - Dejando pasar al componente de login");
-      return Promise.reject(error);
+            return Promise.reject(error);
     }
 
     // 🆕 NO LIMPIAR TOKEN SI ES SESIÓN DUPLICADA en otras rutas
     if (status === 401 && codigo === 'SESSION_DUPLICATED') {
-      console.log("🔥 Sesión duplicada detectada en interceptor - NO limpiando token");
-      return Promise.reject(error); // Dejar que VerificarSesionActiva maneje esto
+            return Promise.reject(error); // Dejar que VerificarSesionActiva maneje esto
     }
 
     const mensajesEspeciales = [
@@ -65,8 +63,7 @@ instance.interceptors.response.use(
       isRefreshing = true;
       hasLoggedOut = true;
       
-      console.log("🧹 Interceptor: Token inválido detectado");
-      
+            
       // Limpiar token
       localStorage.removeItem("token");
       localStorage.removeItem("reclamando_sesion");
@@ -76,8 +73,7 @@ instance.interceptors.response.use(
       
       // Opcional: Redirigir al login después de un breve delay
       setTimeout(() => {
-        console.log("🔄 Debería redirigir al login");
-        isRefreshing = false;
+                isRefreshing = false;
       }, 1000);
     }
 

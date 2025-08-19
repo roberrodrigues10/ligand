@@ -19,19 +19,9 @@ class SessionTokenManager {
         userIP
       ].join('|');
       
-      const hash = await this.sha256(data);
-      
-      console.log('🔑 Token generado:', {
-        userId,
-        hour: currentHour,
-        session: sessionId.substring(0, 8) + '...',
-        hash: hash.substring(0, 16) + '...'
-      });
-      
       return hash;
     } catch (error) {
-      console.error('❌ Error generando token:', error);
-      return null;
+            return null;
     }
   }
   
@@ -69,11 +59,9 @@ export const useGiftSystem = (userId, userRole, getAuthHeaders, apiBaseUrl) => {
     try {
       const token = await SessionTokenManager.generateSessionToken(userId);
       setSessionToken(token);
-      console.log('✅ Session token generado y almacenado');
-      return token;
+            return token;
     } catch (error) {
-      console.error('❌ Error generando session token:', error);
-      return null;
+            return null;
     }
   }, [userId]);
 
@@ -81,29 +69,24 @@ export const useGiftSystem = (userId, userRole, getAuthHeaders, apiBaseUrl) => {
   const loadGifts = useCallback(async () => {
     try {
       setLoadingGifts(true);
-      console.log('🎁 Cargando regalos disponibles...');
-      
+            
       const response = await fetch(`${API_BASE_URL}/api/gifts/available`, {
         headers: getAuthHeaders()
       });
       
-      console.log('📡 Response status:', response.status);
-      
+            
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error del servidor:', errorText);
-        return { success: false, error: errorText };
+                return { success: false, error: errorText };
       }
 
       const data = await response.json();
       if (data.success) {
         setGifts(data.gifts || []);
-        console.log('✅ Regalos cargados:', data.gifts?.length || 0);
-        return { success: true, gifts: data.gifts };
+                return { success: true, gifts: data.gifts };
       }
     } catch (error) {
-      console.error('❌ Error cargando regalos:', error);
-      return { success: false, error: error.message };
+            return { success: false, error: error.message };
     } finally {
       setLoadingGifts(false);
     }
@@ -122,19 +105,16 @@ export const useGiftSystem = (userId, userRole, getAuthHeaders, apiBaseUrl) => {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error cargando solicitudes:', errorText);
-        return { success: false, error: errorText };
+                return { success: false, error: errorText };
       }
 
       const data = await response.json();
       if (data.success) {
         setPendingRequests(data.requests || []);
-        console.log('✅ Solicitudes pendientes:', data.requests?.length || 0);
-        return { success: true, requests: data.requests };
+                return { success: true, requests: data.requests };
       }
     } catch (error) {
-      console.error('❌ Error cargando solicitudes:', error);
-      return { success: false, error: error.message };
+            return { success: false, error: error.message };
     } finally {
       setLoadingRequests(false);
     }
@@ -144,43 +124,26 @@ export const useGiftSystem = (userId, userRole, getAuthHeaders, apiBaseUrl) => {
 
 const requestGift = useCallback(async (clientId, giftId, message = '', roomName = null) => {
   try {
-    console.log('🎁 Parámetros recibidos en requestGift:', {
-      clientId: clientId,
-      giftId: giftId,
-      giftIdType: typeof giftId,
-      message: message,
-      roomName: roomName
-    });
-    
+        
     // 🔥 VALIDACIÓN SIN CONVERTIR giftId A NÚMERO
     const validClientId = parseInt(clientId);
     const validGiftId = giftId; // ✅ MANTENER COMO STRING
     
     // Validar clientId (debe ser número)
     if (isNaN(validClientId)) {
-      console.error('❌ ERROR: clientId inválido:', clientId);
-      return { success: false, error: 'ID de cliente inválido' };
+            return { success: false, error: 'ID de cliente inválido' };
     }
     
     // Validar giftId (debe existir como string)
     if (!validGiftId || validGiftId === '') {
-      console.error('❌ ERROR: giftId vacío:', giftId);
-      return { success: false, error: 'ID de regalo inválido' };
+            return { success: false, error: 'ID de regalo inválido' };
     }
     
-    console.log('✅ IDs validados correctamente:', {
-      validClientId: validClientId,
-      validGiftId: validGiftId,
-      giftIdType: typeof validGiftId
-    });
-    
-    console.log(`🎁 Solicitando regalo "${validGiftId}" para cliente ${validClientId}`);
-    
+        
     // 🔐 GENERAR TOKEN
     const token = sessionToken || await generateSessionToken();
     if (!token) {
-      console.error('❌ No se pudo generar session token');
-      return { success: false, error: 'No se pudo generar token de sesión' };
+            return { success: false, error: 'No se pudo generar token de sesión' };
     }
     
     // 🔥 requestData CON giftId COMO STRING (SIN parseInt)
@@ -208,27 +171,11 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
       }
     };
 
-    // 🔥 VERIFICACIÓN FINAL - NO DEBE HABER parseInt EN gift_id
-    console.log('📤 requestData FINAL:', {
-      ...requestData,
-      session_token: 'HIDDEN',
-      user_agent: 'HIDDEN',
-      browser_info: 'HIDDEN'
-    });
     
     // 🔍 VERIFICAR ESPECÍFICAMENTE QUE gift_id NO SEA NaN
-    console.log('🔍 VERIFICACIÓN gift_id:', {
-      gift_id: requestData.gift_id,
-      type: typeof requestData.gift_id,
-      isNaN: isNaN(requestData.gift_id)
-    });
     
     // Verificar que client_id y modelo_id sean números válidos
     if (isNaN(requestData.client_id) || isNaN(requestData.modelo_id)) {
-      console.error('❌ ERROR CRÍTICO: client_id o modelo_id es NaN', {
-        client_id: requestData.client_id,
-        modelo_id: requestData.modelo_id
-      });
       return { success: false, error: 'Error de validación de IDs numéricos' };
     }
 
@@ -248,17 +195,14 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
       body: JSON.stringify(requestData)
     });
 
-    console.log('📡 Response status:', response.status);
-
+    
     const responseText = await response.text();
-    console.log('📄 Raw response:', responseText);
-
+    
     let data;
     try {
       data = JSON.parse(responseText);
     } catch (parseError) {
-      console.error('❌ Error parsing JSON:', parseError);
-      return { 
+            return { 
         success: false, 
         error: 'Respuesta inválida del servidor', 
         rawResponse: responseText 
@@ -266,8 +210,7 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
     }
 
     if (response.ok && data.success) {
-      console.log('✅ Solicitud enviada correctamente');
-      return { 
+            return { 
         success: true, 
         requestId: data.data?.request_id,
         securityHash: data.data?.security_hash,
@@ -281,22 +224,15 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
         data: data.data
       };
     } else {
-      console.error('❌ Error del servidor:', data);
-      
+            
       // Análisis detallado para debugging
       if (data.error === 'missing_parameters') {
         console.group('🔍 DEBUGGING MISSING PARAMETERS');
-        console.log('📋 Campos enviados:', Object.keys(requestData));
-        console.log('🔢 Total campos enviados:', Object.keys(requestData).length);
-        console.log('❌ Respuesta del servidor:', data);
-        
+                                
         // Mostrar cada campo que enviamos con su tipo
         Object.keys(requestData).forEach(key => {
           const value = requestData[key];
           const type = typeof value;
-          console.log(`✅ ${key}: ${type} = ${
-            type === 'object' ? JSON.stringify(value) : value
-          }`);
         });
         
         console.groupEnd();
@@ -321,16 +257,14 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
       };
     }
   } catch (error) {
-    console.error('❌ Error de conexión:', error);
-    return { success: false, error: 'Error de conexión. Verifica tu internet.' };
+        return { success: false, error: 'Error de conexión. Verifica tu internet.' };
   }
 }, [sessionToken, generateSessionToken, userId, API_BASE_URL, getAuthHeaders]);
 
   // ✅ ACEPTAR REGALO
   const acceptGiftRequest = useCallback(async (requestId, securityHash = null) => {
   try {
-    console.log(`✅ Aceptando regalo ${requestId}`);
-    
+        
     // 🔐 GENERAR TOKEN DE SESIÓN SI NO EXISTE
     const token = sessionToken || await generateSessionToken();
     if (!token) {
@@ -356,12 +290,6 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
       session_token: token
     };
 
-    console.log('📤 Enviando aceptación:', {
-      request_id: requestData.request_id,
-      security_hash: 'HIDDEN',
-      session_token: 'HIDDEN'
-    });
-
     const response = await fetch(`${API_BASE_URL}/api/gifts/requests/${requestId}/accept`, {
       method: 'POST',
       headers: {
@@ -372,8 +300,7 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
     });
 
     const data = await response.json();
-    console.log('📦 Respuesta de aceptación:', data);
-    
+        
     if (response.ok && data.success) {
       // Remover de pendientes
       setPendingRequests(prev => prev.filter(req => req.id !== parseInt(requestId)));
@@ -383,8 +310,7 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
         setUserBalance(data.new_balance);
       }
       
-      console.log('✅ Regalo aceptado correctamente');
-
+      
       // 🎉 NOTIFICACIÓN DE ÉXITO
       const giftName = data.data?.gift?.name || 'regalo';
       const newBalance = data.data?.client_balance?.new_balance;
@@ -408,8 +334,7 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
         }
       };
     } else {
-      console.error('❌ Error aceptando regalo:', data);
-      
+            
       // Manejar errores específicos
       let errorMessage = data.message || data.error || 'Error desconocido';
       
@@ -422,15 +347,13 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
       return { success: false, error: errorMessage };
     }
   } catch (error) {
-    console.error('❌ Error de conexión:', error);
-    return { success: false, error: 'Error de conexión' };
+        return { success: false, error: 'Error de conexión' };
   }
   }, [sessionToken, generateSessionToken, pendingRequests, API_BASE_URL, getAuthHeaders, setUserBalance]);
 
   const rejectGiftRequest = useCallback(async (requestId, reason = null) => {
   try {
-    console.log(`❌ Rechazando regalo ${requestId}`);
-    
+        
     const requestOptions = {
       method: 'POST',
       headers: getAuthHeaders()
@@ -446,8 +369,7 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
     
     if (data.success) {
       setPendingRequests(prev => prev.filter(req => req.id !== parseInt(requestId)));
-      console.log('✅ Regalo rechazado correctamente');
-      
+            
       // Notificación discreta
       if (Notification.permission === 'granted') {
         new Notification('Solicitud Rechazada', {
@@ -458,20 +380,17 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
       
       return { success: true, message: data.message };
     } else {
-      console.error('❌ Error rechazando regalo:', data.error);
-      return { success: false, error: data.error };
+            return { success: false, error: data.error };
     }
   } catch (error) {
-    console.error('❌ Error de conexión:', error);
-    return { success: false, error: 'Error de conexión' };
+        return { success: false, error: 'Error de conexión' };
   }
   }, [API_BASE_URL, getAuthHeaders]);
 
   // 🚀 INICIALIZACIÓN
   useEffect(() => {
     if (userId && getAuthHeaders) {
-      console.log('🔄 Inicializando sistema de regalos...');
-      generateSessionToken();
+            generateSessionToken();
       loadGifts();
       if (userRole === 'cliente') {
         loadPendingRequests();
@@ -484,8 +403,7 @@ const requestGift = useCallback(async (clientId, giftId, message = '', roomName 
     if (!userId) return;
     
     const interval = setInterval(() => {
-      console.log('🔄 Refrescando session token...');
-      generateSessionToken();
+            generateSessionToken();
     }, 60 * 60 * 1000);
 
     return () => clearInterval(interval);

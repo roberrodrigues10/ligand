@@ -21,14 +21,12 @@ class ChatCacheManager {
     // 1. Verificar cache (solo si no es muy viejo)
     const cached = cacheMap.get(endpoint);
     if (cached && (Date.now() - cached.timestamp) < cacheDuration) {
-      console.log(`🎯 Cache hit para ${endpoint}`);
-      return cached.data;
+            return cached.data;
     }
 
     // 2. Verificar request pendiente para evitar duplicados
     if (this.pendingRequests.has(endpoint)) {
-      console.log(`⏳ Request pendiente para ${endpoint}`);
-      return await this.pendingRequests.get(endpoint);
+            return await this.pendingRequests.get(endpoint);
     }
 
     // 3. Hacer request sin rate limiting interno
@@ -64,15 +62,13 @@ class ChatCacheManager {
         const messagesCache = this.messagesCache.get(cacheKey);
         
         if (participantsCache || messagesCache) {
-          console.log(`🔄 Usando cache como fallback para ${endpoint}`);
-          return (participantsCache || messagesCache).data;
+                    return (participantsCache || messagesCache).data;
         }
 
         // Solo reintentar si es error del servidor
         if (retryCount < 2) {
           const delay = this.RATE_LIMIT_BACKOFF * (retryCount + 1);
-          console.log(`⏳ Reintentando ${endpoint} en ${delay}ms`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+                    await new Promise(resolve => setTimeout(resolve, delay));
           return this.makeRequestWithRetry(endpoint, fetchFunction, retryCount + 1);
         }
       }
@@ -85,15 +81,13 @@ class ChatCacheManager {
   invalidateCache(endpoint) {
     this.participantsCache.delete(endpoint);
     this.messagesCache.delete(endpoint);
-    console.log(`🗑️ Cache invalidado para ${endpoint}`);
-  }
+      }
 
   clearCache() {
     this.participantsCache.clear();
     this.messagesCache.clear();
     this.pendingRequests.clear();
-    console.log('🧹 Chat cache limpiado');
-  }
+      }
 }
 
 // 🔥 INSTANCIA GLOBAL
@@ -129,8 +123,7 @@ const SimpleChat = ({
   // 🔥 FUNCIÓN SIN RATE LIMITING: fetchParticipants
   const fetchParticipants = async () => {
     if (!roomName) {
-      console.log('⚠️ No hay roomName para obtener participantes');
-      return;
+            return;
     }
 
     const endpoint = `participants_${roomName}`;
@@ -143,15 +136,8 @@ const SimpleChat = ({
         async () => {
           const token = localStorage.getItem('token');
           if (!token) {
-            console.error('🔐 No hay token para participantes');
-            throw new Error('No hay token');
+                        throw new Error('No hay token');
           }
-
-          console.log('📡 Request a participantes:', {
-            url: `${API_BASE_URL}/api/chat/participants/${roomName}`,
-            roomName,
-            token: token.substring(0, 20) + '...'
-          });
 
           const response = await fetch(`${API_BASE_URL}/api/chat/participants/${roomName}`, {
             method: 'GET',
@@ -163,23 +149,15 @@ const SimpleChat = ({
 
           if (!response.ok) {
             const errorText = await response.text().catch(() => 'Sin contenido de error');
-            console.error('❌ Error en fetchParticipants:', {
-              status: response.status,
-              statusText: response.statusText,
-              errorBody: errorText,
-              roomName
-            });
 
             if (response.status === 403) {
-              console.error('🚫 Error 403 en participantes - problema de autenticación');
-            }
+                          }
 
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
 
           const data = await response.json();
-          console.log('✅ Participantes obtenidos:', data.participants?.length || 0);
-          
+                    
           return data;
         }
       );
@@ -190,8 +168,7 @@ const SimpleChat = ({
         
         const otherUser = result.participants.find(p => !p.is_current_user);
         if (otherUser) {
-          console.log('🧍‍♂️ Otro participante encontrado:', otherUser.name);
-          detectOtherUser({
+                    detectOtherUser({
             name: otherUser.name,
             role: otherUser.role,
             id: otherUser.id
@@ -204,8 +181,7 @@ const SimpleChat = ({
       }
 
     } catch (error) {
-      console.error('❌ Error obteniendo participantes:', error.message);
-      
+            
       if (error.message.includes('500')) {
         console.warn('⚠️ Error 500 en participantes - endpoint no implementado');
         
@@ -222,13 +198,11 @@ const SimpleChat = ({
   const fetchMessages = async () => {
 
   if (disabled || suppressMessages) {
-    console.log('🚫 [SimpleChat] Bloqueado por disabled/suppressMessages');
-    return;
+        return;
   }
 
   if (!roomName) {
-    console.log('⚠️ No hay roomName para fetch');
-    return;
+        return;
   }
 
   const endpoint = `messages_${roomName}`;
@@ -241,15 +215,8 @@ const SimpleChat = ({
       async () => {
         const token = localStorage.getItem('token');
         if (!token) {
-          console.error('🔐 No hay token de autenticación en localStorage');
-          throw new Error('No hay token de autenticación');
+                    throw new Error('No hay token de autenticación');
         }
-
-        console.log('📡 Haciendo request a mensajes:', {
-          url: `${API_BASE_URL}/api/chat/messages/${roomName}`,
-          token: token.substring(0, 20) + '...',
-          roomName
-        });
 
         const response = await fetch(`${API_BASE_URL}/api/chat/messages/${roomName}`, {
           method: 'GET',
@@ -261,16 +228,6 @@ const SimpleChat = ({
 
         if (!response.ok) {
           const errorText = await response.text().catch(() => 'Sin contenido de error');
-          console.error('❌ Error en fetchMessages:', {
-            status: response.status,
-            statusText: response.statusText,
-            url: response.url,
-            headers: Object.fromEntries(response.headers.entries()),
-            errorBody: errorText,
-            roomName,
-            token: token ? 'Presente' : 'Ausente'
-          });
-
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
@@ -283,18 +240,12 @@ const SimpleChat = ({
     // Procesar mensajes
     if (result.success && result.messages) {
       // 🔥 DEBUG: ANALIZAR TODOS LOS MENSAJES RECIBIDOS
-      console.log('📥 [SimpleChat] Todos los mensajes recibidos:', result.messages.length);
-      
+            
       result.messages.forEach((msg, index) => {
         
         // 🔥 SI ES GIFT_REQUEST, MOSTRAR DATOS COMPLETOS
         if (msg.type === 'gift_request') {
-          console.log('🎁 [SimpleChat] ¡GIFT_REQUEST ENCONTRADO!', {
-            fullMessage: msg,
-            extraData: msg.extra_data,
-            giftData: msg.gift_data,
-            rawExtraData: JSON.stringify(msg.extra_data)
-          });
+          
         }
       });
 
@@ -319,14 +270,7 @@ const SimpleChat = ({
       });
 
       // 🔥 DEBUG: MOSTRAR MENSAJES NUEVOS QUE SE VAN A PROCESAR
-      console.log('🆕 [SimpleChat] Mensajes nuevos a procesar:', newMessages.length);
-      newMessages.forEach((msg, index) => {
-        console.log(`🆕 [SimpleChat] Nuevo mensaje ${index}:`, {
-          id: msg.id,
-          type: msg.type,
-          message: msg.message?.substring(0, 30),
-          will_send_to_parent: !!onMessageReceived
-        });
+            newMessages.forEach((msg, index) => {
       });
 
       // 🔥 REEMPLAZAR EN SimpleChat.jsx - fetchMessages()
@@ -339,13 +283,7 @@ newMessages.forEach(msg => {
   detectUserFromMessage(msg);
 
   if (onMessageReceived) {
-    console.log('🔍 [MESSAGES] Analizando mensaje:', {
-      id: msg.id,
-      originalType: msg.type,
-      message: msg.message?.substring(0, 50),
-      hasExtraData: !!msg.extra_data,
-      isGiftText: msg.message && msg.message.includes('Solicitud de regalo')
-    });
+
 
     // 🔥 DETECTAR SI ES GIFT_REQUEST POR CONTENIDO Y TIPO
     const isGiftRequest = msg.type === 'gift_request' || 
@@ -365,15 +303,6 @@ newMessages.forEach(msg => {
                            msg.message.includes('Recibiste:')
                          ));
 
-    console.log('🎁 [GIFT DETECTION]', {
-      id: msg.id,
-      originalType: msg.type,
-      message: msg.message?.substring(0, 40),
-      isGiftRequest,
-      isGiftMessage,
-      hasExtraData: !!msg.extra_data
-    });
-
     // 🔥 FUNCIÓN HELPER PARA PARSING SEGURO
     const parseJsonSafely = (data, fieldName = 'data') => {
       if (!data) return {};
@@ -387,8 +316,7 @@ newMessages.forEach(msg => {
           const parsed = JSON.parse(data);
           return parsed;
         } catch (e) {
-          console.error(`❌ Error parseando ${fieldName}:`, e);
-          return {};
+                    return {};
         }
       }
       
@@ -403,13 +331,6 @@ newMessages.forEach(msg => {
       
       // 🔥 MEJORAR DETECCIÓN DE TIPO
       type: (() => {
-        console.log('🔍 [SIMPLECHAT] Detectando tipo de mensaje:', {
-          originalType: msg.type,
-          message: msg.message,
-          hasExtraData: !!msg.extra_data,
-          hasGiftData: !!msg.gift_data
-        });
-        
         if (isGiftRequest) return 'gift_request';
         if (msg.type === 'gift_sent') return 'gift_sent';
         if (msg.type === 'gift_received') return 'gift_received';
@@ -454,34 +375,12 @@ newMessages.forEach(msg => {
 
 // 🔥 DEBUG ESPECÍFICO PARA MENSAJES DE REGALO
 if (messageForParent.type.includes('gift')) {
-  console.log('🎁 [SIMPLECHAT] MENSAJE DE REGALO DETECTADO:', {
-    finalType: messageForParent.type,
-    text: messageForParent.text,
-    extraData: messageForParent.extra_data,
-    giftData: messageForParent.gift_data,
-    willShowAsCard: Object.keys(messageForParent.extra_data).length > 0
-  });
+
 }
 
     // 🔥 DEBUG ESPECÍFICO PARA GIFT REQUESTS
     if (isGiftRequest) {
-      console.log('🎁 [SimpleChat] GIFT_REQUEST detectado y enviando:', {
-        originalMessage: msg.message,
-        detectedAsGift: true,
-        finalType: messageForParent.type,
-        extraData: messageForParent.extra_data,
-        giftData: messageForParent.gift_data
-      });
     }
-
-    console.log('📨 [SimpleChat] Enviando mensaje al padre:', {
-      id: messageForParent.id,
-      type: messageForParent.type,
-      text: messageForParent.text?.substring(0, 30),
-      isGiftMessage,
-      hasExtraData: Object.keys(messageForParent.extra_data).length > 0,
-      hasGiftData: Object.keys(messageForParent.gift_data).length > 0
-    });
 
     onMessageReceived(messageForParent);
 
@@ -496,29 +395,24 @@ if (messageForParent.type.includes('gift')) {
     }
 
   } catch (error) {
-    console.error('❌ Error obteniendo mensajes:', error.message);
-    setIsConnected(false);
+        setIsConnected(false);
   }
 };
   // Funciones de detección (sin cambios)
   const detectOtherUser = (user, method) => {
-    console.log('🕵️ Intentando detectar usuario:', { user, method });
-
+    
     if (persistedUser.current && persistedUser.current.name === user.name) {
-      console.log('✅ Usuario ya detectado y persistido:', user.name);
-      setOtherParticipant(persistedUser.current);
+            setOtherParticipant(persistedUser.current);
       setIsDetecting(false);
       return true;
     }
 
     if (partnerLoaded.current && detectionMethod.current === 'participants' && method === 'messages') {
-      console.log('⚠️ Ignorando detección por mensajes - ya detectado por participantes');
-      return false;
+            return false;
     }
 
     if (!partnerLoaded.current || method === 'participants') {
-      console.log('✅ Detectando usuario:', user);
-      
+            
       persistedUser.current = user;
       setOtherParticipant(user);
       setIsDetecting(false);
@@ -527,8 +421,7 @@ if (messageForParent.type.includes('gift')) {
       if (onUserLoaded && typeof onUserLoaded === 'function') {
         onUserLoaded(user);
         partnerLoaded.current = true;
-        console.log(`✅ Usuario detectado y persistido via ${method}:`, user.name);
-      }
+              }
       
       return true;
     }
@@ -558,8 +451,7 @@ if (messageForParent.type.includes('gift')) {
 
   // 🔥 FUNCIONES DE ENVÍO MEJORADAS - URL CORREGIDA
   const sendMessage = async (messageText) => {
-    console.log('📤 Enviando mensaje:', { messageText, roomName, userName });
-
+    
     if (!messageText?.trim() || !roomName) {
       return false;
     }
@@ -583,8 +475,7 @@ if (messageForParent.type.includes('gift')) {
       });
 
       if (response.ok) {
-        console.log('✅ Mensaje enviado exitosamente');
-        
+                
         // 🔥 INVALIDAR SOLO EL CACHE DE MENSAJES INMEDIATAMENTE
         const endpoint = `messages_${roomName}`;
         chatCache.invalidateCache(endpoint);
@@ -593,18 +484,15 @@ if (messageForParent.type.includes('gift')) {
         fetchMessages();
         return true;
       } else {
-        console.error('❌ Error enviando mensaje:', response.status);
-        return false;
+                return false;
       }
     } catch (error) {
-      console.error('❌ Error de red enviando mensaje:', error);
-      return false;
+            return false;
     }
   };  
 
   const sendGift = async (gift) => {
-    console.log('🎁 Enviando regalo:', gift);
-
+    
     if (!gift || !roomName) return false;
 
     try {
@@ -627,26 +515,22 @@ if (messageForParent.type.includes('gift')) {
       });
 
       if (response.ok) {
-        console.log('✅ Regalo enviado exitosamente');
-        
+                
         // Invalidar cache e inmediatamente fetch
         const endpoint = `messages_${roomName}`;
         chatCache.invalidateCache(endpoint);
         fetchMessages();
         return true;
       } else {
-        console.error('❌ Error enviando regalo:', response.status);
-        return false;
+                return false;
       }
     } catch (error) {
-      console.error('❌ Error de red enviando regalo:', error);
-      return false;
+            return false;
     }
   };
 
   const sendEmoji = async (emoji) => {
-    console.log('😊 Enviando emoji:', emoji);
-
+    
     if (!emoji || !roomName) return false;
 
     try {
@@ -668,20 +552,17 @@ if (messageForParent.type.includes('gift')) {
       });
 
       if (response.ok) {
-        console.log('✅ Emoji enviado exitosamente');
-        
+                
         // Invalidar cache e inmediatamente fetch
         const endpoint = `messages_${roomName}`;
         chatCache.invalidateCache(endpoint);
         fetchMessages();
         return true;
       } else {
-        console.error('❌ Error enviando emoji:', response.status);
-        return false;
+                return false;
       }
     } catch (error) {
-      console.error('❌ Error de red enviando emoji:', error);
-      return false;
+            return false;
     }
   };
 
@@ -693,12 +574,10 @@ if (messageForParent.type.includes('gift')) {
   // 🔥 POLLING OPTIMIZADO PARA TIEMPO REAL - SIN RATE LIMITING
   useEffect(() => {
     if (!roomName) {
-      console.log('⚠️ No hay roomName, no iniciando polling');
-      return;
+            return;
     }
 
-    console.log('🔄 Iniciando polling optimizado para tiempo real en sala:', roomName);
-
+    
     // Fetch inicial
     fetchParticipants();
     fetchMessages();
@@ -715,18 +594,15 @@ if (messageForParent.type.includes('gift')) {
     return () => {
       if (pollingInterval.current) {
         clearInterval(pollingInterval.current);
-        console.log('🛑 Polling de mensajes detenido');
-      }
+              }
       if (participantsInterval.current) {
         clearInterval(participantsInterval.current);
-        console.log('🛑 Polling de participantes detenido');
-      }
+              }
       
       // Limpiar cache al cambiar de sala
       const currentRoom = localStorage.getItem('roomName');
       if (currentRoom !== roomName) {
-        console.log('🧹 Limpiando chat cache - cambio de sala');
-        chatCache.clearCache();
+                chatCache.clearCache();
         persistedUser.current = null;
       }
     };
@@ -775,8 +651,7 @@ if (messageForParent.type.includes('gift')) {
   useEffect(() => {
     const cleanup = setInterval(() => {
       processedMessages.current.clear();
-      console.log('🧹 Cache de mensajes procesados limpiado');
-    }, 3 * 60 * 1000);
+          }, 3 * 60 * 1000);
 
     return () => clearInterval(cleanup);
   }, []);
@@ -785,13 +660,11 @@ if (messageForParent.type.includes('gift')) {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        console.log('👤 Cargando perfil de usuario...');
-        const user = await getUser(false);
+                const user = await getUser(false);
         const name = user.alias || user.name || user.username || '';
         const role = user.rol || user.role || 'modelo';
 
-        console.log('✅ Perfil cargado:', { name, role, id: user.id });
-
+        
         setLocalUserName(name);
         setLocalUserRole(role);
 
@@ -799,8 +672,7 @@ if (messageForParent.type.includes('gift')) {
           onUserLoaded({ name, role, id: user.id });
         }
       } catch (err) {
-        console.error('❌ Error cargando perfil en SimpleChat:', err);
-        setLocalUserName(userName || 'Usuario');
+                setLocalUserName(userName || 'Usuario');
         setLocalUserRole(userRole || 'modelo');
       }
     };

@@ -51,18 +51,15 @@ export default function HeaderCliente() {
     try {
       const roomName = localStorage.getItem('roomName');
       const hasRoomName = roomName && roomName.trim() !== '';
-      console.log('🔍 Verificando roomName en localStorage:', { roomName, hasRoomName });
-      return hasRoomName;
+            return hasRoomName;
     } catch (error) {
-      console.error('❌ Error verificando localStorage:', error);
-      return false;
+            return false;
     }
   };
 
   // 🚫 FUNCIÓN PARA MANEJAR NAVEGACIÓN BLOQUEADA
   const handleBlockedNavigation = (actionName) => {
-    console.log(`🚫 Navegación bloqueada para: ${actionName}`);
-    notifications.error('No puedes navegar mientras estás en una videollamada activa');
+        notifications.error('No puedes navegar mientras estás en una videollamada activa');
   };
 
   // CARGAR USUARIO AL INICIALIZAR Y VERIFICAR BLOQUEO
@@ -71,17 +68,14 @@ export default function HeaderCliente() {
       try {
         const userData = await getUser();
         setCurrentUser(userData);
-        console.log('👤 Usuario cargado en header:', userData);
-      } catch (error) {
-        console.error('Error cargando usuario:', error);
-      }
+              } catch (error) {
+              }
     };
 
     // Verificar estado de bloqueo inicial
     const blocked = checkRoomNameInStorage();
     setIsBlocked(blocked);
-    console.log('🔒 Estado inicial de bloqueo:', blocked);
-
+    
     loadUser();
   }, []);
 
@@ -90,8 +84,7 @@ export default function HeaderCliente() {
     const handleStorageChange = () => {
       const blocked = checkRoomNameInStorage();
       setIsBlocked(blocked);
-      console.log('🔄 Cambio detectado en localStorage, nuevo estado:', blocked);
-    };
+          };
 
     // Escuchar cambios en localStorage
     window.addEventListener('storage', handleStorageChange);
@@ -111,14 +104,12 @@ export default function HeaderCliente() {
       handleBlockedNavigation('Historias');
       return;
     }
-    console.log('🎬 Abriendo modal de historias...');
-    setShowStoriesModal(true);
+        setShowStoriesModal(true);
   };
 
   // FUNCIÓN PARA CERRAR MODAL DE HISTORIAS
   const handleCloseStories = () => {
-    console.log('🚪 Cerrando modal de historias...');
-    setShowStoriesModal(false);
+        setShowStoriesModal(false);
   };
 
   // 👈 FUNCIÓN PARA ABRIR MODAL DE BÚSQUEDA
@@ -127,21 +118,17 @@ export default function HeaderCliente() {
       handleBlockedNavigation('Búsqueda');
       return;
     }
-    console.log('🔍 Abriendo modal de búsqueda...');
-    setShowSearchModal(true);
+        setShowSearchModal(true);
   };
 
   // 👈 FUNCIÓN PARA CERRAR MODAL DE BÚSQUEDA
   const handleCloseSearch = () => {
-    console.log('🚪 Cerrando modal de búsqueda...');
-    setShowSearchModal(false);
+        setShowSearchModal(false);
   };
 
 
   const handleMessageFromSearch = async (modelId, modelName) => {
-    console.log('🎯 HEADER - Creando conversación en backend PRIMERO');
-    console.log('📥 Modelo seleccionado:', { modelId, modelName });
-    
+            
     if (isBlocked) {
       handleBlockedNavigation('Mensajes desde búsqueda');
       return;
@@ -151,13 +138,11 @@ export default function HeaderCliente() {
       // 🔥 PASO 1: CREAR/OBTENER CONVERSACIÓN EN EL BACKEND
       const token = localStorage.getItem('token');
       if (!token) {
-        console.error('❌ No hay token de autenticación');
-        notifications.error('Error de autenticación');
+                notifications.error('Error de autenticación');
         return;
       }
 
-      console.log('📡 Creando conversación en el backend...');
-      
+            
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
       
       const response = await fetch(`${API_BASE_URL}/api/chat/start-conversation`, {
@@ -172,12 +157,10 @@ export default function HeaderCliente() {
         })
       });
 
-      console.log('📡 Respuesta del backend:', response.status);
-
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Conversación creada/encontrada en backend:', data);
-        
+                
         if (data.success && data.conversation) {
           // 🔥 USAR DATOS REALES DEL BACKEND
           const conversationData = {
@@ -197,11 +180,9 @@ export default function HeaderCliente() {
             createdAt: new Date().toISOString()
           };
           
-          console.log('📦 Datos preparados del backend:', conversationData);
-
-          // 🔥 PASO 2: NAVEGAR CON DATOS REALES
-          console.log('🚀 Navegando con conversación real del backend...');
           
+          // 🔥 PASO 2: NAVEGAR CON DATOS REALES
+                    
           navigate('/message', {
             state: {
               openChatWith: conversationData,
@@ -212,18 +193,15 @@ export default function HeaderCliente() {
             replace: false
           });
           
-          console.log('✅ Navegación ejecutada con datos del backend');
-          notifications.success(`Abriendo chat con ${modelName}`);
+                    notifications.success(`Abriendo chat con ${modelName}`);
           
         } else {
-          console.error('❌ Respuesta del backend sin conversación:', data);
-          notifications.error(data.message || 'Error creando conversación');
+                    notifications.error(data.message || 'Error creando conversación');
         }
         
       } else {
         const errorData = await response.json();
-        console.error('❌ Error del backend:', errorData);
-        
+                
         // Manejar errores específicos
         if (errorData.error === 'blocked_by_you') {
           notifications.error('Has bloqueado a este usuario');
@@ -235,8 +213,7 @@ export default function HeaderCliente() {
       }
       
     } catch (error) {
-      console.error('❌ Error de conexión:', error);
-      notifications.error('Error de conexión. Inténtalo de nuevo.');
+            notifications.error('Error de conexión. Inténtalo de nuevo.');
     }
   };
 
@@ -247,8 +224,7 @@ export default function HeaderCliente() {
       return;
     }
 
-    console.log('📞 Iniciando llamada con:', { modelId, modelName });
-    // Aquí puedes implementar la lógica de llamadas
+        // Aquí puedes implementar la lógica de llamadas
     // Por ejemplo, abrir un modal de llamada o redirigir a una página de llamada
     notifications.info(`Iniciando llamada con ${modelName}...`);
     
@@ -262,13 +238,11 @@ export default function HeaderCliente() {
       handleBlockedNavigation('Compra de monedas');
       return;
     }
-    console.log('💰 Abriendo modal de compra de monedas...');
-    setShowBuyCoins(true);
+        setShowBuyCoins(true);
   };
 
   const cerrarModalCompraMonedas = () => {
-    console.log('🚪 Cerrando modal de compra de monedas...');
-    setShowBuyCoins(false);
+        setShowBuyCoins(false);
   };
 
   const isMobile = () => {
@@ -281,8 +255,7 @@ export default function HeaderCliente() {
       handleBlockedNavigation('Mensajes Desktop');
       return;
     }
-    console.log('💻 Navegando a mensajes desktop...');
-    navigate("/message");
+        navigate("/message");
   };
 
   // FUNCIÓN PARA MANEJAR MENSAJES MÓVIL
@@ -291,8 +264,7 @@ export default function HeaderCliente() {
       handleBlockedNavigation('Mensajes Móvil');
       return;
     }
-    console.log('📱 Navegando a mensajes móvil...');
-    navigate("/mensajesmobileclient");
+        navigate("/mensajesmobileclient");
   };
 
   // 🚫 FUNCIÓN PARA MANEJAR NAVEGACIÓN CON BLOQUEO
@@ -301,8 +273,7 @@ export default function HeaderCliente() {
       handleBlockedNavigation(actionName);
       return;
     }
-    console.log(`🧭 Navegando a: ${path}`);
-    navigate(path);
+        navigate(path);
   };
 
   const toggleMenu = () => setMenuAbierto(!menuAbierto);

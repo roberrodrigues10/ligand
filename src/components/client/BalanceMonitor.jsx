@@ -12,8 +12,7 @@ export const useBalanceMonitor = () => {
 
   // 🔥 FUNCIÓN INDEPENDIENTE PARA FINALIZAR CHAT
   const finalizarPorSaldo = useCallback(async () => {
-    console.log('🛑 [BALANCE] Finalizando por saldo agotado...');
-    
+        
     try {
       const authToken = localStorage.getItem('token');
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -21,8 +20,7 @@ export const useBalanceMonitor = () => {
       
       // 🔥 NOTIFICAR AL SERVIDOR
       if (roomName && authToken) {
-        console.log('📡 [BALANCE] Notificando fin de sesión por saldo...');
-        
+                
         try {
           await fetch(`${API_BASE_URL}/api/livekit/end-coin-session`, {
             method: 'POST',
@@ -76,16 +74,14 @@ export const useBalanceMonitor = () => {
       }
 
       // 🔥 LIMPIAR SESIÓN
-      console.log('🧹 [BALANCE] Limpiando datos de sesión...');
-      const itemsToRemove = [
+            const itemsToRemove = [
         'roomName', 'userName', 'currentRoom', 'inCall', 
         'callToken', 'videochatActive'
       ];
       itemsToRemove.forEach(item => localStorage.removeItem(item));
 
       // 🔥 NAVEGAR A HOME
-      console.log('🏠 [BALANCE] Navegando a home por saldo agotado...');
-      navigate('/homecliente', { 
+            navigate('/homecliente', { 
         replace: true,
         state: { 
           message: 'Tu sesión terminó porque se agotaron los minutos disponibles.',
@@ -94,8 +90,7 @@ export const useBalanceMonitor = () => {
       });
 
     } catch (error) {
-      console.error('❌ [BALANCE] Error finalizando por saldo:', error);
-      
+            
       // 🔥 FALLBACK
       localStorage.removeItem('roomName');
       localStorage.removeItem('userName');
@@ -143,8 +138,7 @@ export const useBalanceMonitor = () => {
           }
         }
       } catch (error) {
-        console.error('❌ [BALANCE] Error obteniendo user ID:', error);
-        return false;
+                return false;
       }
       
       if (!clientUserId) {
@@ -152,8 +146,7 @@ export const useBalanceMonitor = () => {
         return false;
       }
       
-      console.log('🔍 [BALANCE] Verificando saldo para usuario:', clientUserId);
-      
+            
       const response = await fetch(`${API_BASE_URL}/api/client-balance/get`, {
         method: 'POST',
         headers: {
@@ -173,18 +166,15 @@ export const useBalanceMonitor = () => {
           const minutes = data.client_balance.remaining_minutes;
           setRemainingMinutes(minutes);
           
-          console.log('⏰ [BALANCE] Minutos restantes:', minutes);
-          
+                    
           // 🔥 FINALIZAR SI QUEDAN 2 MINUTOS O MENOS
           if (minutes <= 2) {
-            console.log('🚨 [BALANCE] SALDO AGOTADO - Finalizando automáticamente');
-            setTimeout(() => finalizarPorSaldo(), 1000);
+                        setTimeout(() => finalizarPorSaldo(), 1000);
             return true;
           }
           
           if (minutes <= 5 && minutes > 2) {
-            console.log('⚠️ [BALANCE] Pocos minutos restantes:', minutes);
-          }
+                      }
           
           return false;
         }
@@ -195,8 +185,7 @@ export const useBalanceMonitor = () => {
       return false;
       
     } catch (error) {
-      console.error('❌ [BALANCE] Error verificando saldo:', error);
-      return false;
+            return false;
     } finally {
       setIsCheckingBalance(false);
     }
@@ -206,8 +195,7 @@ export const useBalanceMonitor = () => {
   const startMonitoring = useCallback(() => {
     if (isMonitoring) return;
     
-    console.log('🚀 [BALANCE] Iniciando monitoreo de saldo...');
-    setIsMonitoring(true);
+        setIsMonitoring(true);
     
     // Verificación inicial
     verificarSaldo();
@@ -219,11 +207,9 @@ export const useBalanceMonitor = () => {
       const videochatActive = localStorage.getItem('videochatActive') === 'true';
       
       if ((inCall || videochatActive) && roomName) {
-        console.log('🔄 [BALANCE] Verificación automática de saldo...');
-        await verificarSaldo();
+                await verificarSaldo();
       } else {
-        console.log('ℹ️ [BALANCE] No está en llamada, pausando verificación');
-      }
+              }
     }, 10000);
     
     // Guardar referencia para limpiar
@@ -232,8 +218,7 @@ export const useBalanceMonitor = () => {
   }, [isMonitoring, verificarSaldo]);
 
   const stopMonitoring = useCallback(() => {
-    console.log('🛑 [BALANCE] Deteniendo monitoreo de saldo...');
-    setIsMonitoring(false);
+        setIsMonitoring(false);
     setRemainingMinutes(null);
     
     if (window.balanceMonitorInterval) {

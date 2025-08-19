@@ -55,15 +55,13 @@ const DesktopChatPanel = ({
 
   // 🎵 SISTEMA DE SONIDOS DE REGALO - COPIADO DE CHATPRIVADO
 const playGiftReceivedSound = useCallback(async () => {
-  console.log('🎁🔊 [SOUND] Iniciando reproducción de sonido de regalo...');
-  
+    
   try {
     // 🔥 SOLICITAR PERMISOS DE AUDIO PRIMERO
     if (typeof window !== 'undefined' && window.AudioContext) {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       if (audioContext.state === 'suspended') {
-        console.log('🔓 [SOUND] Desbloqueando AudioContext...');
-        await audioContext.resume();
+                await audioContext.resume();
       }
     }
     
@@ -80,8 +78,7 @@ const playGiftReceivedSound = useCallback(async () => {
       if (soundPlayed) break;
       
       try {
-        console.log(`🎵 [SOUND] Intentando reproducir: ${soundUrl}`);
-        
+                
         const audio = new Audio(soundUrl);
         audio.volume = 1.0; // 🔥 VOLUMEN MÁXIMO
         audio.preload = 'auto';
@@ -89,11 +86,9 @@ const playGiftReceivedSound = useCallback(async () => {
         // 🔥 PROMESA PARA MANEJAR LA REPRODUCCIÓN
         await new Promise((resolve, reject) => {
           audio.oncanplaythrough = () => {
-            console.log(`✅ [SOUND] Audio cargado: ${soundUrl}`);
-            audio.play()
+                        audio.play()
               .then(() => {
-                console.log(`🎵 [SOUND] Reproducido exitosamente: ${soundUrl}`);
-                soundPlayed = true;
+                                soundPlayed = true;
                 resolve();
               })
               .catch(reject);
@@ -118,26 +113,22 @@ const playGiftReceivedSound = useCallback(async () => {
     
     // 🔥 SI NINGÚN ARCHIVO FUNCIONA, USAR SONIDO SINTETIZADO
     if (!soundPlayed) {
-      console.log('🔄 [SOUND] Usando sonido sintetizado como último recurso...');
-      await playAlternativeGiftSound();
+            await playAlternativeGiftSound();
     }
     
   } catch (error) {
-    console.error('❌ [SOUND] Error general:', error);
-    // 🔥 ÚLTIMO RECURSO - SONIDO SINTETIZADO
+        // 🔥 ÚLTIMO RECURSO - SONIDO SINTETIZADO
     try {
       await playAlternativeGiftSound();
     } catch (finalError) {
-      console.error('❌ [SOUND] Error final:', finalError);
-    }
+          }
   }
 }, []);
 
 // 🔥 MEJORAR EL SONIDO ALTERNATIVO PARA SER MÁS FUERTE Y CLARO:
 const playAlternativeGiftSound = useCallback(async () => {
   try {
-    console.log('🎵 [ALT-SOUND] Creando sonido sintetizado...');
-    
+        
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     
     // 🔥 ASEGURAR QUE EL CONTEXTO ESTÉ ACTIVO
@@ -172,18 +163,15 @@ const playAlternativeGiftSound = useCallback(async () => {
     playNote(1318.5, now + 0.3, 0.2, 0.7);   // Mi alto
     playNote(1046.5, now + 0.45, 0.3, 0.8);  // Do final más largo y fuerte
     
-    console.log('✅ [ALT-SOUND] Sonido sintetizado reproducido');
-    
+        
     return true;
     
   } catch (error) {
-    console.error('❌ [ALT-SOUND] Error con sonido sintetizado:', error);
-    
+        
     // 🔥 ÚLTIMO ÚLTIMO RECURSO - VIBRACIÓN EN MÓVILES
     if ('vibrate' in navigator) {
       navigator.vibrate([200, 100, 200, 100, 400, 100, 200]);
-      console.log('📳 [ALT-SOUND] Vibración como notificación final');
-    }
+          }
     
     return false;
   }
@@ -197,8 +185,7 @@ const playAlternativeGiftSound = useCallback(async () => {
         if (typeof window !== 'undefined' && window.AudioContext) {
           const audioContext = new (window.AudioContext || window.webkitAudioContext)();
           if (audioContext.state === 'suspended') {
-            console.log('🔓 [INIT] Preparando AudioContext...');
-            // No hacer resume aquí, se hará cuando sea necesario
+                        // No hacer resume aquí, se hará cuando sea necesario
           }
         }
         
@@ -207,8 +194,7 @@ const playAlternativeGiftSound = useCallback(async () => {
           await Notification.requestPermission();
         }
       } catch (error) {
-        console.log('⚠️ [INIT] Error preparando audio:', error);
-      }
+              }
     };
     
     enableAudio();
@@ -234,10 +220,8 @@ const playAlternativeGiftSound = useCallback(async () => {
         navigator.vibrate([200, 100, 200, 100, 400]);
       }
       
-      console.log('🎉 Notificación completa de regalo ejecutada');
-    } catch (error) {
-      console.error('❌ Error en notificación de regalo:', error);
-    }
+          } catch (error) {
+          }
   }, [playGiftReceivedSound]);
 
   // Auto-scroll al final cuando hay nuevos mensajes
@@ -284,11 +268,7 @@ const playAlternativeGiftSound = useCallback(async () => {
 
     // Solo actualizar si realmente cambiaron
     if (currentSignature !== lastSignature) {
-      console.log('🔄 [MODELO] Actualizando mensajes estables', {
-        before: stableMessages.length,
-        after: messages.length
-      });
-
+      
       // Filtrar mensajes únicos
       const seenIds = new Set();
       const uniqueMessages = messages.filter(msg => {
@@ -308,15 +288,7 @@ const playAlternativeGiftSound = useCallback(async () => {
         
         // 🎁 DETECTAR REGALOS RECIBIDOS (para modelos)
         const newGiftMessages = newMessages.filter(msg => {
-          console.log('🎁 [MODELO-DEBUG] Analizando mensaje:', {
-            id: msg.id,
-            type: msg.type,
-            user_id: msg.user_id,
-            myUserId: userData?.id,
-            isGiftReceived: msg.type === 'gift_received',
-            isFromOtherUser: msg.user_id !== userData?.id
-          });
-          
+                    
           return (
             msg.type === 'gift_received' && 
             msg.user_id !== userData?.id // Solo si no soy yo quien envió
@@ -324,8 +296,7 @@ const playAlternativeGiftSound = useCallback(async () => {
         });
         
         if (newGiftMessages.length > 0) {
-          console.log('🎁 ¡Regalo(s) recibido(s) detectado(s) en MODELO!', newGiftMessages);
-          
+                    
           // 🔊 REPRODUCIR SONIDO INMEDIATAMENTE
           newGiftMessages.forEach(async (giftMsg, index) => {
             try {
@@ -341,8 +312,7 @@ const playAlternativeGiftSound = useCallback(async () => {
               }
               
               const giftName = giftData.gift_name || 'Regalo Especial';
-              console.log(`🎵 [MODELO-SOUND] Reproduciendo sonido para: "${giftName}"`);
-              
+                            
               // 🔥 REPRODUCIR SONIDO DE REGALO
               await playGiftNotification(giftName);
               
@@ -366,35 +336,29 @@ const playAlternativeGiftSound = useCallback(async () => {
                 await new Promise(resolve => setTimeout(resolve, 500));
               }
             } catch (error) {
-              console.error('❌ [MODELO-SOUND] Error procesando regalo:', error);
-            }
+                          }
           });
         }
       }
 
       setStableMessages(uniqueMessages);
     } else {
-      console.log('⏸️ [MODELO] Mensajes sin cambios - no re-render');
-    }
+          }
   }, [messages, playGiftNotification, userData?.id]);
 
   useEffect(() => {
   if (stableMessages.length > 0) {
-    console.log('📋 [MODELO-DEBUG] Orden actual de mensajes:');
-    stableMessages.forEach((msg, index) => {
-      console.log(`${index + 1}. ID:${msg.id} | Tipo:${msg.type} | Tiempo:${msg.created_at || msg.timestamp}`);
-    });
+        stableMessages.forEach((msg, index) => {
+          });
   }
 }, [stableMessages]);
 
   // 🔥 FUNCIÓN FALLBACK PARA TRADUCCIÓN - MEJORADA Y CORREGIDA
   const translateWithFallback = useCallback(async (text, targetLang) => {
     try {
-      console.log('🔄 Usando traducción fallback para:', `"${text}"`, 'a idioma:', targetLang);
-      
+            
       const cleanText = text.toLowerCase().trim();
-      console.log('🔄 Texto limpio:', `"${cleanText}"`);
-
+      
       // 🔥 QUITAR DETECCIÓN AUTOMÁTICA - SIEMPRE INTENTAR TRADUCIR
       // Esto estaba causando que devolviera null muy temprano
       
@@ -430,12 +394,9 @@ const playAlternativeGiftSound = useCallback(async () => {
         const translated = translations[cleanText];
         
         if (translated) {
-          console.log('✅ Traducción EN encontrada:', `"${cleanText}"`, '->', `"${translated}"`);
-          return translated;
+                    return translated;
         } else {
-          console.log('❌ No se encontró traducción EN para:', `"${cleanText}"`);
-          console.log('📝 Traducciones disponibles:', Object.keys(translations));
-        }
+                            }
       }
       
       if (targetLang === 'es') {
@@ -462,21 +423,16 @@ const playAlternativeGiftSound = useCallback(async () => {
         const translated = translations[cleanText];
         
         if (translated) {
-          console.log('✅ Traducción ES encontrada:', `"${cleanText}"`, '->', `"${translated}"`);
-          return translated;
+                    return translated;
         } else {
-          console.log('❌ No se encontró traducción ES para:', `"${cleanText}"`);
-          console.log('📝 Traducciones disponibles:', Object.keys(translations));
-        }
+                            }
       }
       
       // 🔥 PARA TESTING - DEVOLVER UNA TRADUCCIÓN SIMULADA SI NO SE ENCUENTRA
-      console.log('🔄 Generando traducción simulada...');
-      return `[${targetLang.toUpperCase()}] ${text}`;
+            return `[${targetLang.toUpperCase()}] ${text}`;
       
     } catch (error) {
-      console.error('❌ Error en traducción fallback:', error);
-      return `[ERROR-${targetLang.toUpperCase()}] ${text}`;
+            return `[ERROR-${targetLang.toUpperCase()}] ${text}`;
     }
   }, []);
 
@@ -484,24 +440,20 @@ const playAlternativeGiftSound = useCallback(async () => {
   const translateMessage = useCallback(async (message) => {
     // 🔥 USAR ESTADO LOCAL EN LUGAR DEL CONTEXTO
     if (!localTranslationEnabled || !message?.id) {
-      console.log('🔄 Traducción deshabilitada o mensaje sin ID');
-      return;
+            return;
     }
     
     const originalText = message.text || message.message;
     if (!originalText || originalText.trim() === '') {
-      console.log('🔄 Mensaje vacío');
-      return;
+            return;
     }
 
     // 🔥 VERIFICAR SI YA ESTÁ PROCESADO O EN PROCESO
     if (translations.has(message.id) || translatingIds.has(message.id)) {
-      console.log('🔄 Mensaje ya procesado o en proceso');
-      return;
+            return;
     }
 
-    console.log('🌍 Iniciando traducción para:', originalText);
-
+    
     // 🔥 MARCAR COMO PROCESANDO INMEDIATAMENTE
     setTranslatingIds(prev => new Set(prev).add(message.id));
 
@@ -511,41 +463,33 @@ const playAlternativeGiftSound = useCallback(async () => {
       // 🔥 USAR EL CONTEXTO GLOBAL CORRECTAMENTE
       if (typeof translateGlobalText === 'function') {
         try {
-          console.log('🌍 Usando translateGlobalText del contexto...');
-          
+                    
           // 🚨 EL CONTEXTO USA EL TARGET LANGUAGE INTERNO, NO EL QUE LE PASAMOS
           result = await translateGlobalText(originalText, message.id);
-          console.log('🌍 Resultado de translateGlobalText:', result);
-          
+                    
           // 🔥 SI EL CONTEXTO DEVUELVE EL MISMO TEXTO, INTENTAR FALLBACK
           if (!result || result === originalText) {
-            console.log('🔄 Contexto no tradujo, usando fallback...');
-            result = await translateWithFallback(originalText, currentLanguage);
+                        result = await translateWithFallback(originalText, currentLanguage);
           }
         } catch (error) {
           console.warn('❌ Error con translateGlobalText, usando fallback:', error);
           result = await translateWithFallback(originalText, currentLanguage);
         }
       } else {
-        console.log('🔄 translateGlobalText no disponible, usando fallback...');
-        // 🔥 USAR FALLBACK DIRECTO
+                // 🔥 USAR FALLBACK DIRECTO
         result = await translateWithFallback(originalText, currentLanguage);
       }
       
-      console.log('🌍 Resultado final de traducción:', result);
-      
+            
       // 🔥 GUARDAR RESULTADO (incluso si es null para evitar re-intentos)
       if (result && result !== originalText && result.trim() !== '' && result.toLowerCase() !== originalText.toLowerCase()) {
         setTranslations(prev => new Map(prev).set(message.id, result));
-        console.log('✅ Traducción guardada para mensaje', message.id, ':', result);
-      } else {
+              } else {
         // Marcar como "sin traducción necesaria"
         setTranslations(prev => new Map(prev).set(message.id, null));
-        console.log('🔄 Sin traducción necesaria para:', originalText);
-      }
+              }
     } catch (error) {
-      console.error('❌ Error traduciendo mensaje:', error);
-      // Marcar como procesado incluso en caso de error
+            // Marcar como procesado incluso en caso de error
       setTranslations(prev => new Map(prev).set(message.id, null));
     } finally {
       setTranslatingIds(prev => {
@@ -559,12 +503,10 @@ const playAlternativeGiftSound = useCallback(async () => {
   // 🌐 EFECTO PARA TRADUCIR MENSAJES AUTOMÁTICAMENTE - CORREGIDO
   useEffect(() => {
     if (!localTranslationEnabled) {
-      console.log('🔄 Traducción deshabilitada globalmente');
-      return;
+            return;
     }
 
-    console.log('🌍 Verificando mensajes para traducir. Total mensajes:', messages.length);
-
+    
     // 🔥 FILTRAR SOLO MENSAJES QUE NO HAYAN SIDO PROCESADOS
     const messagesToTranslate = messages.filter(message => {
       const shouldTranslate = (
@@ -577,14 +519,12 @@ const playAlternativeGiftSound = useCallback(async () => {
       );
       
       if (shouldTranslate) {
-        console.log('✅ Mensaje marcado para traducir:', message.id, message.text || message.message);
-      }
+              }
       
       return shouldTranslate;
     });
 
-    console.log('🌍 Mensajes a traducir:', messagesToTranslate.length);
-
+    
     // 🔥 TRADUCIR SOLO MENSAJES NUEVOS
     messagesToTranslate.forEach((message, index) => {
       // Añadir un pequeño delay para evitar llamadas simultáneas
@@ -606,14 +546,7 @@ const playAlternativeGiftSound = useCallback(async () => {
 
     // 🔥 DEBUG: Log para verificar el estado de traducción
     if (localTranslationEnabled && message.id) {
-      console.log('🔍 Estado traducción para mensaje:', message.id, {
-        originalText,
-        translatedText,
-        isTranslating,
-        hasTranslation,
-        translationEnabled: localTranslationEnabled
-      });
-    }
+          }
 
     return (
       <div className="space-y-1">
@@ -694,8 +627,7 @@ const playAlternativeGiftSound = useCallback(async () => {
     if (typeof changeGlobalLanguage === 'function') {
       try {
         changeGlobalLanguage(languageCode);
-        console.log('🌍 Idioma cambiado en contexto global a:', languageCode);
-      } catch (error) {
+              } catch (error) {
         console.warn('❌ No se pudo cambiar idioma en contexto global:', error);
       }
     }
@@ -705,8 +637,7 @@ const playAlternativeGiftSound = useCallback(async () => {
     setTranslatingIds(new Set());
     processedMessageIdsRef.current = new Set(); // ¡IMPORTANTE!
     
-    console.log(`💬 Idioma cambiado a: ${languageCode}, Traducción: ${shouldEnableTranslation ? 'HABILITADA' : 'DESHABILITADA'}`);
-    
+        
     // Cerrar modal
     setShowSettingsModal(false);
   };

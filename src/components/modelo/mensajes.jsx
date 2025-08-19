@@ -136,8 +136,7 @@ export default function ChatPrivado() {
 
   const playGiftReceivedSound = useCallback(async () => {
   try {
-    console.log('🎁🔊 Reproduciendo sonido de regalo recibido...');
-    
+        
     // Crear audio para regalo recibido
     const audio = new Audio('/sounds/gift-received.mp3');
     audio.volume = 0.8;
@@ -145,11 +144,9 @@ export default function ChatPrivado() {
     
     try {
       await audio.play();
-      console.log('🎵 Sonido de regalo reproducido correctamente');
-    } catch (playError) {
+          } catch (playError) {
             if (playError.name === 'NotAllowedError') {
-        console.log('🚫 AUTOPLAY BLOQUEADO - Usando sonido alternativo');
-        // Sonido alternativo más corto
+                // Sonido alternativo más corto
         playAlternativeGiftSound();
       }
     }
@@ -189,8 +186,7 @@ export default function ChatPrivado() {
       playNote(783.99, now + 0.3, 0.2);  // Sol
       playNote(1046.5, now + 0.45, 0.3); // Do (octava alta)
       
-      console.log('🎵 Sonido alternativo de regalo reproducido');
-    } catch (error) {
+          } catch (error) {
           }
   }, []);
 
@@ -215,8 +211,7 @@ export default function ChatPrivado() {
         navigator.vibrate([200, 100, 200, 100, 400]);
       }
       
-      console.log('🎉 Notificación completa de regalo ejecutada');
-    } catch (error) {
+          } catch (error) {
           }
   }, [playGiftReceivedSound]);
 
@@ -248,8 +243,7 @@ export default function ChatPrivado() {
         )
       );
       
-      console.log(`📖 Marcado como leído: ${roomName}`);
-    } catch (error) {
+          } catch (error) {
           }
   }, [lastSeenMessages, getAuthHeaders]);
 
@@ -282,10 +276,8 @@ export default function ChatPrivado() {
   // 🔥 FUNCIONES PRINCIPALES SIMPLIFICADAS
   const cargarDatosUsuario = useCallback(async () => {
     try {
-      console.log('🔍 Cargando datos de usuario...');
-      const userData = await getUser();
-      console.log('✅ Usuario cargado:', userData);
-      
+            const userData = await getUser();
+            
       setUsuario({
         id: userData.id,
         name: userData.name || userData.alias || `Usuario_${userData.id}`,
@@ -293,8 +285,7 @@ export default function ChatPrivado() {
       });
     } catch (error) {
             // 🔥 USAR DATOS DE EJEMPLO COMO FALLBACK
-      console.log('🔧 Usando datos de usuario de ejemplo...');
-      setUsuario({
+            setUsuario({
         id: 1,
         name: "Usuario Demo",
         rol: "cliente"
@@ -311,20 +302,16 @@ export default function ChatPrivado() {
         setLoading(true);
       }
       
-      console.log('🔍 Cargando conversaciones...');
-      console.log('🔑 Headers:', getAuthHeaders());
-      
+                  
       const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
 
-      console.log('📡 Respuesta status:', response.status);
-
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Conversaciones recibidas:', data);
-        
+                
         const newConversations = data.conversations || [];
         
         // Comparar con conversaciones anteriores para detectar cambios
@@ -340,26 +327,22 @@ export default function ChatPrivado() {
         });
         
         if (hasChanges || conversaciones.length === 0) {
-          console.log('📝 Actualizando conversaciones con cambios detectados');
-          setConversaciones(newConversations);
+                    setConversaciones(newConversations);
           
           // Si hay mensajes nuevos en otras conversaciones, actualizar sin parpadeos
           newConversations.forEach(newConv => {
             const oldConv = conversaciones.find(old => old.room_name === newConv.room_name);
             if (oldConv && newConv.last_message !== oldConv.last_message && newConv.room_name !== conversacionActiva) {
-              console.log(`💬 Mensaje nuevo detectado en ${newConv.other_user_name}: ${newConv.last_message}`);
-            }
+                          }
           });
         } else {
-          console.log('ℹ️ No hay cambios en conversaciones');
-        }
+                  }
       } else {
                 const errorText = await response.text();
                 
         // Solo usar datos de ejemplo si no hay conversaciones cargadas
         if (conversaciones.length === 0) {
-          console.log('🔧 Usando datos de ejemplo...');
-          const exampleConversations = [
+                    const exampleConversations = [
             {
               id: 1,
               other_user_id: 2,
@@ -390,8 +373,7 @@ export default function ChatPrivado() {
             
       // Solo usar datos de ejemplo si no hay conversaciones cargadas
       if (conversaciones.length === 0) {
-        console.log('🔧 Usando datos de ejemplo por error de conexión...');
-        const exampleConversations = [
+                const exampleConversations = [
           {
             id: 1,
             other_user_id: 2,
@@ -427,8 +409,7 @@ export default function ChatPrivado() {
 
 const cargarMensajes = useCallback(async (roomName) => {
   try {
-    console.log('🔍 Cargando mensajes para:', roomName, 'Rol:', usuario.rol);
-
+    
     let allMessages = [];
 
     // 1. Cargar mensajes principales
@@ -440,8 +421,7 @@ const cargarMensajes = useCallback(async (roomName) => {
       const mainData = await mainResponse.json();
       if (mainData.success && mainData.messages) {
         allMessages = [...allMessages, ...mainData.messages];
-        console.log('✅ Mensajes principales:', mainData.messages.length);
-      }
+              }
     }
 
     // 2. Cargar room específico según rol
@@ -449,8 +429,7 @@ const cargarMensajes = useCallback(async (roomName) => {
       ? `${roomName}_client` 
       : `${roomName}_modelo`;
 
-    console.log('🎯 Cargando room específico:', specificRoom);
-
+    
     const specificResponse = await fetch(`${API_BASE_URL}/api/chat/messages/${specificRoom}`, {
       headers: getAuthHeaders()
     });
@@ -459,15 +438,13 @@ const cargarMensajes = useCallback(async (roomName) => {
       const specificData = await specificResponse.json();
       if (specificData.success && specificData.messages) {
         allMessages = [...allMessages, ...specificData.messages];
-        console.log('✅ Mensajes específicos:', specificData.messages.length);
-      }
+              }
     }
 
     // 3. Ordenar por fecha
     allMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     
-    console.log('📊 Total mensajes:', allMessages.length);
-    setMensajes(allMessages);
+        setMensajes(allMessages);
 
   } catch (error) {
       }
@@ -587,8 +564,7 @@ const cargarMensajes = useCallback(async (roomName) => {
         if (favData.success) {
           const favIds = new Set(favData.favorites?.map(fav => fav.id) || []);
           setFavoritos(favIds);
-          console.log('✅ Favoritos cargados:', Array.from(favIds));
-        }
+                  }
       }
 
       // Cargar estados de bloqueo
@@ -607,11 +583,8 @@ const cargarMensajes = useCallback(async (roomName) => {
           // Usuarios que ME han bloqueado
           const bloqueadoresIds = new Set(blockData.blocked_by_users?.map(user => user.id) || []);
           setBloqueadoPor(bloqueadoresIds);
+
           
-          console.log('✅ Estados de bloqueo cargados:', {
-            bloqueados: Array.from(bloqueadosIds),
-            bloqueadoPor: Array.from(bloqueadoresIds)
-          });
         }
       }
 
@@ -629,8 +602,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             apodosMap[item.target_user_id] = item.nickname;
           });
           setApodos(apodosMap);
-          console.log('✅ Apodos cargados:', apodosMap);
-        }
+                  }
       }
       
     } catch (error) {
@@ -657,8 +629,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             isFavorite ? newSet.delete(userId) : newSet.add(userId);
             return newSet;
           });
-          console.log(`✅ Favorito ${isFavorite ? 'removido' : 'agregado'}:`, userName);
-        }
+                  }
       }
     } catch (error) {
           }
@@ -697,8 +668,7 @@ const cargarMensajes = useCallback(async (roomName) => {
               return newSet;
             });
           }
-          console.log(`✅ Usuario ${isBlocked ? 'desbloqueado' : 'bloqueado'}:`, userName);
-        }
+                  }
       }
     } catch (error) {
           }
@@ -708,9 +678,7 @@ const cargarMensajes = useCallback(async (roomName) => {
   // FUNCIÓN PARA VERIFICAR ESTADO DE BLOQUEO
 
   const abrirConversacion = useCallback(async (conversacion) => {
-    console.log(`📂 Abriendo conversación: ${conversacion.other_user_name}`);
-    console.log(`📊 Contador antes: ${conversacion.unread_count}`);
-    
+            
     setConversacionActiva(conversacion.room_name);
     
     // Marcar como visto INMEDIATAMENTE al abrir
@@ -734,8 +702,7 @@ const cargarMensajes = useCallback(async (roomName) => {
       }
     }, 100);
     
-    console.log(`✅ Conversación abierta y marcada como vista`);
-  }, [cargarMensajes, isMobile, marcarComoVisto]);
+      }, [cargarMensajes, isMobile, marcarComoVisto]);
 
   // 🔥 FUNCIONES DE LLAMADAS SIMPLIFICADAS
   const iniciarLlamadaReal = useCallback(async (otherUserId, otherUserName) => {
@@ -788,13 +755,6 @@ const cargarMensajes = useCallback(async (roomName) => {
     
     // Limpiar imagePath de barras escapadas
     const cleanImagePath = imagePath.replace(/\\/g, '');
-    
-    console.log('🛠️ Construyendo URL:', {
-      original: imagePath,
-      cleaned: cleanImagePath,
-      baseUrl: cleanBaseUrl
-    });
-    
     // Si comienza con storage/
     if (cleanImagePath.startsWith('storage/')) {
       return `${cleanBaseUrl}/${cleanImagePath}`;
@@ -812,18 +772,15 @@ const cargarMensajes = useCallback(async (roomName) => {
   // =================== 2. MODIFICAR SOLO pedirRegalo (reemplaza tu función actual) ===================
  const pedirRegalo = useCallback(async (giftId, clientId, roomName, message = '') => {
   try {
-    console.log('🎁 MODELO enviando solicitud de regalo...');
-    
+        
     // 🔥 USAR LA FUNCIÓN DEL HOOK
     const result = await requestGift(clientId, giftId, message, roomName);
     
     if (result.success) {
-      console.log('✅ Solicitud exitosa, procesando mensaje...');
-      
+            
       // 🔥 PROCESAR MENSAJE PARA EL CHAT (SOLO SI VIENE)
       if (result.chatMessage) {
-        console.log('💬 Chat message recibido:', result.chatMessage);
-        
+                
         // Construir URL completa de imagen
         let processedExtraData = { ...result.chatMessage.extra_data };
         
@@ -875,22 +832,14 @@ const cargarMensajes = useCallback(async (roomName) => {
   const handleRequestGift = useCallback(async (giftId, recipientId, roomName, message) => {
   try {
     setLoadingGift(true);
-    
-    console.log('🎁 HandleRequestGift llamado con:', {
-      giftId,
-      recipientId, 
-      roomName,
-      message
-    });
+
     
     const result = await pedirRegalo(giftId, recipientId, roomName, message);
     
-    console.log('📦 Resultado de pedirRegalo:', result);
-    
+        
     if (result.success) {
       setShowGiftsModal(false);
-      console.log('🎉 Solicitud enviada exitosamente - Modal cerrado');
-      
+            
       // 🎊 NOTIFICACIÓN DE ÉXITO (OPCIONAL)
       if (Notification.permission === 'granted') {
         new Notification('🎁 Solicitud Enviada', {
@@ -914,8 +863,7 @@ const cargarMensajes = useCallback(async (roomName) => {
   }, [pedirRegalo, setLoadingGift, setShowGiftsModal]);
   const debugGiftRequest = useCallback(async () => {
   try {
-    console.log('🔍 DEBUGGING: Enviando solicitud de prueba...');
-    
+        
     // Generar token
     const token = await generateSessionToken();
     
@@ -947,13 +895,6 @@ const cargarMensajes = useCallback(async (roomName) => {
         screen: `${screen.width}x${screen.height}`
       }
     };
-
-    console.log('📤 Enviando datos de debug:', {
-      ...debugData,
-      session_token: 'HIDDEN',
-      user_agent: 'HIDDEN'
-    });
-
     const response = await fetch(`${API_BASE_URL}/api/gifts/request`, {
       method: 'POST',
       headers: {
@@ -968,28 +909,20 @@ const cargarMensajes = useCallback(async (roomName) => {
     
 
     const responseText = await response.text();
-    console.log('📡 Debug Response Status:', response.status);
-    console.log('📄 Debug Raw Response:', responseText);
-
+        
     try {
       const data = JSON.parse(responseText);
-      console.log('📦 Debug Parsed Response:', data);
-      
+            
       if (data.error === 'missing_parameters') {
-        console.log('❌ CAMPOS FALTANTES DETECTADOS');
-        console.log('📋 Campos que enviamos:', Object.keys(debugData));
-        
+                        
         // Intentar obtener más información del error
         if (data.required_fields) {
-          console.log('✅ Campos requeridos por el servidor:', data.required_fields);
-        }
+                  }
         if (data.missing_fields) {
-          console.log('❌ Campos específicos que faltan:', data.missing_fields);
-        }
+                  }
       }
     } catch (e) {
-      console.log('❌ No se pudo parsear la respuesta como JSON');
-    }
+          }
 
   } catch (error) {
       }
@@ -1337,8 +1270,7 @@ const cargarMensajes = useCallback(async (roomName) => {
     // Pedir permisos para notificaciones
     if (Notification.permission === 'default') {
       Notification.requestPermission().then(permission => {
-        console.log(`🔔 Permisos de notificación: ${permission}`);
-      });
+              });
     }
   }, []);
 
@@ -1359,15 +1291,13 @@ const cargarMensajes = useCallback(async (roomName) => {
         
         if (pendingChat) {
           const chatInfo = JSON.parse(pendingChat);
-          console.log('🔍 Chat pendiente detectado:', chatInfo);
-          
+                    
           // Verificar que sea reciente (menos de 10 segundos)
           const now = Date.now();
           const timeDiff = now - chatInfo.timestamp;
           
           if (timeDiff < 10000 && chatInfo.shouldOpen) { // 10 segundos
-            console.log('✅ Abriendo chat pendiente...');
-            
+                        
             // Buscar si la conversación ya existe
             const existingConv = conversaciones.find(conv => 
               conv.other_user_id === chatInfo.clientId || 
@@ -1375,11 +1305,9 @@ const cargarMensajes = useCallback(async (roomName) => {
             );
             
             if (existingConv) {
-              console.log('📂 Conversación existente encontrada');
-              abrirConversacion(existingConv);
+                            abrirConversacion(existingConv);
             } else {
-              console.log('📝 Creando nueva conversación...');
-              
+                            
               // Crear conversación temporal
               const nuevaConversacion = {
                 id: chatInfo.conversationId || Date.now(),
@@ -1403,8 +1331,7 @@ const cargarMensajes = useCallback(async (roomName) => {
                 );
                 
                 if (!exists) {
-                  console.log('➕ Agregando nueva conversación');
-                  return [nuevaConversacion, ...prev];
+                                    return [nuevaConversacion, ...prev];
                 }
                 return prev;
               });
@@ -1417,11 +1344,9 @@ const cargarMensajes = useCallback(async (roomName) => {
             
             // Limpiar localStorage
             localStorage.removeItem('pendingChatOpen');
-            console.log('🧹 Chat pendiente procesado y limpiado');
-            
+                        
           } else {
-            console.log('⏰ Chat pendiente expirado o ya procesado');
-            localStorage.removeItem('pendingChatOpen');
+                        localStorage.removeItem('pendingChatOpen');
           }
         }
       } catch (error) {
@@ -1451,16 +1376,14 @@ const cargarMensajes = useCallback(async (roomName) => {
     // Pedir permisos para notificaciones
     if (Notification.permission === 'default') {
       Notification.requestPermission().then(permission => {
-        console.log(`🔔 Permisos de notificación: ${permission}`);
-      });
+              });
     }
     
     // 🔥 VERIFICAR CHAT PENDIENTE AL CARGAR
     setTimeout(() => {
       const pendingChat = localStorage.getItem('pendingChatOpen');
       if (pendingChat) {
-        console.log('🔍 Chat pendiente detectado al cargar componente');
-      }
+              }
     }, 1000);
     
   }, []); // 👈 Mantén las dependencias como están
@@ -1468,11 +1391,9 @@ const cargarMensajes = useCallback(async (roomName) => {
   useEffect(() => {
     let interval;
     if (conversacionActiva) {
-      console.log(`📡 Iniciando polling MEJORADO para: ${conversacionActiva}`);
-      
+            
       interval = setInterval(async () => {
-        console.log(`🔄 Polling mensajes en conversación: ${conversacionActiva}`);
-        try {
+                try {
           let allMessages = [];
 
           // 🔥 PASO 1: Cargar mensajes del room principal (como antes)
@@ -1485,8 +1406,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             const mainData = await mainResponse.json();
             if (mainData.success && mainData.messages) {
               allMessages = [...allMessages, ...mainData.messages];
-              console.log(`📥 Mensajes principales cargados: ${mainData.messages.length}`);
-            }
+                          }
           }
 
           // 🔥 PASO 2: NUEVO - Cargar mensajes del room específico según rol
@@ -1494,8 +1414,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             ? `${conversacionActiva}_client`   // Cliente ve gift_sent
             : `${conversacionActiva}_modelo`;  // Modelo ve gift_received
 
-          console.log(`🎯 Cargando room específico: ${specificRoomName}`);
-
+          
           const specificResponse = await fetch(`${API_BASE_URL}/api/chat/messages/${specificRoomName}`, {
             method: 'GET',
             headers: getAuthHeaders()
@@ -1505,11 +1424,9 @@ const cargarMensajes = useCallback(async (roomName) => {
             const specificData = await specificResponse.json();
             if (specificData.success && specificData.messages) {
               allMessages = [...allMessages, ...specificData.messages];
-              console.log(`🎁 Mensajes específicos cargados: ${specificData.messages.length}`);
-            }
+                          }
           } else {
-            console.log(`ℹ️ Room específico ${specificRoomName} no encontrado (normal si no hay regalos)`);
-          }
+                      }
 
           // 🔥 PASO 3: Ordenar todos los mensajes por fecha
           allMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
@@ -1519,8 +1436,7 @@ const cargarMensajes = useCallback(async (roomName) => {
           const newMessages = allMessages.filter(m => !currentMessageIds.has(m.id));
           
           if (newMessages.length > 0) {
-            console.log(`✅ ${newMessages.length} mensajes nuevos recibidos`);
-            
+                        
             // 🎁 DETECTAR REGALOS RECIBIDOS EN MENSAJES NUEVOS
             const newGiftMessages = newMessages.filter(msg => 
               msg.type === 'gift_received' && 
@@ -1528,8 +1444,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             );
             
             if (newGiftMessages.length > 0) {
-              console.log('🎁 ¡Regalo(s) recibido(s) detectado(s)!', newGiftMessages);
-              
+                            
               // Reproducir sonido para cada regalo
               for (const giftMsg of newGiftMessages) {
                 try {
@@ -1546,8 +1461,7 @@ const cargarMensajes = useCallback(async (roomName) => {
                   }
                   
                   const giftName = giftData.gift_name || 'Regalo Especial';
-                  console.log(`🎵 Reproduciendo sonido para regalo: ${giftName}`);
-                  
+                                    
                   // Reproducir notificación con sonido
                   await playGiftNotification(giftName);
                   
@@ -1568,8 +1482,7 @@ const cargarMensajes = useCallback(async (roomName) => {
             );
             
             if (newSentGiftMessages.length > 0) {
-              console.log('💸 Regalo(s) enviado(s) detectado(s)!', newSentGiftMessages);
-              
+                            
               if (Notification.permission === 'granted') {
                 new Notification(t('chat.notifications.giftSent'), {
                   body: t('chat.notifications.giftSentDesc'),
@@ -1591,10 +1504,8 @@ const cargarMensajes = useCallback(async (roomName) => {
               }
             }, 100);
 
-            console.log(`📊 Total mensajes después del polling: ${allMessages.length}`);
-          } else {
-            console.log('ℹ️ No hay mensajes nuevos en ningún room');
-          }
+                      } else {
+                      }
         } catch (error) {
                   }
       }, 3000); // Cada 3 segundos
@@ -1603,8 +1514,7 @@ const cargarMensajes = useCallback(async (roomName) => {
     return () => {
       if (interval) {
         clearInterval(interval);
-        console.log('🛑 Polling de mensajes detenido');
-      }
+              }
     };
   }, [conversacionActiva, mensajes, getAuthHeaders, marcarComoVisto, usuario.id, usuario.rol, playGiftNotification]);
 
@@ -1621,8 +1531,7 @@ const cargarMensajes = useCallback(async (roomName) => {
     
     const interval = setInterval(async () => {
       // SIEMPRE hacer polling sin mostrar loading
-      console.log('🔄 Polling conversaciones (silencioso)...');
-      await cargarConversaciones();
+            await cargarConversaciones();
     }, 5000); // Cada 5 segundos para tiempo más real
     
     return () => clearInterval(interval);
@@ -1635,8 +1544,7 @@ const cargarMensajes = useCallback(async (roomName) => {
         const unreadCount = calculateUnreadCount(conv);
         if (unreadCount > 0 && conv.room_name !== conversacionActiva) {
           // Solo mostrar notificación si no estás en esa conversación
-          console.log(`🔔 Tienes ${unreadCount} mensajes nuevos de ${conv.other_user_name}`);
-          
+                    
           // Opcional: Mostrar notificación del navegador
           if (Notification.permission === 'granted') {
             new Notification(`Mensaje nuevo de ${conv.other_user_name}`, {
@@ -1658,8 +1566,7 @@ const cargarMensajes = useCallback(async (roomName) => {
     const total = conversaciones.reduce((count, conv) => {
       return count + calculateUnreadCount(conv);
     }, 0);
-    console.log('📊 Total notificaciones no leídas:', total);
-    return total;
+        return total;
   }, [conversaciones, calculateUnreadCount]);
 
   // Cargar usuarios online - FUNCIONALIDAD REAL
@@ -1668,8 +1575,7 @@ const cargarMensajes = useCallback(async (roomName) => {
       if (!usuario.id) return;
       
       try {
-        console.log('🟢 Cargando usuarios online...');
-        const response = await fetch(`${API_BASE_URL}/api/chat/users/my-contacts`, {
+                const response = await fetch(`${API_BASE_URL}/api/chat/users/my-contacts`, {
           method: 'GET',
           headers: getAuthHeaders()
         });
@@ -1680,10 +1586,8 @@ const cargarMensajes = useCallback(async (roomName) => {
             (data.contacts || []).map(contact => contact.id)
           );
           setOnlineUsers(usuariosOnlineIds);
-          console.log('✅ Usuarios online actualizados:', Array.from(usuariosOnlineIds));
-        } else {
-          console.log('⚠️ No se pudieron cargar usuarios online, usando datos simulados');
-          // Fallback con datos simulados
+                  } else {
+                    // Fallback con datos simulados
           setOnlineUsers(new Set([2, 3, 4, 5]));
         }
       } catch (error) {

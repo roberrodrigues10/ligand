@@ -39,29 +39,24 @@ const DesktopControlsImproved = ({
 
   // 🔥 FUNCIONES PARA CONTROLES BÁSICOS (IGUAL QUE EL CLIENT)
   const handleMicToggle = () => {
-    console.log('🎤 Toggle micrófono:', !micEnabled);
-    setMicEnabled(!micEnabled);
+        setMicEnabled(!micEnabled);
   };
 
   // 🔊 NUEVA FUNCIÓN PARA CONTROL DE VOLUMEN (IGUAL QUE EN CLIENT)
   const handleVolumeToggle = () => {
-    console.log('🔊 Toggle volumen:', !volumeEnabled);
-    setVolumeEnabled(!volumeEnabled);
+        setVolumeEnabled(!volumeEnabled);
   };
 
   const handleCameraChangeInternal = (deviceId) => {
-    console.log('🎥 [MODELO] Cambiando cámara a:', deviceId);
-    onCameraChange(deviceId);
+        onCameraChange(deviceId);
   };
 
   const handleMicrophoneChangeInternal = (deviceId) => {
-    console.log('🎤 [MODELO] Cambiando micrófono a:', deviceId);
-    onMicrophoneChange(deviceId);
+        onMicrophoneChange(deviceId);
   };
 
   const handleLoadDevicesInternal = () => {
-    console.log('🔄 [MODELO] Recargando dispositivos...');
-    onLoadDevices();
+        onLoadDevices();
   };
 
   return (

@@ -45,17 +45,14 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
           setGifts(data.gifts || []);
           return { success: true, gifts: data.gifts };
         } else {
-          console.error('❌ [VIDEOCHAT] Error en respuesta:', data.error);
-          return { success: false, error: data.error };
+                    return { success: false, error: data.error };
         }
       } else {
         const errorText = await response.text();
-        console.error('❌ [VIDEOCHAT] Error HTTP:', response.status, errorText);
-        return { success: false, error: `Error ${response.status}` };
+                return { success: false, error: `Error ${response.status}` };
       }
     } catch (error) {
-      console.error('❌ [VIDEOCHAT] Error cargando regalos:', error);
-      return { success: false, error: 'Error de conexión' };
+            return { success: false, error: 'Error de conexión' };
     } finally {
       loadingGiftsRef.current = false;
     }
@@ -64,13 +61,11 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
   // 🙏 Solicitar regalo (solo modelos)
   const requestGift = useCallback(async (giftId, message = '') => {
     if (!otherUser?.id || currentUser?.role !== 'modelo') {
-      console.error('❌ [VIDEOCHAT] Solo modelos pueden solicitar regalos');
-      return { success: false, error: 'No autorizado para solicitar regalos' };
+            return { success: false, error: 'No autorizado para solicitar regalos' };
     }
 
     if (!roomName) {
-      console.error('❌ [VIDEOCHAT] Room name requerido');
-      return { success: false, error: 'Sala no válida' };
+            return { success: false, error: 'Sala no válida' };
     }
 
     if (requestingGift) {
@@ -82,13 +77,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
       setRequestingGift(true);
       setLoading(true);
       
-      console.log('🎁 [VIDEOCHAT] Solicitando regalo:', {
-        giftId,
-        clientId: otherUser.id,
-        roomName,
-        message
-      });
-      
+            
       const response = await fetch(`${API_BASE_URL}/api/videochat/gifts/request`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -101,14 +90,12 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
       });
 
       const responseText = await response.text();
-      console.log('📄 [VIDEOCHAT] Raw response:', responseText);
-
+      
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('❌ [VIDEOCHAT] Error parsing JSON:', parseError);
-        return { 
+                return { 
           success: false, 
           error: 'Respuesta inválida del servidor',
           rawResponse: responseText 
@@ -116,8 +103,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
       }
 
       if (response.ok && data.success) {
-        console.log('✅ [VIDEOCHAT] Regalo solicitado exitosamente:', data);
-        return { 
+                return { 
           success: true, 
           data: data.data,
           chatMessage: data.chat_message,
@@ -131,8 +117,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
           message: data.message
         };
       } else {
-        console.error('❌ [VIDEOCHAT] Error en solicitud:', data);
-        
+                
         let errorMessage = 'Error enviando solicitud';
         if (data.error === 'missing_parameters') {
           errorMessage = 'Faltan parámetros requeridos';
@@ -151,8 +136,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
         };
       }
     } catch (error) {
-      console.error('❌ [VIDEOCHAT] Error de conexión en solicitud:', error);
-      return { success: false, error: 'Error de conexión. Verifica tu internet.' };
+            return { success: false, error: 'Error de conexión. Verifica tu internet.' };
     } finally {
       setRequestingGift(false);
       setLoading(false);
@@ -165,8 +149,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
 
     try {
       loadingRequestsRef.current = true;
-      console.log('📋 [VIDEOCHAT] Cargando solicitudes pendientes...');
-      
+            
       const url = roomName 
         ? `${API_BASE_URL}/api/videochat/gifts/pending?room_name=${encodeURIComponent(roomName)}`
         : `${API_BASE_URL}/api/videochat/gifts/pending`;
@@ -180,20 +163,16 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
         const data = await response.json();
         if (data.success) {
           setPendingRequests(data.requests || []);
-          console.log('✅ [VIDEOCHAT] Solicitudes pendientes cargadas:', data.requests?.length);
-          return { success: true, requests: data.requests };
+                    return { success: true, requests: data.requests };
         } else {
-          console.error('❌ [VIDEOCHAT] Error en solicitudes:', data.error);
-          return { success: false, error: data.error };
+                    return { success: false, error: data.error };
         }
       } else {
         const errorText = await response.text();
-        console.error('❌ [VIDEOCHAT] Error HTTP solicitudes:', response.status, errorText);
-        return { success: false, error: `Error ${response.status}` };
+                return { success: false, error: `Error ${response.status}` };
       }
     } catch (error) {
-      console.error('❌ [VIDEOCHAT] Error cargando solicitudes:', error);
-      return { success: false, error: 'Error de conexión' };
+            return { success: false, error: 'Error de conexión' };
     } finally {
       loadingRequestsRef.current = false;
     }
@@ -214,11 +193,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
       setProcessingRequest(requestId);
       setLoading(true);
       
-      console.log('✅ [VIDEOCHAT] Aceptando regalo:', {
-        requestId,
-        hasSecurityHash: !!securityHash
-      });
-      
+            
       const response = await fetch(`${API_BASE_URL}/api/videochat/gifts/accept/${requestId}`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -228,11 +203,9 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
       });
 
       const data = await response.json();
-      console.log('📦 [VIDEOCHAT] Respuesta de aceptación:', data);
-      
+            
       if (response.ok && data.success) {
-        console.log('✅ [VIDEOCHAT] Regalo aceptado correctamente');
-        
+                
         // Actualizar balance si está disponible
         if (data.data?.client_balance?.new_balance !== undefined) {
           setUserBalance(data.data.client_balance.new_balance);
@@ -264,8 +237,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
           }
         };
       } else {
-        console.error('❌ [VIDEOCHAT] Error aceptando regalo:', data);
-        
+                
         let errorMessage = data.message || data.error || 'Error desconocido';
         
         if (data.error === 'insufficient_balance') {
@@ -279,8 +251,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
         return { success: false, error: errorMessage };
       }
     } catch (error) {
-      console.error('❌ [VIDEOCHAT] Error de conexión aceptando:', error);
-      return { success: false, error: 'Error de conexión' };
+            return { success: false, error: 'Error de conexión' };
     } finally {
       setProcessingRequest(null);
       setLoading(false);
@@ -291,8 +262,7 @@ export const useVideoChatGifts = (roomName, currentUser, otherUser) => {
   // 💰 Cargar balance del usuario - AGREGAR ESTA FUNCIÓN
 const loadUserBalance = useCallback(async () => {
   try {
-    console.log('💰 [VIDEOCHAT] Cargando balance de usuario...');
-    
+        
     const response = await fetch(`${API_BASE_URL}/api/videochat/gifts/balance`, {
       method: 'GET',
       headers: getAuthHeaders()
@@ -301,17 +271,14 @@ const loadUserBalance = useCallback(async () => {
     if (response.ok) {
       const data = await response.json();
       if (data.success) {
-        console.log('✅ [VIDEOCHAT] Balance cargado:', data.balance);
-        setUserBalance(data.balance || 0);
+                setUserBalance(data.balance || 0);
         return { success: true, balance: data.balance };
       }
     }
     
-    console.error('❌ [VIDEOCHAT] Error cargando balance');
-    return { success: false, error: 'Error cargando balance' };
+        return { success: false, error: 'Error cargando balance' };
   } catch (error) {
-    console.error('❌ [VIDEOCHAT] Error de conexión cargando balance:', error);
-    return { success: false, error: 'Error de conexión' };
+        return { success: false, error: 'Error de conexión' };
   }
 }, [getAuthHeaders]);
 
@@ -322,8 +289,7 @@ const loadUserBalance = useCallback(async () => {
     }
 
     try {
-      console.log('❌ [VIDEOCHAT] Rechazando regalo:', requestId);
-      
+            
       const response = await fetch(`${API_BASE_URL}/api/videochat/gifts/reject/${requestId}`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -333,8 +299,7 @@ const loadUserBalance = useCallback(async () => {
       const data = await response.json();
       
       if (data.success) {
-        console.log('✅ [VIDEOCHAT] Regalo rechazado correctamente');
-        
+                
         // Remover de pendientes
         setPendingRequests(prev => prev.filter(req => req.id !== requestId));
         
@@ -348,12 +313,10 @@ const loadUserBalance = useCallback(async () => {
         
         return { success: true, message: data.message };
       } else {
-        console.error('❌ [VIDEOCHAT] Error rechazando regalo:', data.error);
-        return { success: false, error: data.error };
+                return { success: false, error: data.error };
       }
     } catch (error) {
-      console.error('❌ [VIDEOCHAT] Error de conexión rechazando:', error);
-      return { success: false, error: 'Error de conexión' };
+            return { success: false, error: 'Error de conexión' };
     }
   }, [currentUser, getAuthHeaders]);
 
@@ -384,8 +347,7 @@ const loadUserBalance = useCallback(async () => {
       
       return { success: false, error: 'Error cargando historial' };
     } catch (error) {
-      console.error('❌ [VIDEOCHAT] Error cargando historial:', error);
-      return { success: false, error: 'Error de conexión' };
+            return { success: false, error: 'Error de conexión' };
     }
   }, [roomName, getAuthHeaders]);
 
@@ -406,8 +368,7 @@ const loadUserBalance = useCallback(async () => {
   useEffect(() => {
     if (currentUser?.role !== 'cliente' || !roomName) return;
 
-    console.log('🔄 [VIDEOCHAT] Iniciando polling de solicitudes...');
-    
+        
     const interval = setInterval(() => {
       if (!loadingRequestsRef.current) {
         loadPendingRequests();
@@ -415,8 +376,7 @@ const loadUserBalance = useCallback(async () => {
     }, 8000); // Cada 8 segundos
 
     return () => {
-      console.log('🛑 [VIDEOCHAT] Deteniendo polling de solicitudes');
-      clearInterval(interval);
+            clearInterval(interval);
     };
   }, [currentUser, roomName, loadPendingRequests]);
 
@@ -424,8 +384,7 @@ const loadUserBalance = useCallback(async () => {
   useEffect(() => {
     return () => {
       if (roomName) {
-        console.log('🧹 [VIDEOCHAT] Limpiando estados de regalos');
-        setPendingRequests([]);
+                setPendingRequests([]);
         setProcessingRequest(null);
         setRequestingGift(false);
         setLoading(false);

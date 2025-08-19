@@ -51,26 +51,22 @@ export default function Header() {
 
   // 👈 FUNCIÓN PARA ABRIR MODAL DE HISTORIAS
   const handleOpenStories = () => {
-    console.log('🎬 Abriendo modal de historias...');
-    setShowStoriesModal(true);
+        setShowStoriesModal(true);
   };
 
   // 👈 FUNCIÓN PARA CERRAR MODAL DE HISTORIAS
   const handleCloseStories = () => {
-    console.log('🚪 Cerrando modal de historias...');
-    setShowStoriesModal(false);
+        setShowStoriesModal(false);
   };
 
   // 👈 FUNCIÓN PARA MANEJAR BÚSQUEDA
   const handleOpenSearch = () => {
-    console.log('🔍 Abriendo modal de búsqueda...');
-    setShowSearchModal(true);
+        setShowSearchModal(true);
   };
 
   // Función para cerrar modal
   const handleCloseSearch = () => {
-    console.log('🚪 Cerrando modal de búsqueda...');
-    setShowSearchModal(false);
+        setShowSearchModal(false);
   };
 
   // 🔥 FUNCIÓN PARA DETECTAR SI ES MÓVIL
@@ -80,8 +76,7 @@ export default function Header() {
 
   // 🔥 NUEVA FUNCIÓN SIMPLE - Solo navega al chat
   const handleMessageFromSearch = (clientId, clientName) => {
-    console.log('📩 Navegando al chat con:', clientName);
-    
+        
     if (isMobile()) {
       // Navegar a la versión móvil
       navigate('/mensajesmobile');
@@ -93,8 +88,7 @@ export default function Header() {
 
   // Función para llamadas
   const handleCallFromSearch = (clientId, clientName) => {
-    console.log('📞 Llamada con:', clientName);
-    alert(`Iniciando llamada con ${clientName}...`);
+        alert(`Iniciando llamada con ${clientName}...`);
   };
 
   // 🔥 FUNCIÓN PARA OBTENER HEADERS CON TOKEN
@@ -115,8 +109,7 @@ export default function Header() {
 
   // 🔥 MANEJAR CLICK EN MENSAJES - VERSIÓN CORREGIDA
   const handleMessagesClick = () => {
-    console.log('📱 handleMessagesClick - isInCall:', isInCall, 'isMobile:', isMobile());
-    
+        
     if (isInCall) {
       // Si está en videollamada, abrir modal de chat
       setShowChatModal(true);
@@ -127,19 +120,16 @@ export default function Header() {
     } else {
       // Si no está en videollamada, navegar según el dispositivo
       if (isMobile()) {
-        console.log('📱 Navegando a mensajes móvil...');
-        navigate("/mensajesmobile");
+                navigate("/mensajesmobile");
       } else {
-        console.log('💻 Navegando a mensajes desktop...');
-        navigate("/mensajes");
+                navigate("/mensajes");
       }
     }
   };
 
   // 🔥 NUEVA FUNCIÓN ESPECÍFICA PARA MÓVIL
   const handleMobileMessagesClick = () => {
-    console.log('📱 handleMobileMessagesClick - isInCall:', isInCall);
-    
+        
     if (isInCall) {
       // Si está en videollamada, abrir modal de chat
       setShowChatModal(true);
@@ -148,8 +138,7 @@ export default function Header() {
       }
     } else {
       // Siempre ir a la versión móvil desde el menú móvil
-      console.log('📱 Navegando a mensajes móvil desde menú...');
-      navigate("/mensajesmobile");
+            navigate("/mensajesmobile");
     }
     // Cerrar el menú móvil
     setMobileMenuAbierto(false);
@@ -158,8 +147,7 @@ export default function Header() {
   // 🔥 CARGAR CONVERSACIONES PARA EL MODAL
   const cargarConversaciones = async () => {
     try {
-      console.log('🔍 Cargando conversaciones para modal...');
-      
+            
       const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
@@ -167,8 +155,7 @@ export default function Header() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Conversaciones cargadas:', data);
-        setConversaciones(data.conversations || []);
+                setConversaciones(data.conversations || []);
       } else {
                 // Datos de ejemplo para desarrollo
         const exampleConversations = [
@@ -394,20 +381,9 @@ export default function Header() {
   };
 
   useEffect(() => {
-    console.log('🔧 [DEBUG] Variables del Header inicializadas:', {
-      API_BASE_URL,
-      usuario,
-      showSearchModal,
-      navigate: typeof navigate
-    });
-  }, [API_BASE_URL, usuario, showSearchModal]);
+      }, [API_BASE_URL, usuario, showSearchModal]);
 
-  console.log('🔧 [DEBUG] Props del SearchClientsModal:', {
-    isOpen: showSearchModal,
-    onMessage: typeof handleMessageFromSearch,
-    onCall: typeof handleCallFromSearch
-  });
-
+  
   // 🔔 CARGAR DATOS DEL USUARIO
   useEffect(() => {
     const cargarUsuario = async () => {
@@ -453,8 +429,7 @@ export default function Header() {
     if (!usuario.id) return;
 
     try {
-      console.log('🔄 Obteniendo conteo global de mensajes...');
-      
+            
       const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
@@ -471,8 +446,7 @@ export default function Header() {
         });
         
         setGlobalUnreadCount(totalUnread);
-        console.log('📊 Conteo global actualizado:', totalUnread);
-        
+                
       } else {
                 setGlobalUnreadCount(6); // Ejemplo
       }

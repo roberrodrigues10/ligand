@@ -76,8 +76,7 @@ export default function PreCallLobbyClient() {
   // 🔥 FUNCIÓN MEJORADA PARA SOLICITAR PERMISOS
   const requestMediaPermissions = async (retryAttempt = 0) => {
     try {
-      console.log(`🎥 Solicitando permisos de cámara y micrófono... (intento ${retryAttempt + 1})`);
-      
+            
       setCameraPermission('checking');
       setMicPermission('checking');
       setCameraError('');
@@ -92,8 +91,7 @@ export default function PreCallLobbyClient() {
         audio: true
       });
 
-      console.log('✅ Permisos concedidos');
-      
+            
       setCameraPermission('granted');
       setMicPermission('granted');
       setIsStreamActive(true);
@@ -118,8 +116,7 @@ export default function PreCallLobbyClient() {
       }
       
     } catch (err) {
-      console.error('❌ Error solicitando permisos:', err);
-      
+            
       setIsStreamActive(false);
       
       if (err.name === 'NotAllowedError') {
@@ -157,8 +154,7 @@ export default function PreCallLobbyClient() {
         mediaStreamRef.current.getTracks().forEach((t) => t.stop());
       }
 
-      console.log('🎬 Iniciando stream con dispositivos seleccionados...');
-
+      
       const constraints = {};
       
       if (selectedCamera) {
@@ -186,11 +182,9 @@ export default function PreCallLobbyClient() {
         videoRef.current.srcObject = stream;
       }
       
-      console.log('✅ Stream iniciado correctamente');
-      
+            
     } catch (err) {
-      console.error('❌ Error iniciando stream:', err);
-      setIsStreamActive(false);
+            setIsStreamActive(false);
       
       if (err.name === 'NotAllowedError') {
         setCameraPermission('denied');
@@ -282,8 +276,7 @@ export default function PreCallLobbyClient() {
       }
     }
 
-    console.log('🎰 [PRECALL] Iniciando videollamada con cámara validada...');
-    setLoading(true);
+        setLoading(true);
     
     try {
       // Detener stream de cámara
@@ -293,12 +286,10 @@ export default function PreCallLobbyClient() {
       
       isNavigatingRef.current = true;
       
-      console.log('🧭 [PRECALL] Navegando a /usersearch...');
-      navigate(`/usersearch?role=cliente&selectedCamera=${selectedCamera}&selectedMic=${selectedMic}`);
+            navigate(`/usersearch?role=cliente&selectedCamera=${selectedCamera}&selectedMic=${selectedMic}`);
       
     } catch (error) {
-      console.error('❌ [PRECALL] Error:', error);
-      setLoading(false);
+            setLoading(false);
       isNavigatingRef.current = false;
     }
   };
@@ -332,10 +323,8 @@ export default function PreCallLobbyClient() {
           })
         });
 
-        console.log('💓 [PRECALL] Heartbeat browsing enviado');
-      } catch (error) {
-        console.log('⚠️ [PRECALL] Error enviando heartbeat:', error);
-      }
+              } catch (error) {
+              }
     };
 
     sendBrowsingHeartbeat();
@@ -346,8 +335,7 @@ export default function PreCallLobbyClient() {
   useEffect(() => {
     return () => {
       if (!isNavigatingRef.current) {
-        console.log('🧹 [PRECALL] Limpiando recursos...');
-        if (mediaStreamRef.current) {
+                if (mediaStreamRef.current) {
           mediaStreamRef.current.getTracks().forEach((t) => t.stop());
         }
         stopSearching();

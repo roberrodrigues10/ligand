@@ -98,8 +98,7 @@ export default function Favoritos() {
         const data = await response.json();
         if (data.success) {
           setUsuariosBloqueados(data.blocked_users || []);
-          console.log('✅ Usuarios bloqueados cargados:', data.blocked_users.length);
-        }
+                  }
       }
     } catch (error) {
           } finally {
@@ -125,8 +124,7 @@ export default function Favoritos() {
       if (data.success) {
         // Remover de la lista local
         setUsuariosBloqueados(prev => prev.filter(user => user.id !== blockedUserId));
-        console.log('✅ Chico desbloqueado:', nombre);
-        
+                
         // 🔥 RECARGAR FAVORITOS POR SI ERA UN FAVORITO BLOQUEADO
         loadFavorites();
       } else {
@@ -160,8 +158,7 @@ export default function Favoritos() {
           });
           setUltimaConexion(ultimaConexionMap);
           
-          console.log('🟢 Usuarios online actualizados:', Array.from(onlineIds));
-        }
+                  }
       }
     } catch (error) {
           }
@@ -201,8 +198,7 @@ export default function Favoritos() {
   // 🔥 FUNCIÓN PARA INICIAR LLAMADA REAL CON VERIFICACIÓN DE BLOQUEO
   const iniciarLlamadaReal = async (otherUserId, otherUserName) => {
     try {
-      console.log('📞 Verificando bloqueo antes de llamar a:', otherUserName);
-      // 🔒 Verificar si YO lo he bloqueado
+            // 🔒 Verificar si YO lo he bloqueado
       const yoLoBloquee = usuariosBloqueados.some((user) => user.id === otherUserId);
       if (yoLoBloquee) {
         setConfirmAction({
@@ -243,8 +239,7 @@ export default function Favoritos() {
       }
 
       // Si no está bloqueado, continuar con la llamada
-      console.log('📞 Iniciando llamada a:', otherUserName);
-      
+            
       setCurrentCall({
         id: otherUserId,
         name: otherUserName,
@@ -264,8 +259,7 @@ export default function Favoritos() {
       const data = await response.json();
       
       if (data.success) {
-        console.log('✅ Llamada iniciada:', data);
-        setCurrentCall({
+                setCurrentCall({
           id: otherUserId,
           name: otherUserName,
           callId: data.call_id,
@@ -430,8 +424,7 @@ export default function Favoritos() {
 
       if (data.success) {
         setFavoritos(data.favorites || []);
-        console.log('✅ Favoritos cargados:', data.favorites.length);
-      } else {
+              } else {
         throw new Error(data.error || 'Error cargando favoritos');
       }
 
@@ -465,8 +458,7 @@ export default function Favoritos() {
         // Remover de la lista local
         setFavoritos(prev => prev.filter(fav => fav.id !== favoriteId));
         setOpcionesAbiertas(null);
-        console.log('✅ Favorito eliminado:', nombre);
-      } else {
+              } else {
               }
     } catch (error) {
           } finally {
@@ -497,8 +489,7 @@ export default function Favoritos() {
     if (data.success) {
       setFavoritos(prev => prev.filter(fav => fav.id !== favoriteId));
       setOpcionesAbiertas(null);
-      console.log('✅ Chico bloqueado y removido de favoritos:', nombre);
-      
+            
       if (showBloqueadosModal) {
         cargarUsuariosBloqueados();
       }
@@ -901,8 +892,6 @@ export default function Favoritos() {
       <IncomingCallOverlay
         isVisible={isReceivingCall}
         callData={incomingCall}
-        onAnswer={() => console.log('Responder llamada')}
-        onDecline={() => console.log('Rechazar llamada')}
       />
 
       {/* 🔥 MODAL DE USUARIOS BLOQUEADOS */}

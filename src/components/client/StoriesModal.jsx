@@ -110,14 +110,12 @@ const StoriesModal = ({
 
       if (response.data && response.data.length > 0) {
         setStories(response.data);
-        console.log('✅ Historias cargadas:', response.data.length);
-      } else {
+              } else {
         setStories([]);
         notifications.info("No hay historias disponibles en este momento");
       }
     } catch (error) {
-      console.error('❌ Error cargando historias:', error);
-      notifications.error("Error al cargar las historias");
+            notifications.error("Error al cargar las historias");
       setStories([]);
     } finally {
       setLoading(false);
@@ -160,8 +158,7 @@ const StoriesModal = ({
       
       setHasLiked(response.data.has_liked || false);
     } catch (error) {
-      console.log('No se pudo verificar el estado del like');
-      setHasLiked(false);
+            setHasLiked(false);
     }
   };
 
@@ -179,8 +176,7 @@ const StoriesModal = ({
       // Actualizar contador local
       setViewsCount(prev => prev + 1);
     } catch (error) {
-      console.log('Error registrando vista:', error);
-    }
+          }
   };
 
   // ❤️ Manejar like/unlike
@@ -208,8 +204,7 @@ const StoriesModal = ({
         notifications.success("❤️ Te gustó esta historia");
       }
     } catch (error) {
-      console.error('Error al dar like:', error);
-      notifications.error("Error al procesar la reacción");
+            notifications.error("Error al procesar la reacción");
     }
   };
 
@@ -294,8 +289,7 @@ const StoriesModal = ({
     const modelo = currentStory.user;
     
     try {
-      console.log('📞 Iniciando llamada a modelo:', modelo.name);
-      
+            
       // Pausar historia durante la llamada
       stopStoryProgress();
       
@@ -321,8 +315,7 @@ const StoriesModal = ({
       const data = await response.json();
       
       if (data.success) {
-        console.log('✅ Llamada iniciada:', data);
-        
+                
         setCurrentCall({
           ...modelo,
           callId: data.call_id,
@@ -336,8 +329,7 @@ const StoriesModal = ({
         notifications.success(`Llamando a ${modelo.name}...`);
         
       } else {
-        console.error('❌ Error iniciando llamada:', data.error);
-        setIsCallActive(false);
+                setIsCallActive(false);
         setCurrentCall(null);
         
         if (data.error.includes('bloqueado')) {
@@ -351,8 +343,7 @@ const StoriesModal = ({
       }
       
     } catch (error) {
-      console.error('❌ Error:', error);
-      setIsCallActive(false);
+            setIsCallActive(false);
       setCurrentCall(null);
       notifications.error('Error al iniciar llamada');
       
@@ -407,8 +398,7 @@ const StoriesModal = ({
         }
         
       } catch (error) {
-        console.error('❌ Error verificando llamada:', error);
-      }
+              }
     }, 2000);
     
     setCallPollingInterval(interval);
@@ -451,8 +441,7 @@ const StoriesModal = ({
       }
       
     } catch (error) {
-      console.error('❌ Error cancelando llamada:', error);
-    }
+          }
     
     setIsCallActive(false);
     setCurrentCall(null);
@@ -463,8 +452,7 @@ const StoriesModal = ({
 
   // 🚀 Redirigir al videochat
   const redirectToVideoChat = (callData) => {
-    console.log('🚀 Redirigiendo a videochat:', callData);
-    
+        
     // Cerrar modal de historias
     onClose();
     
@@ -494,8 +482,7 @@ const StoriesModal = ({
     const currentStory = stories[currentStoryIndex];
     const modelo = currentStory.user;
     
-    console.log('💬 Abriendo chat con modelo:', modelo.name);
-    
+        
     // Cerrar modal de historias
     onClose();
     

@@ -31,8 +31,7 @@ export const useIncomingCalls = () => {
         const data = await response.json();
         
         if (data.has_incoming && data.incoming_call) {
-          console.log('📞 [HOOK] Llamada entrante detectada:', data.incoming_call);
-          
+                    
           // Solo mostrar si no hay ya una llamada visible
           if (!showIncomingCall) {
             setIncomingCall(data.incoming_call);
@@ -40,20 +39,17 @@ export const useIncomingCalls = () => {
           }
         } else if (showIncomingCall && !data.has_incoming) {
           // La llamada ya no está disponible
-          console.log('📞 [HOOK] Llamada entrante ya no disponible');
-          setShowIncomingCall(false);
+                    setShowIncomingCall(false);
           setIncomingCall(null);
         }
       }
     } catch (error) {
-      console.log('⚠️ [HOOK] Error verificando llamadas entrantes:', error);
-    }
+          }
   };
 
   // 🔄 INICIAR POLLING
   useEffect(() => {
-    console.log('📞 [HOOK] Iniciando monitoreo de llamadas entrantes');
-    
+        
     // Verificar inmediatamente
     checkForIncomingCalls();
     
@@ -61,8 +57,7 @@ export const useIncomingCalls = () => {
     checkIntervalRef.current = setInterval(checkForIncomingCalls, 3000);
 
     return () => {
-      console.log('📞 [HOOK] Deteniendo monitoreo de llamadas entrantes');
-      isActiveRef.current = false;
+            isActiveRef.current = false;
       
       if (checkIntervalRef.current) {
         clearInterval(checkIntervalRef.current);
@@ -72,23 +67,20 @@ export const useIncomingCalls = () => {
 
   // 🔥 FUNCIÓN: CERRAR OVERLAY DE LLAMADA ENTRANTE
   const closeIncomingCall = () => {
-    console.log('📞 [HOOK] Cerrando overlay de llamada entrante');
-    setShowIncomingCall(false);
+        setShowIncomingCall(false);
     setIncomingCall(null);
   };
 
   // 🔥 FUNCIÓN: PAUSAR/REANUDAR MONITOREO
   const pauseMonitoring = () => {
-    console.log('📞 [HOOK] Pausando monitoreo');
-    isActiveRef.current = false;
+        isActiveRef.current = false;
     if (checkIntervalRef.current) {
       clearInterval(checkIntervalRef.current);
     }
   };
 
   const resumeMonitoring = () => {
-    console.log('📞 [HOOK] Reanudando monitoreo');
-    isActiveRef.current = true;
+        isActiveRef.current = true;
     checkIntervalRef.current = setInterval(checkForIncomingCalls, 3000);
   };
 

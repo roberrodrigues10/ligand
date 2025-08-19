@@ -71,8 +71,7 @@ export default function PreCallLobbyModelo() {
       }
 
       try {
-        console.log("Intentando acceder a:", { selectedCamera, selectedMic });
-        
+                
         // Intentar con un timeout manual más corto
         const streamPromise = navigator.mediaDevices.getUserMedia({
           video: selectedCamera ? 
@@ -98,19 +97,16 @@ export default function PreCallLobbyModelo() {
         );
 
         const stream = await Promise.race([streamPromise, timeoutPromise]);
-        console.log("Stream obtenido exitosamente");
-
+        
         mediaStreamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          console.log("Stream asignado al video");
-        }
+                  }
       } catch (err) {
                 
         // Si hay timeout o error, intentar solo con video
         if (err.name === 'AbortError' || err.name === 'NotReadableError' || err.message === 'Timeout manual') {
-          console.log("Reintentando solo con video...");
-          try {
+                    try {
             const videoOnlyStream = await navigator.mediaDevices.getUserMedia({
               video: selectedCamera ? 
                 { deviceId: { exact: selectedCamera } } : 
@@ -121,8 +117,7 @@ export default function PreCallLobbyModelo() {
             mediaStreamRef.current = videoOnlyStream;
             if (videoRef.current) {
               videoRef.current.srcObject = videoOnlyStream;
-              console.log("Stream solo de video asignado");
-            }
+                          }
           } catch (videoErr) {
                         alert("No se puede acceder a la cámara. Verifica que no esté siendo usada por otra aplicación.");
           }
@@ -147,8 +142,7 @@ export default function PreCallLobbyModelo() {
   useEffect(() => {
     const requestMediaPermissions = async () => {
       try {
-        console.log("Solicitando permisos de media...");
-        
+                
         // Intentar primero solo con video para evitar conflictos
         let stream;
         try {
@@ -160,10 +154,8 @@ export default function PreCallLobbyModelo() {
             }, 
             audio: false // Primero solo video
           });
-          console.log("Video stream obtenido");
-        } catch (videoErr) {
-          console.log("Error con video, intentando configuración mínima:", videoErr);
-          // Fallback a configuración mínima
+                  } catch (videoErr) {
+                    // Fallback a configuración mínima
           stream = await navigator.mediaDevices.getUserMedia({ 
             video: { width: 320, height: 240 }, 
             audio: false 
@@ -188,13 +180,10 @@ export default function PreCallLobbyModelo() {
           audioStream.getTracks().forEach(track => track.stop());
           
           stream = combinedStream;
-          console.log("Streams de video y audio combinados");
-        } catch (audioErr) {
-          console.log("Error obteniendo audio, continuando solo con video:", audioErr);
-        }
+                  } catch (audioErr) {
+                  }
         
-        console.log("Permisos otorgados, obteniendo dispositivos...");
-        
+                
         // Obtener dispositivos
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoInputs = devices.filter(d => d.kind === "videoinput");
@@ -215,8 +204,7 @@ export default function PreCallLobbyModelo() {
         mediaStreamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          console.log("Stream inicial asignado al video");
-        }
+                  }
         
       } catch (err) {
                 if (err.name === 'NotAllowedError') {

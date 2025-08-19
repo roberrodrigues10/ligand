@@ -59,17 +59,14 @@ const FloatingMessagesImproved = ({ messages = [], t }) => {
   // 🔥 FUNCIÓN FALLBACK PARA TRADUCCIÓN - EXPANDIDA Y MEJORADA
   const translateWithFallback = useCallback(async (text, targetLang) => {
     try {
-      console.log('🔄 [FLOATING] Usando traducción fallback para:', `"${text}"`, 'a idioma:', targetLang);
-      
+            
       const cleanText = text.toLowerCase().trim();
       const detectedLang = detectLanguage(text);
       
-      console.log('🔍 [FLOATING] Idioma detectado:', detectedLang, 'Target:', targetLang);
-      
+            
       // Si el texto ya está en el idioma objetivo, no traducir
       if (detectedLang === targetLang) {
-        console.log('⏸️ [FLOATING] Texto ya está en idioma objetivo');
-        return null;
+                return null;
       }
       
       // 🔥 DICCIONARIO EXPANDIDO CON MÁS PALABRAS
@@ -342,43 +339,32 @@ const FloatingMessagesImproved = ({ messages = [], t }) => {
       
       // 🔥 DEBUGGING: VERIFICAR SI ENCUENTRA LA TRADUCCIÓN
       if (translationDict) {
-        console.log('📚 [FLOATING-FALLBACK] Diccionario encontrado para:', translationKey);
-        console.log('📚 [FLOATING-FALLBACK] Buscando:', cleanText);
-        
+                        
         const translated = translationDict[cleanText];
         if (translated) {
-          console.log('✅ [FLOATING-FALLBACK] Traducción encontrada:', `"${cleanText}"`, '->', `"${translated}"`);
-          return translated;
+                    return translated;
         } else {
-          console.log('❌ [FLOATING-FALLBACK] No se encontró traducción exacta para:', `"${cleanText}"`);
-          
+                    
           // 🔥 INTENTAR BÚSQUEDA DE PALABRAS INDIVIDUALES
-          console.log('🔍 [FLOATING-FALLBACK] Intentando traducción por palabras...');
-          const words = cleanText.split(/\s+/);
+                    const words = cleanText.split(/\s+/);
           const translatedWords = words.map(word => {
             const wordTranslation = translationDict[word.toLowerCase()];
-            console.log(`🔍 [FLOATING-FALLBACK] Palabra "${word}" → "${wordTranslation || word}"`);
-            return wordTranslation || word;
+                        return wordTranslation || word;
           });
           
           const wordBasedTranslation = translatedWords.join(' ');
           if (wordBasedTranslation !== cleanText) {
-            console.log('🎯 [FLOATING-FALLBACK] Traducción por palabras exitosa:', wordBasedTranslation);
-            return wordBasedTranslation;
+                        return wordBasedTranslation;
           }
         }
       } else {
-        console.log('❌ [FLOATING-FALLBACK] No existe diccionario para:', translationKey);
-        console.log('🔍 [FLOATING-FALLBACK] Diccionarios disponibles:', Object.keys(translations));
-      }
+                      }
       
       // 🔥 SI NO ENCUENTRA TRADUCCIÓN, RETORNAR NULL EN LUGAR DEL TEXTO ORIGINAL
-      console.log('🚫 [FLOATING-FALLBACK] No se pudo traducir, retornando null');
-      return null;
+            return null;
       
     } catch (error) {
-      console.error('❌ [FLOATING] Error en traducción fallback:', error);
-      return `[ERROR] ${text}`;
+            return `[ERROR] ${text}`;
     }
   }, [detectLanguage]);
 

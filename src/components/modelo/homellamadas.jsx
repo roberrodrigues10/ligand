@@ -193,8 +193,7 @@ export default function InterfazCliente() {
   const cargarUsuariosBloqueados = async () => {
     try {
       setLoadingBloqueados(true);
-      console.log('🚫 Cargando usuarios bloqueados...');
-
+      
       const response = await fetch(`${API_BASE_URL}/api/blocks/list`, {
         method: 'GET',
         headers: getAuthHeaders()
@@ -204,8 +203,7 @@ export default function InterfazCliente() {
         const data = await response.json();
         if (data.success) {
           setUsuariosBloqueados(data.blocked_users || []);
-          console.log('✅ Usuarios bloqueados cargados:', data.blocked_users.length);
-        }
+                  }
       }
     } catch (error) {
           } finally {
@@ -513,16 +511,13 @@ export default function InterfazCliente() {
   // 🔥 FUNCIONES DE AUDIO
 const playIncomingCallSound = async () => {
   try {
-    console.log('🔊 INTENTANDO reproducir sonido...');
-    
+        
     if (audioRef.current) {
-      console.log('⚠️ Ya hay audio reproduciéndose');
-      return;
+            return;
     }
     
     const audio = new Audio('/sounds/incoming-call.mp3');
-    console.log('📁 Audio creado, archivo:', audio.src);
-    
+        
     audio.loop = true;
     audio.volume = 0.8;
     audio.preload = 'auto';
@@ -531,11 +526,9 @@ const playIncomingCallSound = async () => {
     
     try {
       await audio.play();
-      console.log('🎵 AUDIO REPRODUCIÉNDOSE CORRECTAMENTE');
-    } catch (playError) {
+          } catch (playError) {
             if (playError.name === 'NotAllowedError') {
-        console.log('🚫 AUTOPLAY BLOQUEADO - Necesita interacción del usuario');
-      }
+              }
     }
   } catch (error) {
       }
@@ -543,8 +536,7 @@ const playIncomingCallSound = async () => {
 
 const stopIncomingCallSound = () => {
   if (audioRef.current) {
-    console.log('🔇 Deteniendo sonido de llamada');
-    audioRef.current.pause();
+        audioRef.current.pause();
     audioRef.current.currentTime = 0;
     audioRef.current = null;
   }
@@ -553,8 +545,7 @@ const stopIncomingCallSound = () => {
 // 🔥 FUNCIÓN PARA INICIAR LLAMADA A CLIENTE
 const iniciarLlamadaReal = async (usuario) => {
   try {
-    console.log('📞 Iniciando llamada a cliente:', usuario.name);
-    
+        
     // 🔥 VARIABLES CORRECTAS PARA LA VALIDACIÓN
     const otherUserId = usuario.id;
     const otherUserName = usuario.name || usuario.alias;
@@ -620,8 +611,7 @@ const iniciarLlamadaReal = async (usuario) => {
     const data = await response.json();
     
     if (data.success) {
-      console.log('✅ Llamada iniciada:', data);
-      setCurrentCall({
+            setCurrentCall({
         ...usuario,
         callId: data.call_id,
         roomName: data.room_name,
@@ -644,8 +634,7 @@ const iniciarLlamadaReal = async (usuario) => {
 
 // 🔥 FUNCIÓN: POLLING PARA VERIFICAR ESTADO DE LLAMADA SALIENTE
 const iniciarPollingLlamada = (callId) => {
-  console.log('🔄 Iniciando polling para llamada:', callId);
-  
+    
   const interval = setInterval(async () => {
     try {
       const token = localStorage.getItem('token');
@@ -662,19 +651,16 @@ const iniciarPollingLlamada = (callId) => {
       
       if (data.success) {
         const callStatus = data.call.status;
-        console.log('📊 Estado llamada:', callStatus);
-        
+                
         if (callStatus === 'active') {
           // ¡Llamada aceptada!
-          console.log('🎉 Llamada aceptada, redirigiendo...');
-          clearInterval(interval);
+                    clearInterval(interval);
           setCallPollingInterval(null);
           redirigirAVideochat(data.call);
           
         } else if (callStatus === 'rejected') {
           // Llamada rechazada
-          console.log('❌ Llamada rechazada');
-          clearInterval(interval);
+                    clearInterval(interval);
           setCallPollingInterval(null);
           setIsCallActive(false);
           setCurrentCall(null);
@@ -682,8 +668,7 @@ const iniciarPollingLlamada = (callId) => {
           
         } else if (callStatus === 'cancelled') {
           // Llamada cancelada por timeout
-          console.log('🛑 Llamada cancelada por timeout');
-          clearInterval(interval);
+                    clearInterval(interval);
           setCallPollingInterval(null);
           setIsCallActive(false);
           setCurrentCall(null);
@@ -713,8 +698,7 @@ const iniciarPollingLlamada = (callId) => {
 // 🔥 FUNCIÓN: CANCELAR LLAMADA SALIENTE
 const cancelarLlamada = async () => {
   try {
-    console.log('🛑 Cancelando llamada...');
-    
+        
     if (currentCall?.callId) {
       const token = localStorage.getItem('token');
       await fetch(`${API_BASE_URL}/api/calls/cancel`, {
@@ -757,32 +741,27 @@ const verificarLlamadasEntrantes = async () => {
       const data = await response.json();
       
       if (data.has_incoming && data.incoming_call) {
-        console.log('📞 Llamada entrante detectada:', data.incoming_call);
-        
+                
         const isMyOutgoingCall = currentCall && 
                                 currentCall.callId === data.incoming_call.id;
         
         if (isMyOutgoingCall) {
-          console.log('⚠️ Ignorando llamada entrante - es mi propia llamada saliente');
-          return;
+                    return;
         }
         
         if (!isReceivingCall && !isCallActive) {
-          console.log('🔊 Reproduciendo sonido de llamada entrante');
-          playIncomingCallSound();
+                    playIncomingCallSound();
           setIncomingCall(data.incoming_call);
           setIsReceivingCall(true);
         }
       } else if (isReceivingCall && !data.has_incoming) {
-        console.log('📞 Llamada entrante ya no disponible');
-        stopIncomingCallSound();
+                stopIncomingCallSound();
         setIsReceivingCall(false);
         setIncomingCall(null);
       }
     }
   } catch (error) {
-    console.log('⚠️ Error verificando llamadas entrantes:', error);
-  }
+      }
 };
 
 // 🔥 FUNCIÓN: RESPONDER LLAMADA ENTRANTE
@@ -790,8 +769,7 @@ const responderLlamada = async (accion) => {
   if (!incomingCall) return;
   
   try {
-    console.log(`📱 Respondiendo llamada: ${accion}`);
-    
+        
     stopIncomingCallSound();
     
     const token = localStorage.getItem('token');
@@ -811,13 +789,11 @@ const responderLlamada = async (accion) => {
     
     if (response.ok && data.success) {
       if (accion === 'accept') {
-        console.log('✅ Llamada aceptada:', data);
-        setIsReceivingCall(false);
+                setIsReceivingCall(false);
         setIncomingCall(null);
         redirigirAVideochat(data);
       } else {
-        console.log('❌ Llamada rechazada');
-        setIsReceivingCall(false);
+                setIsReceivingCall(false);
         setIncomingCall(null);
       }
     } else {
@@ -832,8 +808,7 @@ const responderLlamada = async (accion) => {
 
 // 🔥 FUNCIÓN: REDIRIGIR AL VIDEOCHAT MODELO
 const redirigirAVideochat = (callData) => {
-  console.log('🚀 Redirigiendo a videochat modelo:', callData);
-  
+    
   // Guardar datos de la llamada
   sessionStorage.setItem('roomName', callData.room_name);
   sessionStorage.setItem('userName', user?.name || 'Modelo');
@@ -871,16 +846,14 @@ const redirigirAVideochat = (callData) => {
 React.useEffect(() => {
   if (!user?.id) return;
 
-  console.log('🔔 Iniciando monitoreo de llamadas entrantes');
-  
+    
   verificarLlamadasEntrantes();
   
   const interval = setInterval(verificarLlamadasEntrantes, 3000);
   setIncomingCallPollingInterval(interval);
 
   return () => {
-    console.log('🔔 Deteniendo monitoreo de llamadas entrantes');
-    if (interval) {
+        if (interval) {
       clearInterval(interval);
     }
   };
@@ -888,18 +861,14 @@ React.useEffect(() => {
 
 // 2. CONFIGURAR SISTEMA DE AUDIO
 React.useEffect(() => {
-  console.log('🎵 Configurando sistema de audio...');
-  
+    
   const enableAudioContext = async () => {
-    console.log('👆 Primera interacción detectada - habilitando audio');
-    try {
+        try {
       const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAAABAABABkAAgAAACAJAAEAAABkYXRhBAAAAAEA');
       silentAudio.volume = 0.01;
       await silentAudio.play();
-      console.log('🔓 Sistema de audio desbloqueado');
-    } catch (e) {
-      console.log('⚠️ No se pudo desbloquear audio:', e);
-    }
+          } catch (e) {
+          }
     
     document.removeEventListener('click', enableAudioContext);
     document.removeEventListener('touchstart', enableAudioContext);

@@ -20,8 +20,7 @@ export const useVideocallChat = () => {
         const roomName = localStorage.getItem('roomName');
         const userName = localStorage.getItem('userName');
         
-        console.log('🔍 Checking videocall status:', { inCall, videochatActive, roomName });
-        
+                
         const isInCallBool = inCall === 'true';
         const isVideochatActiveBool = videochatActive === 'true';
         
@@ -37,8 +36,7 @@ export const useVideocallChat = () => {
           setCallData(null);
         }
       } catch (error) {
-        console.error('Error detecting call status:', error);
-      }
+              }
     };
 
     checkCallStatus();

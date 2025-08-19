@@ -18,8 +18,7 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
       const token = getAuthToken();
       
       if (!token) {
-        console.error('❌ No token found');
-        setClients([]);
+                setClients([]);
         return;
       }
 
@@ -56,8 +55,7 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
         setClients([]);
       }
     } catch (error) {
-      console.error('❌ Error fetching clients:', error);
-      setClients([]);
+            setClients([]);
     } finally {
       setLoading(false);
     }
@@ -65,8 +63,7 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
 
   // 🔥 NUEVA LÓGICA: Solo guardar en localStorage y cerrar modal
   const handleStartChat = async (clientId, clientName) => {
-    console.log('💬 Iniciando chat con:', clientName);
-    
+        
     try {
       const token = getAuthToken();
       
@@ -101,8 +98,7 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
           };
           
           localStorage.setItem('pendingChatOpen', JSON.stringify(chatInfo));
-          console.log('💾 Chat info guardada en localStorage:', chatInfo);
-          
+                    
           // 3. Cerrar modal
           if (onClose) {
             onClose();
@@ -120,14 +116,12 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
         alert('Error de conexión');
       }
     } catch (error) {
-      console.error('❌ Error:', error);
-      alert('Error de conexión');
+            alert('Error de conexión');
     }
   };
 
   const closeModal = () => {
-    console.log('🚪 Cerrando modal...');
-    setSearchTerm('');
+        setSearchTerm('');
     setClients([]);
     setLoading(false);
     if (onClose) {

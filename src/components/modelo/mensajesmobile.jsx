@@ -104,17 +104,14 @@ export default function ChatPrivadoMobile() {
   // 🔥 FUNCIÓN FALLBACK PARA TRADUCCIÓN - MEJORADA
   const translateWithFallback = useCallback(async (text, targetLang) => {
     try {
-      console.log('🔄 [MOBILE] Usando traducción fallback para:', `"${text}"`, 'a idioma:', targetLang);
-      
+            
       const cleanText = text.toLowerCase().trim();
       const detectedLang = detectLanguage(text);
       
-      console.log('🔍 [MOBILE] Idioma detectado:', detectedLang, 'Target:', targetLang);
-      
+            
       // Si el texto ya está en el idioma objetivo, no traducir
       if (detectedLang === targetLang) {
-        console.log('⏸️ [MOBILE] Texto ya está en idioma objetivo');
-        return null;
+                return null;
       }
       
       // 🔥 DICCIONARIO EXPANDIDO CON MÁS PALABRAS
@@ -355,41 +352,29 @@ export default function ChatPrivadoMobile() {
       
       // 🔥 DEBUGGING: VERIFICAR SI ENCUENTRA LA TRADUCCIÓN
       if (translationDict) {
-        console.log('📚 [MOBILE-FALLBACK] Diccionario encontrado para:', translationKey);
-        console.log('📚 [MOBILE-FALLBACK] Buscando:', cleanText);
-        console.log('📚 [MOBILE-FALLBACK] Diccionario completo:', translationDict);
-        
+                                
         const translated = translationDict[cleanText];
         if (translated) {
-          console.log('✅ [MOBILE-FALLBACK] Traducción encontrada:', `"${cleanText}"`, '->', `"${translated}"`);
-          return translated;
+                    return translated;
         } else {
-          console.log('❌ [MOBILE-FALLBACK] No se encontró traducción exacta para:', `"${cleanText}"`);
-          console.log('🔍 [MOBILE-FALLBACK] Claves disponibles:', Object.keys(translationDict));
-          
+                              
           // 🔥 INTENTAR BÚSQUEDA DE PALABRAS INDIVIDUALES
-          console.log('🔍 [MOBILE-FALLBACK] Intentando traducción por palabras...');
-          const words = cleanText.split(/\s+/);
+                    const words = cleanText.split(/\s+/);
           const translatedWords = words.map(word => {
             const wordTranslation = translationDict[word.toLowerCase()];
-            console.log(`🔍 [MOBILE-FALLBACK] Palabra "${word}" → "${wordTranslation || word}"`);
-            return wordTranslation || word;
+                        return wordTranslation || word;
           });
           
           const wordBasedTranslation = translatedWords.join(' ');
           if (wordBasedTranslation !== cleanText) {
-            console.log('🎯 [MOBILE-FALLBACK] Traducción por palabras exitosa:', wordBasedTranslation);
-            return wordBasedTranslation;
+                        return wordBasedTranslation;
           }
         }
       } else {
-        console.log('❌ [MOBILE-FALLBACK] No existe diccionario para:', translationKey);
-        console.log('🔍 [MOBILE-FALLBACK] Diccionarios disponibles:', Object.keys(translations));
-      }
+                      }
       
       // 🔥 SI NO ENCUENTRA TRADUCCIÓN, RETORNAR NULL EN LUGAR DEL TEXTO ORIGINAL
-      console.log('🚫 [MOBILE-FALLBACK] No se pudo traducir, retornando null');
-      return null;
+            return null;
       
     } catch (error) {
             return `[ERROR] ${text}`;
@@ -557,10 +542,8 @@ export default function ChatPrivadoMobile() {
   // 🔥 CARGAR DATOS DE USUARIO
   const cargarDatosUsuario = async () => {
     try {
-      console.log('🔍 [MOBILE] Cargando datos de usuario...');
-      const userData = await getUser();
-      console.log('✅ [MOBILE] Usuario cargado:', userData);
-      
+            const userData = await getUser();
+            
       setUsuario({
         id: userData.id,
         name: userData.name || userData.alias || `Usuario_${userData.id}`,
@@ -584,8 +567,7 @@ export default function ChatPrivadoMobile() {
         setLoading(true);
       }
       
-      console.log('🔍 [MOBILE] Cargando conversaciones...');
-      
+            
       const response = await fetch(`${API_BASE_URL}/api/chat/conversations`, {
         method: 'GET',
         headers: getAuthHeaders()
@@ -593,13 +575,11 @@ export default function ChatPrivadoMobile() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ [MOBILE] Conversaciones recibidas:', data);
-        
+                
         const newConversations = data.conversations || [];
         setConversaciones(newConversations);
       } else {
-        console.log('🔧 [MOBILE] Usando datos de ejemplo...');
-        const exampleConversations = [
+                const exampleConversations = [
           {
             id: 1,
             other_user_id: 2,
@@ -815,25 +795,21 @@ export default function ChatPrivadoMobile() {
         
         if (pendingChat) {
           const chatInfo = JSON.parse(pendingChat);
-          console.log('🔍 [MOBILE] Chat pendiente detectado:', chatInfo);
-          
+                    
           const now = Date.now();
           const timeDiff = now - chatInfo.timestamp;
           
           if (timeDiff < 10000 && chatInfo.shouldOpen) {
-            console.log('✅ [MOBILE] Abriendo chat pendiente...');
-            
+                        
             const existingConv = conversaciones.find(conv => 
               conv.other_user_id === chatInfo.clientId || 
               conv.room_name === chatInfo.roomName
             );
             
             if (existingConv) {
-              console.log('📂 [MOBILE] Conversación existente encontrada');
-              abrirConversacion(existingConv);
+                            abrirConversacion(existingConv);
             } else {
-              console.log('📝 [MOBILE] Creando nueva conversación...');
-              
+                            
               const nuevaConversacion = {
                 id: chatInfo.conversationId || Date.now(),
                 other_user_id: chatInfo.clientId,
@@ -853,8 +829,7 @@ export default function ChatPrivadoMobile() {
                 );
                 
                 if (!exists) {
-                  console.log('➕ [MOBILE] Agregando nueva conversación');
-                  return [nuevaConversacion, ...prev];
+                                    return [nuevaConversacion, ...prev];
                 }
                 return prev;
               });
@@ -865,10 +840,8 @@ export default function ChatPrivadoMobile() {
             }
             
             localStorage.removeItem('pendingChatOpen');
-            console.log('🧹 [MOBILE] Chat pendiente procesado y limpiado');
-          } else {
-            console.log('⏰ [MOBILE] Chat pendiente expirado');
-            localStorage.removeItem('pendingChatOpen');
+                      } else {
+                        localStorage.removeItem('pendingChatOpen');
           }
         }
       } catch (error) {

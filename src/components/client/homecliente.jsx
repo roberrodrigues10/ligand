@@ -51,16 +51,13 @@ export default function InterfazCliente() {
           setBalanceDetails(data);
           return data;
         } else {
-          console.error('❌ Error en respuesta:', data.error);
-          return null;
+                    return null;
         }
       } else {
-        console.error('❌ Error HTTP consultando saldo:', response.status);
-        return null;
+                return null;
       }
     } catch (error) {
-      console.error('❌ Error consultando saldo:', error);
-      return null;
+            return null;
     } finally {
       setLoadingBalance(false);
     }
@@ -87,13 +84,11 @@ export default function InterfazCliente() {
           setShowNoBalanceModal(true);
         }
       } else {
-        console.error('❌ Error HTTP:', response.status);
-        setShowNoBalanceModal(true);
+                setShowNoBalanceModal(true);
       }
       
     } catch (error) {
-      console.error('❌ Error validando saldo:', error);
-      setShowNoBalanceModal(true);
+            setShowNoBalanceModal(true);
     }
   };
 
@@ -119,13 +114,11 @@ export default function InterfazCliente() {
           setShowNoBalanceModal(true);
         }
       } else {
-        console.error('❌ Error HTTP:', response.status);
-        setShowNoBalanceModal(true);
+                setShowNoBalanceModal(true);
       }
       
     } catch (error) {
-      console.error('❌ Error validando saldo:', error);
-      setShowNoBalanceModal(true);
+            setShowNoBalanceModal(true);
     } finally {
       setLoadingBalance(false); // ✅ Quitar loading del botón
     }
@@ -210,14 +203,12 @@ export default function InterfazCliente() {
         });
         
       } else {
-        console.error('❌ Error cargando contactos:', response.status);
-        if (initialLoad) {
+                if (initialLoad) {
           await handleFallbackData();
         }
       }
     } catch (error) {
-      console.error('❌ Error cargando chicas activas:', error);
-      if (initialLoad) {
+            if (initialLoad) {
         await handleFallbackData();
       }
     } finally {
@@ -384,8 +375,7 @@ export default function InterfazCliente() {
         });
         iniciarPollingLlamada(data.call_id);
       } else {
-        console.error('❌ Error iniciando llamada a chica:', data.error);
-        setIsCallActive(false);
+                setIsCallActive(false);
         setCurrentCall(null);
         
         // Mostrar error específico
@@ -399,8 +389,7 @@ export default function InterfazCliente() {
         setShowConfirmModal(true);
       }
     } catch (error) {
-      console.error('❌ Error:', error);
-      setIsCallActive(false);
+            setIsCallActive(false);
       setCurrentCall(null);
       alert(t('clientInterface.errorStartingCall'));
     }
@@ -422,11 +411,9 @@ export default function InterfazCliente() {
           setUsuariosBloqueados(data.blocked_users || []);
         }
       } else {
-        console.error('❌ Error HTTP cargando bloqueados:', response.status);
-      }
+              }
     } catch (error) {
-      console.error('❌ Error cargando usuarios bloqueados:', error);
-    } finally {
+          } finally {
       setLoadingBloqueados(false);
     }
   };
@@ -450,13 +437,11 @@ export default function InterfazCliente() {
       try {
         await audio.play();
       } catch (playError) {
-        console.error('❌ Error al reproducir:', playError);
-        if (playError.name === 'NotAllowedError') {
+                if (playError.name === 'NotAllowedError') {
         }
       }
     } catch (error) {
-      console.error('❌ Error general creando audio:', error);
-    }
+          }
   };
 
   const stopIncomingCallSound = () => {
@@ -512,8 +497,7 @@ export default function InterfazCliente() {
         }
         
       } catch (error) {
-        console.error('❌ Error verificando llamada:', error);
-      }
+              }
     }, 2000);
     
     setCallPollingInterval(interval);
@@ -557,8 +541,7 @@ export default function InterfazCliente() {
       }
       
     } catch (error) {
-      console.error('❌ Error cancelando llamada:', error);
-    }
+          }
     
     setIsCallActive(false);
     setCurrentCall(null);
@@ -635,13 +618,11 @@ export default function InterfazCliente() {
           setIncomingCall(null);
         }
       } else {
-        console.error('❌ Error respondiendo llamada:', data.error);
-        setIsReceivingCall(false);
+                setIsReceivingCall(false);
         setIncomingCall(null);
       }
     } catch (error) {
-      console.error('❌ Error:', error);
-      setIsReceivingCall(false);
+            setIsReceivingCall(false);
       setIncomingCall(null);
     }
   };
@@ -699,8 +680,7 @@ export default function InterfazCliente() {
         const userData = await getUser();
         setUser(userData);
       } catch (err) {
-        console.error("Error al obtener usuario:", err);
-      }
+              }
     };
     fetchUser();
   }, []);

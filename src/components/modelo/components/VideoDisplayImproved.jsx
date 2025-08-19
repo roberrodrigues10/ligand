@@ -94,8 +94,7 @@ const VideoDisplayImproved = ({
         }
       }
     } catch (error) {
-      console.log("Error rendering main video:", error);
-    }
+          }
 
     // Estados de espera con diseño Ligand para Modelo
     const getConnectionStatus = () => {
@@ -273,8 +272,7 @@ const VideoDisplayImproved = ({
         }
       }
     } catch (error) {
-      console.log("Error rendering mini video:", error);
-    }
+          }
 
     // Estado de mini video sin cámara
     return (

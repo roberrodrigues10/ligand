@@ -65,13 +65,7 @@ export default function SubirHistoria() {
 
   // 1. FUNCIÓN PARA CREAR ARCHIVO CON EXTENSIÓN Y TIPO MIME EXACTOS
   const createPerfectFile = (originalFile, targetExtension = null) => {
-    console.log('🔧 === CREANDO ARCHIVO PERFECTO ===');
-    console.log('Original:', {
-      name: originalFile.name,
-      type: originalFile.type,
-      size: originalFile.size
-    });
-
+        
     let finalName = originalFile.name;
     let finalType = originalFile.type;
 
@@ -120,13 +114,7 @@ export default function SubirHistoria() {
       lastModified: Date.now()
     });
 
-    console.log('✅ Archivo perfecto creado:', {
-      name: perfectFile.name,
-      type: perfectFile.type,
-      size: perfectFile.size
-    });
-    console.log('=====================================');
-
+        
     return perfectFile;
   };
 
@@ -141,13 +129,7 @@ export default function SubirHistoria() {
 
     const extension = file.name.split('.').pop().toLowerCase();
     
-    console.log('🔍 Validando archivo:', {
-      name: file.name,
-      type: file.type,
-      extension: extension,
-      size: file.size
-    });
-
+    
     // Verificar extensión
     if (!allowedExtensions.includes(extension)) {
       return {
@@ -174,12 +156,7 @@ export default function SubirHistoria() {
   };
 
   const validateFileType = (file) => {
-    console.log('🔍 Validando archivo:', {
-      name: file.name,
-      type: file.type,
-      size: file.size
-    });
-
+    
     // Lista de tipos MIME permitidos que coincidan con el backend
     const allowedImageTypes = [
       'image/jpeg',
@@ -211,13 +188,11 @@ export default function SubirHistoria() {
     const hasValidVideoExt = videoExtensions.some(ext => fileName.endsWith(ext));
 
     if (hasValidImageExt) {
-      console.log('⚠️ Archivo de imagen detectado por extensión, tipo MIME:', file.type);
-      return { valid: true, mediaType: 'image' };
+            return { valid: true, mediaType: 'image' };
     }
 
     if (hasValidVideoExt) {
-      console.log('⚠️ Archivo de video detectado por extensión, tipo MIME:', file.type);
-      return { valid: true, mediaType: 'video' };
+            return { valid: true, mediaType: 'video' };
     }
 
     return { valid: false, mediaType: null };
@@ -403,13 +378,7 @@ export default function SubirHistoria() {
   };
 
   const createValidFile = (originalFile, forceType = null) => {
-    console.log('🔧 Creando archivo válido desde:', {
-      name: originalFile.name,
-      type: originalFile.type,
-      size: originalFile.size,
-      forceType: forceType
-    });
-
+    
     let finalMimeType = forceType || originalFile.type;
     let finalName = originalFile.name;
 
@@ -440,33 +409,19 @@ export default function SubirHistoria() {
       lastModified: Date.now()
     });
 
-    console.log('✅ Archivo válido creado:', {
-      name: validFile.name,
-      type: validFile.type,
-      size: validFile.size
-    });
-
+    
     return validFile;
   };
 
   const diagnoseFile = async (file) => {
-    console.log('🔍 === DIAGNÓSTICO COMPLETO DEL ARCHIVO ===');
-    
+        
     // Información básica
-    console.log('📄 Información básica:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      lastModified: file.lastModified,
-      constructor: file.constructor.name
-    });
-
+    
     // Leer los primeros bytes para detectar el tipo real
     const arrayBuffer = await file.slice(0, 16).arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     const hex = Array.from(uint8Array).map(b => b.toString(16).padStart(2, '0')).join(' ');
-    console.log('🔬 Primeros bytes (hex):', hex);
-
+    
     // Detectar tipo por magic numbers
     const magicNumbers = {
       'FFD8FF': 'image/jpeg',
@@ -479,13 +434,11 @@ export default function SubirHistoria() {
     const hexStart = hex.replace(/\s/g, '').toUpperCase().substring(0, 8);
     for (const [magic, detectedType] of Object.entries(magicNumbers)) {
       if (hexStart.startsWith(magic)) {
-        console.log('🎯 Tipo detectado por magic number:', detectedType);
-        break;
+                break;
       }
     }
 
-    console.log('===========================================');
-  };
+      };
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -552,8 +505,7 @@ export default function SubirHistoria() {
       }
     }
     
-    console.log('🎥 Iniciando grabación con opciones:', options);
-
+    
     const recorder = new MediaRecorder(streamRef.current, options);
 
     recorder.ondataavailable = (e) => {
@@ -563,8 +515,7 @@ export default function SubirHistoria() {
     };
 
     recorder.onstop = () => {
-      console.log('🛑 === PROCESANDO GRABACIÓN ===');
-      
+            
       if (chunks.length === 0) {
         notifications.warning("No se grabó ningún contenido");
         return;
@@ -589,8 +540,7 @@ export default function SubirHistoria() {
       mediaRecorderRef.current = null;
       notifications.recordingStopped();
       
-      console.log('=====================================');
-    };
+          };
 
     recorder.onerror = (e) => {
             notifications.error('Error durante la grabación');
@@ -602,39 +552,24 @@ export default function SubirHistoria() {
   };
 
   const testFileBeforeSend = async (file) => {
-    console.log('🧪 === PRUEBA FINAL ANTES DEL ENVÍO ===');
-    
+        
     // Información del archivo
-    console.log('📋 Archivo a enviar:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      constructor: file.constructor.name
-    });
-
+    
     // Crear FormData de prueba
     const testFormData = new FormData();
     testFormData.append("file", file);
     
     // Verificar lo que realmente se está enviando
-    console.log('📦 FormData entries:');
-    for (let [key, value] of testFormData.entries()) {
+        for (let [key, value] of testFormData.entries()) {
       if (value instanceof File) {
-        console.log(`${key}:`, {
-          name: value.name,
-          type: value.type,
-          size: value.size
-        });
-      } else {
-        console.log(`${key}:`, value);
-      }
+              } else {
+              }
     }
 
     // Leer primeros bytes para confirmar
     await diagnoseFile(file);
     
-    console.log('=====================================');
-    return true;
+        return true;
   };
 
   const stopRecording = () => {
@@ -660,8 +595,7 @@ export default function SubirHistoria() {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
 
-    console.log('📁 === PROCESANDO ARCHIVO SUBIDO ===');
-
+    
     // Validar archivo
     const validation = validateFileForBackend(selectedFile);
     if (!validation.valid) {
@@ -684,8 +618,7 @@ export default function SubirHistoria() {
       
       video.onloadedmetadata = () => {
         URL.revokeObjectURL(video.src);
-        console.log('🎥 Duración del video:', video.duration, 'segundos');
-        
+                
         if (video.duration > 15) {
           notifications.videoDuration();
           return;
@@ -711,8 +644,7 @@ export default function SubirHistoria() {
       notifications.fileLoaded('image');
     }
 
-    console.log('========================================');
-  };
+      };
 
   const createCompatibleBlob = (originalBlob, fileName) => {
     let mimeType = originalBlob.type;
@@ -740,12 +672,7 @@ export default function SubirHistoria() {
       }
     }
     
-    console.log('🔄 Creando blob compatible:', {
-      originalType: originalBlob.type,
-      newType: mimeType,
-      size: originalBlob.size
-    });
-    
+        
     return new Blob([originalBlob], { type: mimeType });
   };
 
@@ -807,14 +734,7 @@ export default function SubirHistoria() {
       return;
     }
 
-    console.log('🚀 === ENVIANDO AL BACKEND ===');
-    console.log('Archivo final a enviar:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      constructor: file.constructor.name
-    });
-
+        
     // Validación final
     const finalValidation = validateFileForBackend(file);
     if (!finalValidation.valid) {
@@ -827,17 +747,10 @@ export default function SubirHistoria() {
     formData.append("source_type", file.name.includes('recording_') ? "record" : "upload");
 
     // Debug del FormData
-    console.log('📦 FormData entries:');
-    for (let [key, value] of formData.entries()) {
+        for (let [key, value] of formData.entries()) {
       if (value instanceof File) {
-        console.log(`${key}:`, {
-          name: value.name,
-          type: value.type,
-          size: value.size
-        });
-      } else {
-        console.log(`${key}:`, value);
-      }
+              } else {
+              }
     }
 
     try {
@@ -851,12 +764,10 @@ export default function SubirHistoria() {
         timeout: 60000,
       };
       
-      console.log('📡 Enviando request...');
-      // En handleSubmit(), cambiar:
+            // En handleSubmit(), cambiar:
       const res = await axios.post("api/stories", formData, config);
       
-      console.log('✅ SUCCESS! Historia subida:', res.data);
-      notifications.storyUploaded();
+            notifications.storyUploaded();
       
       await checkExistingStory();
       await checkCanUpload();
@@ -892,8 +803,7 @@ export default function SubirHistoria() {
         notifications.uploadError();
       }
       
-      console.log('==============================');
-    } finally {
+          } finally {
       setLoading(false);
     }
   };
@@ -902,8 +812,7 @@ export default function SubirHistoria() {
     if (file) {
       await testFileBeforeSend(file);
     } else {
-      console.log('❌ No hay archivo seleccionado para probar');
-    }
+          }
   };
 
   const viewStory = () => {
@@ -1082,8 +991,7 @@ export default function SubirHistoria() {
                     className="w-full h-[300px] object-cover"
                     controls={isApproved}
                     onError={(e) => {
-                                            console.log('URL intentada:', e.target.src);
-                    }}
+                                                                }}
                   />
                 ) : (
                   <img 
@@ -1095,8 +1003,7 @@ export default function SubirHistoria() {
                     alt="Historia" 
                     className="w-full object-cover"
                     onError={(e) => {
-                                            console.log('URL intentada:', e.target.src);
-                    }}
+                                                                }}
                   />
                 )}
               </div>
