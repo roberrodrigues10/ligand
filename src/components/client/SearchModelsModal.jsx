@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, MessageSquare, Phone, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next'; // o tu sistema de traducción
 
 // Componente Avatar integrado (igual que antes)
 const Avatar = ({ 
@@ -78,7 +79,7 @@ const Avatar = ({
       {src && !imageError && (
         <img
           src={src}
-          alt={name || 'Avatar'}
+          alt={name || t('searchModels.avatar')} 
           className={`
             ${sizeClasses[size]} rounded-full object-cover border-2 border-[#ff007a]/30
             ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200
@@ -126,6 +127,7 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
   const [models, setModels] = useState([]);
   const [filteredModels, setFilteredModels] = useState([]);
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   // 🔥 FUNCIÓN PARA OBTENER TOKENS MEJORADA
   const getAuthToken = () => {
@@ -378,7 +380,7 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
           <div className="flex items-center gap-3">
             <Search size={24} className="text-white" />
             <h2 className="text-xl font-bold text-white">
-              Buscar Modelos
+              {t('searchModels.title')}
             </h2>
           </div>
           <button
@@ -395,7 +397,7 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
             <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar por nombre..."
+              placeholder={t('searchModels.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-[#2b2d31] border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-[#ff007a] transition-colors"
@@ -409,20 +411,20 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff007a]"></div>
-              <span className="ml-3 text-white">Cargando...</span>
+              <span className="ml-3 text-white">{t('searchModels.loading')}</span>
             </div>
           ) : filteredModels.length === 0 ? (
             <div className="text-center py-12">
               <User size={48} className="mx-auto text-gray-400 mb-4" />
               <p className="text-gray-400">
                 {searchTerm ? 
-                  'No se encontraron modelos con ese nombre' : 
-                  'No hay modelos disponibles'
+                  t('searchModels.noModelsFound') : 
+                  t('searchModels.noModelsAvailable')
                 }
               </p>
               {searchTerm && (
                 <p className="text-sm text-gray-500 mt-2">
-                  Intenta con un término de búsqueda diferente
+                  {t('searchModels.tryDifferentSearch')}
                 </p>
               )}
             </div>
@@ -451,7 +453,7 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
                             model.online ? 'bg-green-400' : 'bg-gray-400'
                           }`}></div>
                           <p className="text-sm text-gray-400">
-                            {model.online ? 'En línea' : 'Desconectado'}
+                            {model.online ? t('searchModels.online') : t('searchModels.offline')}
                           </p>
                         </div>
                       </div>
@@ -466,10 +468,10 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
                           handleMessage(model.id, model.name);
                         }}
                         className="bg-[#ff007a] hover:bg-[#e6006e] text-white p-3 rounded-lg transition-colors flex items-center gap-2 font-medium"
-                        title="Enviar mensaje"
+                        title={t('searchModels.sendMessage')}
                       >
                         <MessageSquare size={18} />
-                        <span className="hidden sm:block">Mensaje</span>
+                        <span className="hidden sm:block">{t('searchModels.message')}</span>
                       </button>
                       
                       {/* 🔥 BOTÓN DE LLAMADA OPCIONAL */}
@@ -479,10 +481,10 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
                           handleCall(model.id, model.name);
                         }}
                         className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-lg transition-colors flex items-center gap-2 font-medium"
-                        title="Llamar"
+                        title={t('searchModels.call')}
                       >
                         <Phone size={18} />
-                        <span className="hidden sm:block">Llamar</span>
+                        <span className="hidden sm:block">{t('searchModels.call')}</span>
                       </button>
                     </div>
                   </div>
@@ -496,8 +498,8 @@ const SearchModelsModal = ({ isOpen, onClose, onMessage, onCall }) => {
         <div className="p-4 border-t border-gray-700 bg-[#1f2125]">
           <p className="text-center text-sm text-gray-400">
             {filteredModels.length} {filteredModels.length === 1 ? 
-              'modelo encontrado' : 
-              'modelos encontrados'
+              t('searchModels.modelFound') : 
+              t('searchModels.modelsFound')
             }
           </p>
         </div>

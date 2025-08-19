@@ -158,7 +158,7 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
         <div className="bg-gradient-to-r from-[#ff007a] to-[#e6006e] p-4 flex items-center justify-between rounded-t-2xl">
           <div className="flex items-center gap-3">
             <Search size={24} className="text-white" />
-            <h2 className="text-xl font-bold text-white">Buscar Clientes</h2>
+            <h2 className="text-xl font-bold text-white">{t('searchClients.title')}</h2>
           </div>
           <button
             onClick={closeModal}
@@ -174,7 +174,7 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
             <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar clientes..."
+              placeholder={t('searchClients.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-[#2b2d31] border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-[#ff007a]"
@@ -187,12 +187,22 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff007a]"></div>
-              <span className="ml-3 text-white">Buscando...</span>
+              <span className="ml-3 text-white">{t('searchClients.loading')}</span>
             </div>
           ) : clients.length === 0 ? (
             <div className="text-center py-12">
               <User size={48} className="mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-400">No hay clientes disponibles</p>
+              <p className="text-gray-400">
+                {searchTerm ? 
+                  t('searchClients.noClientsFound') : 
+                  t('searchClients.noClientsAvailable')
+                }
+              </p>
+              {searchTerm && (
+                <p className="text-sm text-gray-500 mt-2">
+                  {t('searchClients.tryDifferentSearch')}
+                </p>
+              )}
             </div>
           ) : (
             <div className="p-4 space-y-3">
@@ -211,7 +221,7 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${client.online ? 'bg-green-400' : 'bg-gray-400'}`}></div>
                           <span className="text-sm text-gray-400">
-                            {client.online ? 'En línea' : 'Desconectado'}
+                            {client.online ? t('searchClients.online') : t('searchClients.offline')}
                           </span>
                         </div>
                       </div>
@@ -221,9 +231,10 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
                       <button
                         onClick={() => handleStartChat(client.id, client.name)}
                         className="bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                        title={t('searchClients.sendMessage')}
                       >
                         <MessageSquare size={16} />
-                        Mensaje
+                        {t('searchClients.message')}
                       </button>
                     </div>
                   </div>
@@ -235,7 +246,10 @@ const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
 
         {/* Footer */}
         <div className="p-4 border-t border-gray-700 text-center text-sm text-gray-400">
-          {clients.length} cliente{clients.length !== 1 ? 's' : ''} encontrado{clients.length !== 1 ? 's' : ''}
+          {clients.length} {clients.length === 1 ? 
+            t('searchClients.clientFound') : 
+            t('searchClients.clientsFound')
+          }
         </div>
       </div>
     </div>
