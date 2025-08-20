@@ -687,14 +687,14 @@ export default function Favoritos() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="text-red-500 text-6xl mb-4">⚠️</div>
-            <h3 className="text-xl font-bold mb-2">Error cargando favoritas</h3>
+            <h3 className="text-xl font-bold mb-2">{t('favorites.errorLoading')}</h3>
             <p className="text-gray-400 mb-4">{error}</p>
             <button
               onClick={loadFavorites}
               className="bg-[#ff007a] hover:bg-[#e6006e] px-6 py-2 rounded-lg flex items-center gap-2 mx-auto"
             >
               <RefreshCw size={16} />
-              {t('favorites.refresh')}
+              {t('favorites.retry')}
             </button>
           </div>
         </div>
@@ -738,7 +738,7 @@ export default function Favoritos() {
             className="bg-[#2b2d31] hover:bg-[#373a40] px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-             {t('favorites.updating')}
+             {t('favorites.refresh')}
           </button>
         </div>
       </div>
@@ -927,7 +927,7 @@ export default function Favoritos() {
                 <div className="flex items-center justify-center py-12">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff007a] mx-auto mb-3"></div>
-                    <p className="text-gray-400">Cargando chicos bloqueados...</p>
+                    <p className="text-gray-400">{t('favorites.blockedUsers.loading')}</p>
                   </div>
                 </div>
               ) : usuariosBloqueados.length === 0 ? (
@@ -1003,7 +1003,7 @@ export default function Favoritos() {
                         ) : (
                           <>
                             <Shield size={14} />
-                            {t('favorites.blockedUsers.unblockSuccess')}
+                            {t('favorites.actions.unblock')}
                           </>
                         )}
                       </button>

@@ -7,14 +7,6 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 import { useSearching } from '../../contexts/SearchingContext.jsx';
 
 export default function PreCallLobbyClient() {
-  const { t, i18n } = useTranslation();
-  
-  useEffect(() => {
-    const savedLang = localStorage.getItem("lang");
-    if (savedLang && savedLang !== i18n.language) {
-      i18n.changeLanguage(savedLang);
-    }
-  }, []);
 
   const [selectedCamera, setSelectedCamera] = useState("");
   const [selectedMic, setSelectedMic] = useState("");
@@ -39,6 +31,7 @@ export default function PreCallLobbyClient() {
   const isNavigatingRef = useRef(false);
   
   const { startSearching, stopSearching } = useSearching();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   // 🔥 FUNCIÓN PARA VERIFICAR SI PUEDE INICIAR VIDEOLLAMADA
@@ -52,7 +45,7 @@ export default function PreCallLobbyClient() {
       return { text: 'Verificando permisos de cámara...', color: 'text-yellow-400', icon: '🔍' };
     }
     if (cameraPermission === 'denied') {
-      return { text: 'Permisos de cámara denegados', color: 'text-red-400', icon: '❌' };
+      return { text: t('preCallLobby.errors.permissionDenied'), color: 'text-red-400', icon: '❌' };
     }
     if (cameraPermission === 'error') {
       return { text: 'Error al acceder a la cámara', color: 'text-red-400', icon: '⚠️' };
@@ -61,7 +54,7 @@ export default function PreCallLobbyClient() {
       return { text: 'Cámara lista para videollamada', color: 'text-green-400', icon: '✅' };
     }
     if (cameraPermission === 'granted' && !isStreamActive) {
-      return { text: 'Activando cámara...', color: 'text-yellow-400', icon: '⏳' };
+      return { text: t('preCallLobby.actions.preparing'), color: 'text-yellow-400', icon: '⏳' };
     }
     return { text: 'Estado desconocido', color: 'text-gray-400', icon: '❓' };
   };
@@ -212,18 +205,18 @@ export default function PreCallLobbyClient() {
             </div>
             
             <h3 className="text-xl font-bold text-white mb-3">
-              Permisos de Cámara Requeridos
+              {t('preCallLobby.errors.permissionDenied')}
             </h3>
             
             <div className="text-white/70 mb-6 space-y-3">
-              <p>Para iniciar una videollamada necesitas permitir el acceso a tu cámara.</p>
+              <p>{t('preCallLobby.notices.permissionsRequired')}</p>
               
               <div className="bg-[#2b2d31] rounded-lg p-3 text-sm">
-                <p className="text-white/50 mb-2">¿Cómo activar los permisos?</p>
+                <p className="text-white/50 mb-2">{t('preCallLobby.permissions.howToEnable')}</p>
                 <ol className="text-left space-y-1 text-xs">
-                  <li>1. Busca el ícono de cámara 📷 en la barra de direcciones</li>
-                  <li>2. Haz clic y selecciona "Permitir"</li>
-                  <li>3. Recarga la página si es necesario</li>
+                  <li>1. {t('preCallLobby.permissions.step1')}</li>
+                  <li>2. {t('preCallLobby.permissions.step2')}</li>
+                  <li>3. {t('preCallLobby.permissions.step3')}</li>
                 </ol>
               </div>
               
@@ -239,7 +232,7 @@ export default function PreCallLobbyClient() {
                 onClick={retryPermissions}
                 className="w-full bg-[#ff007a] hover:bg-[#e6006e] text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200"
               >
-                Intentar de Nuevo
+                {t('preCallLobby.errors.retryVideoOnly')}
               </button>
               
               <button
@@ -369,7 +362,7 @@ export default function PreCallLobbyClient() {
               <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center">
                 <div className="text-4xl mb-2">📷</div>
                 <p className="text-white/70 text-sm text-center px-4">
-                  {cameraPermission === 'checking' ? 'Activando cámara...' : 
+                  {cameraPermission === 'checking' ? t('preCallLobby.actions.preparing') : 
                    cameraPermission === 'denied' ? 'Permisos de cámara denegados' :
                    cameraPermission === 'error' ? 'Error de cámara' :
                    'Cámara no disponible'}
@@ -379,7 +372,7 @@ export default function PreCallLobbyClient() {
                     onClick={() => setShowPermissionModal(true)}
                     className="mt-3 bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg text-sm transition-colors"
                   >
-                    Activar Permisos
+                    {t('preCallLobby.errors.permissionDenied')}
                   </button>
                 )}
               </div>
@@ -400,7 +393,7 @@ export default function PreCallLobbyClient() {
             {/* Indicador de estado del espejo */}
             {mirrorMode && isStreamActive && (
               <div className="absolute bottom-2 left-2 bg-green-500/80 text-white text-xs px-2 py-1 rounded">
-                Espejo activo
+                {t('preCallLobby.mirror.active')}
               </div>
             )}
           </div>
@@ -416,7 +409,7 @@ export default function PreCallLobbyClient() {
           {/* Título y estado */}
           <div className="text-center mb-4">
             <h2 className="text-xl font-semibold">
-              {t("roulette_cliente.titulo", "Configurar Videollamada")}
+              {t("preCallLobby.title")}
             </h2>
             <p className={`text-sm flex items-center justify-center gap-2 ${
               canStartVideoCall() ? 'text-green-400' : 'text-yellow-400'
@@ -425,8 +418,8 @@ export default function PreCallLobbyClient() {
                 canStartVideoCall() ? 'bg-green-400' : 'bg-yellow-400'
               }`} />
               {canStartVideoCall() 
-                ? t("roulette_cliente.ready", "Listo para videollamada")
-                : t("roulette_cliente.configuring", "Configurando dispositivos...")
+                ? t("preCallLobby.status")
+                : t("preCallLobby.actions.preparing")
               }
             </p>
           </div>
@@ -436,7 +429,7 @@ export default function PreCallLobbyClient() {
             {/* Selector de cámara */}
             <div>
               <label className="text-sm text-white/70">
-                {t("roulette_cliente.camera_label", "Cámara")}
+                {t("preCallLobby.devices.camera")}
               </label>
               <select
                 value={selectedCamera}
@@ -444,10 +437,10 @@ export default function PreCallLobbyClient() {
                 className="w-full mt-1 p-2 rounded-lg bg-[#2b2d31] text-white outline-none disabled:opacity-50"
                 disabled={loading || cameraPermission !== 'granted'}
               >
-                <option value="">Seleccionar cámara...</option>
+                <option value="">{t("preCallLobby.deviceSelection.selectCamera")}</option>
                 {cameras.map((cam) => (
                   <option key={cam.deviceId} value={cam.deviceId}>
-                    {cam.label || `Cámara ${cameras.indexOf(cam) + 1}`}
+                    {cam.label || t("preCallLobby.devices.defaultCamera", { number: cameras.indexOf(cam) + 1 })}
                   </option>
                 ))}
               </select>
@@ -456,7 +449,7 @@ export default function PreCallLobbyClient() {
             {/* Selector de micrófono */}
             <div>
               <label className="text-sm text-white/70">
-                {t("roulette_cliente.mic_label", "Micrófono")}
+                {t("preCallLobby.devices.microphone")}
               </label>
               <select
                 value={selectedMic}
@@ -464,10 +457,10 @@ export default function PreCallLobbyClient() {
                 className="w-full mt-1 p-2 rounded-lg bg-[#2b2d31] text-white outline-none disabled:opacity-50"
                 disabled={loading || micPermission !== 'granted'}
               >
-                <option value="">Seleccionar micrófono...</option>
+                <option value="">{t("preCallLobby.deviceSelection.selectMicrophone")}</option>
                 {microphones.map((mic) => (
                   <option key={mic.deviceId} value={mic.deviceId}>
-                    {mic.label || `Micrófono ${microphones.indexOf(mic) + 1}`}
+                    {mic.label || t("preCallLobby.devices.defaultMicrophone", { number: microphones.indexOf(mic) + 1 })}
                   </option>
                 ))}
               </select>
@@ -476,7 +469,7 @@ export default function PreCallLobbyClient() {
             {/* Control de modo espejo */}
             <div className="flex items-center justify-between py-2">
               <label className="text-sm text-white/70">
-                {t("mirror.label", "Modo espejo")}
+                {t("preCallLobby.mirror.label")}
               </label>
               <button
                 onClick={toggleMirrorMode}
@@ -514,26 +507,26 @@ export default function PreCallLobbyClient() {
             {loading ? (
               <div className="flex items-center justify-center gap-2">
                 <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
-                {t("roulette_cliente.searching_user", "Buscando usuario...")}
+                {t("preCallLobby.actions.start")}
               </div>
             ) : !canStartVideoCall() ? (
               <div className="flex items-center justify-center gap-2">
                 <span>🚫</span>
                 {cameraPermission === 'denied' ? 'Permitir Cámara' :
                  cameraPermission === 'error' ? 'Error de Cámara' :
-                 'Activando Cámara...'}
+                 t('preCallLobby.actions.preparing')}
               </div>
             ) : (
               <div className="flex items-center justify-center gap-2">
                 <span>🎥</span>
-                {t("roulette_cliente.start_button", "Iniciar Videollamada")}
+                {t("preCallLobby.actions.start")}
               </div>
             )}
           </button>
 
           {/* Texto informativo */}
           <div className="mt-4 text-center text-xs text-white/50">
-            <p>{t('roulette_cliente.camera_required_notice', 'Se requiere cámara funcionando para videollamadas')}</p>
+            <p>{t('preCallLobby.notices.checkDevices')}</p>
           </div>
         </div>
       </div>

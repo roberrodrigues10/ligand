@@ -1396,7 +1396,7 @@ export default function ChatPrivadoMobile() {
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/50" />
                 <input
                   type="text"
-                  placeholder="Buscar conversaciones..."
+                  placeholder={t('chat.searchPlaceholder')}
                   className="w-full pl-10 pr-4 py-2 rounded-lg bg-[#1a1c20] text-white placeholder-white/60 outline-none focus:ring-2 focus:ring-[#ff007a]/50"
                   value={busquedaConversacion}
                   onChange={(e) => setBusquedaConversacion(e.target.value)}
@@ -1409,12 +1409,12 @@ export default function ChatPrivadoMobile() {
               {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#ff007a] mx-auto mb-2"></div>
-                  <p className="text-xs text-white/60">Cargando...</p>
+                  <p className="text-xs text-white/60">{t('chat.loading')}</p>
                 </div>
               ) : conversacionesFiltradas.length === 0 ? (
                 <div className="text-center py-8">
                   <MessageSquare size={32} className="text-white/30 mx-auto mb-2" />
-                  <p className="text-sm text-white/60">No hay conversaciones</p>
+                  <p className="text-sm text-white/60">{t('chat.noConversations')}</p>
                 </div>
               ) : (
                 conversacionesFiltradas.map((conv) => {
@@ -1454,7 +1454,7 @@ export default function ChatPrivadoMobile() {
                           </p>
                           <div className="text-xs text-white/60 truncate">
                             {conv.last_message_sender_id === usuario.id ? (
-                              <span><span className="text-white/40">Tú:</span> {conv.last_message}</span>
+                              <span><span className="text-white/40">{t('chat.you')}:</span> {conv.last_message}</span>
                             ) : (
                               conv.last_message
                             )}
@@ -1483,8 +1483,8 @@ export default function ChatPrivadoMobile() {
               <div className="flex-1 flex items-center justify-center p-4">
                 <div className="text-center">
                   <MessageSquare size={48} className="text-white/30 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Selecciona una conversación</h3>
-                  <p className="text-white/60">Elige una conversación para ver los mensajes</p>
+                  <h3 className="text-xl font-semibold mb-2">{t('chat.selectConversation')}</h3>    
+                  <p className="text-white/60">{t('chat.selectConversationDesc')}</p>
                 </div>
               </div>
             ) : (
@@ -1580,7 +1580,7 @@ export default function ChatPrivadoMobile() {
                 <div className="bg-[#2b2d31] border-t border-[#ff007a]/20 flex gap-3 p-3">
                   <input
                     type="text"
-                    placeholder="Escribe un mensaje..."
+                    placeholder={t('chat.messagePlaceholder')}
                     className="flex-1 px-4 py-3 rounded-full bg-[#1a1c20] text-white placeholder-white/60 outline-none focus:ring-2 focus:ring-[#ff007a]/50"
                     value={nuevoMensaje}
                     onChange={(e) => setNuevoMensaje(e.target.value)}
@@ -1739,7 +1739,7 @@ export default function ChatPrivadoMobile() {
                       ? 'bg-green-500/20 text-green-300 border border-green-400/30' 
                       : 'bg-gray-500/20 text-gray-300 border border-gray-400/30'
                   }`}>
-                    {localTranslationEnabled ? 'Activada' : 'Desactivada'}
+                    {localTranslationEnabled ? t('chat.menu.translationActive') : t('chat.menu.translationInactive')}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">

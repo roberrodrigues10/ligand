@@ -324,7 +324,7 @@ export default function HeaderCliente() {
           <button
             onClick={handleOpenSearch}
             className={`hover:scale-110 transition p-2 ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title={t('searchUsers') || 'Buscar Usuarios'}
+            title={t('searchUsers')}
             disabled={isBlocked}
           >
             <Search size={24} className="text-[#ff007a]" />
@@ -334,7 +334,7 @@ export default function HeaderCliente() {
           <button
             onClick={handleOpenStories}
             className={`hover:scale-110 transition p-2 ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title={t('viewStories') || 'Ver Historias'}
+            title={t('viewStories')}
             disabled={isBlocked}
           >
             <Play size={24} className="text-[#ff007a]" />
@@ -557,6 +557,7 @@ export default function HeaderCliente() {
         onClose={handleCloseSearch}
         onMessage={handleMessageFromSearch}
         onCall={handleCallFromSearch}
+        t={t}
       />
 
       {/* MODAL DE HISTORIAS INTEGRADO */}

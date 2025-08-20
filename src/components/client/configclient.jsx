@@ -52,10 +52,10 @@ export default function ClienteConfiguracion() {
         </Seccion>
 
         {/* Pagos y Historial (para clientes) */}
-        <Seccion titulo="💳 Pagos e Historial">
+        <Seccion titulo={t("settings.payments")}>
           <ConfigBoton 
             icon={<CreditCard size={18} />} 
-            texto="Métodos de Pago" 
+            texto={t("settings.managePaymentMethod")} 
             onClick={() => abrirModal("paymentMethods")} 
           />
           <ConfigBoton 
@@ -84,8 +84,8 @@ export default function ClienteConfiguracion() {
           />
         </Seccion>
 
-        {/* Soporte y Legal */}
-        <Seccion titulo="📞 Soporte y Legal">
+        {/* Otros */}
+        <Seccion titulo={t("settings.others")}>
           <ConfigBoton 
             icon={<HelpCircle size={18} />} 
             texto={t("settings.support")} 
@@ -122,7 +122,7 @@ export default function ClienteConfiguracion() {
               <X size={20} />
             </button>
 
-            <ModalContent modalActivo={modalActivo} />
+            <ModalContent modalActivo={modalActivo} t={t} />
           </div>
         </div>
       )}
@@ -131,10 +131,10 @@ export default function ClienteConfiguracion() {
 }
 
 // Componente para el contenido de cada modal
-function ModalContent({ modalActivo }) {
+function ModalContent({ modalActivo, t }) {
   const contenidoModales = {
     paymentMethods: {
-      titulo: "💳 Métodos de Pago",
+      titulo: "💳 " + t("settings.managePaymentMethod"),
       contenido: "Aquí puedes administrar tus tarjetas y métodos de pago para realizar compras en la plataforma."
     },
     transactionHistory: {
@@ -154,20 +154,23 @@ function ModalContent({ modalActivo }) {
       contenido: "Administra tu lista de modelos favoritos y recibe notificaciones cuando estén en línea."
     },
     support: {
-      titulo: "🆘 Soporte",
+      titulo: "🆘 " + t("settings.support"),
       contenido: "¿Necesitas ayuda? Contacta a nuestro equipo de soporte para resolver cualquier duda."
     },
     terms: {
-      titulo: "📜 Términos y Condiciones",
+      titulo: "📜 " + t("settings.terms"),
       contenido: "Revisa nuestros términos de servicio y políticas de la plataforma."
     },
     report: {
-      titulo: "⚠️ Reportar Problema",
+      titulo: "⚠️ " + t("settings.report"),
       contenido: "Reporta contenido inapropiado, problemas técnicos o comportamiento inadecuado."
     }
   };
 
-  const modal = contenidoModales[modalActivo] || { titulo: "Configuración", contenido: "Próximamente..." };
+  const modal = contenidoModales[modalActivo] || { 
+    titulo: "Configuración", 
+    contenido: t("settings.modalInstruction").replace("{{item}}", modalActivo || "esta función")
+  };
 
   return (
     <>

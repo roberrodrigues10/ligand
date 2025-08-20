@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Clock, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 // 🔥 HOOK INDEPENDIENTE SOLO PARA MONITOREO DE SALDO
 export const useBalanceMonitor = () => {
@@ -9,6 +10,7 @@ export const useBalanceMonitor = () => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isCheckingBalance, setIsCheckingBalance] = useState(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // 🔥 FUNCIÓN INDEPENDIENTE PARA FINALIZAR CHAT
   const finalizarPorSaldo = useCallback(async () => {
@@ -84,7 +86,7 @@ export const useBalanceMonitor = () => {
             navigate('/homecliente', { 
         replace: true,
         state: { 
-          message: 'Tu sesión terminó porque se agotaron los minutos disponibles.',
+          message: t('balanceMonitor.messages.sessionEnded'),
           type: 'warning'
         }
       });
@@ -259,13 +261,13 @@ const BalanceWarning = ({ remainingMinutes, onClose, className = "" }) => {
         <div className="flex items-start gap-3">
           <AlertTriangle size={20} className="flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h4 className="font-bold text-sm mb-1">⏰ Tiempo Limitado</h4>
+            <h4 className="font-bold text-sm mb-1">{t('balanceMonitor.warnings.limitedTime')}</h4>
             <p className="text-xs leading-relaxed">
-              Te quedan <span className="font-bold text-yellow-200">{remainingMinutes} minutos</span> en esta sesión.
+              {t('balanceMonitor.warnings.remainingMinutes', { minutes: remainingMinutes })}
             </p>
             {remainingMinutes <= 2 && (
               <p className="text-xs mt-2 font-bold text-yellow-200">
-                🚨 La sesión terminará automáticamente muy pronto.
+                {t('balanceMonitor.warnings.sessionEndingSoon')}
               </p>
             )}
           </div>
@@ -342,7 +344,7 @@ const BalanceMonitor = ({
             'bg-green-500/90 text-white'
           }`}>
             <Clock size={12} />
-            <span className="font-medium">{remainingMinutes} min</span>
+            <span className="font-medium">{remainingMinutes} {t('balanceMonitor.minutes')}</span>
           </div>
         </div>
       )}

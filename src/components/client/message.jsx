@@ -674,7 +674,7 @@ useEffect(() => {
       if (errorData.error === 'blocked') {
         alert('No puedes enviar mensajes a este usuario');
       } else if (errorData.error === 'blocked_by_user') {
-        alert('Este usuario te ha bloqueado');
+        alert(t('chat.status.userBlockedYou'));
       } else {
       }
     }
@@ -2251,7 +2251,7 @@ const renderMensaje = useCallback((mensaje) => {
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/50" />
               <input
                 type="text"
-                placeholder="Buscar conversaciones..."
+                placeholder={t('chat.searchPlaceholder')}
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-[#1a1c20] text-white placeholder-white/60 outline-none focus:ring-2 focus:ring-[#ff007a]/50"
                 value={busquedaConversacion}
                 onChange={(e) => setBusquedaConversacion(e.target.value)}
@@ -2263,12 +2263,12 @@ const renderMensaje = useCallback((mensaje) => {
               {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#ff007a] mx-auto mb-2"></div>
-                  <p className="text-xs text-white/60">Cargando...</p>
+                  <p className="text-xs text-white/60">{t('chat.loading')}</p>
                 </div>
               ) : conversacionesFiltradas.length === 0 ? (
                 <div className="text-center py-8">
                   <MessageSquare size={32} className="text-white/30 mx-auto mb-2" />
-                  <p className="text-sm text-white/60">No hay conversaciones</p>
+                  <p className="text-sm text-white/60">{t('chat.noConversations')}</p>
                 </div>
               ) : (
                 conversacionesFiltradas.map((conv) => {
@@ -2320,7 +2320,7 @@ const renderMensaje = useCallback((mensaje) => {
                           </p>
                           <div className="text-xs text-white/60 truncate">
                             {conv.last_message_sender_id === usuario.id ? (
-                              <span><span className="text-white/40">Tú:</span> {conv.last_message}</span>
+                              <span><span className="text-white/40">{t('chat.you')}:</span> {conv.last_message}</span>
                             ) : (
                               conv.last_message
                             )}
@@ -2370,15 +2370,15 @@ const renderMensaje = useCallback((mensaje) => {
                       {(() => {
                         const blockStatus = getBlockStatus(conversacionSeleccionada?.other_user_id);
                         if (blockStatus === 'yo_bloquee') {
-                          return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#2b2d31]" title="Bloqueado por ti" />;
+                          return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#2b2d31]" title={t('chat.status.blockedByYou')} />;
                         } else if (blockStatus === 'me_bloquearon') {
-                          return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-[#2b2d31]" title="Te bloqueó" />;
+                          return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-[#2b2d31]" title={t('chat.status.blockedYou')} />;
                         } else if (blockStatus === 'mutuo') {
-                          return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-700 rounded-full border-2 border-[#2b2d31]" title="Bloqueo mutuo" />;
+                          return <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-700 rounded-full border-2 border-[#2b2d31]" title={t('chat.status.mutualBlock')} />;
                         } else {
                           return <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${
                             onlineUsers.has(conversacionSeleccionada?.other_user_id) ? 'bg-green-500' : 'bg-gray-500'
-                          }`} title={onlineUsers.has(conversacionSeleccionada?.other_user_id) ? 'En línea' : 'Desconectado'} />;
+                          }`} title={onlineUsers.has(conversacionSeleccionada?.other_user_id) ? t('chat.online') : t('chat.offline')} />;
                         }
                       })()}
                     </div>
@@ -2393,21 +2393,21 @@ const renderMensaje = useCallback((mensaje) => {
                           return (
                             <span className="text-xs text-red-400">
                               <Ban size={12} className="inline mr-1" />
-                              Bloqueado por ti
+                              {t('chat.status.blockedByYou')}
                             </span>
                           );
                         } else if (blockStatus === 'me_bloquearon') {
                           return (
                             <span className="text-xs text-orange-400">
                               <Ban size={12} className="inline mr-1" />
-                              Te bloqueó
+                              {t('chat.status.blockedYou')}
                             </span>
                           );
                         } else if (blockStatus === 'mutuo') {
                           return (
                             <span className="text-xs text-red-600">
                               <Ban size={12} className="inline mr-1" />
-                              Bloqueo mutuo
+                              {t('chat.status.mutualBlock')}
                             </span>
                           );
                         }
@@ -2437,9 +2437,9 @@ const renderMensaje = useCallback((mensaje) => {
                           >
                             <Globe className="text-[#ff007a]" size={20} />
                             <div className="flex-1">
-                              <span className="text-white text-sm font-medium">Traducción</span>
+                              <span className="text-white text-sm font-medium">{t('chat.menu.translation')}</span>
                               <div className="text-xs text-gray-400">
-                                {translationSettings?.enabled ? 'Activa' : 'Inactiva'}
+                                {translationSettings?.enabled ? t('chat.menu.translationActive') : t('chat.menu.translationInactive')}
                               </div>
                             </div>
                             <ArrowRight className="text-gray-400" size={16} />
@@ -2465,8 +2465,8 @@ const renderMensaje = useCallback((mensaje) => {
                               />
                             )}
                             {favoritos.has(conversacionSeleccionada?.other_user_id)
-                              ? 'Quitar Favorito'
-                              : 'Agregar Favorito'
+                              ? t('chat.menu.removeFavorite')
+                              : t('chat.menu.addFavorite')
                             }
                           </button>
 
@@ -2483,7 +2483,7 @@ const renderMensaje = useCallback((mensaje) => {
                             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#2b2d31] text-sm text-white transition-colors"
                           >
                             <Pencil size={16} />
-                            Cambiar apodo
+                            {t('chat.menu.changeNickname')}
                           </button>
 
                           <button
@@ -2505,8 +2505,8 @@ const renderMensaje = useCallback((mensaje) => {
                               <Ban size={16} />
                             )}
                             {bloqueados.has(conversacionSeleccionada?.other_user_id)
-                              ? 'Desbloquear'
-                              : 'Bloquear'
+                              ? t('chat.menu.unblock')
+                              : t('chat.menu.block')
                             }
                           </button>
                         </div>
@@ -2530,11 +2530,8 @@ const renderMensaje = useCallback((mensaje) => {
                       <div className="flex items-center gap-3">
                         <Ban size={20} className="text-red-400" />
                         <div className="flex-1">
-                          <p className="text-red-300 font-semibold">🚫 Usuario Bloqueado</p>
-                          <p className="text-red-200 text-sm mb-3">
-                            Has bloqueado a <span className="font-bold">{getDisplayName(conversacionSeleccionada.other_user_id, conversacionSeleccionada.other_user_name)}</span>.
-                            No pueden enviarte mensajes ni llamarte.
-                          </p>
+                          <p className="text-red-300 font-semibold">{t('chat.status.userBlocked')}</p>
+                          <p className="text-red-200 text-sm mb-3">{t('chat.status.userBlockedDesc')}</p>
                           <button
                             onClick={() => {
                               if (confirm(`¿Desbloquear a ${conversacionSeleccionada.other_user_name}?`)) {
@@ -2575,7 +2572,7 @@ const renderMensaje = useCallback((mensaje) => {
 
                   {mensajes.length === 0 ? (
                     <div className="flex-1 flex items-center justify-center">
-                      <p className="text-white/60">No hay mensajes aún</p>
+                      <p className="text-white/60">{t('chat.noMessages')}</p>
                     </div>
                   ) : (
                     mensajes.map((mensaje) => {
@@ -2623,7 +2620,7 @@ const renderMensaje = useCallback((mensaje) => {
                       <p className="text-red-400 text-sm">
                         <Ban size={16} className="inline mr-2" />
                         {bloqueados.has(conversacionSeleccionada?.other_user_id) 
-                          ? "Usuario bloqueado - No puedes enviar regalos ni emojis"
+                          ? t('chat.status.cannotSendBlocked')
                           : "Este usuario te bloqueó - No puedes enviar regalos ni emojis"
                         }
                       </p>
@@ -2645,9 +2642,9 @@ const renderMensaje = useCallback((mensaje) => {
                     placeholder={
                       isChatBlocked()
                         ? bloqueados.has(conversacionSeleccionada?.other_user_id)
-                          ? "Usuario bloqueado - no puedes enviar mensajes"
-                          : "Este usuario te ha bloqueado"
-                        : "Escribe un mensaje..."
+                          ? t('chat.status.cannotSendBlocked')
+                          : t('chat.status.userBlockedYou')
+                        : t('chat.messagePlaceholder')
                     }
                     className={`flex-1 px-4 py-2 rounded-full outline-none placeholder-white/60 ${
                       isChatBlocked()
@@ -2678,9 +2675,9 @@ const renderMensaje = useCallback((mensaje) => {
                     {!isMobile && (
                       isChatBlocked() 
                         ? bloqueados.has(conversacionSeleccionada?.other_user_id) 
-                          ? 'Bloqueado' 
-                          : 'Te bloqueó'
-                        : 'Enviar'
+                          ? t('chat.status.blocked')
+                          : t('chat.status.blockedYou')
+                        : t('chat.send')
                     )}
                   </button>
                 </div>
@@ -2696,7 +2693,7 @@ const renderMensaje = useCallback((mensaje) => {
           <div className="bg-[#1f2125] border border-[#ff007a]/30 rounded-xl shadow-2xl w-full max-w-md">
             <div className="p-6 border-b border-[#ff007a]/20">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white">Cambiar Apodo</h3>
+                <h3 className="text-lg font-bold text-white">{t('chat.menu.changeNickname')}</h3>
                 <button
                   onClick={() => {
                     setShowNicknameModal(false);
@@ -2709,7 +2706,7 @@ const renderMensaje = useCallback((mensaje) => {
                 </button>
               </div>
               <p className="text-white/70 text-sm mt-2">
-                Personaliza cómo quieres ver a <span className="font-semibold text-[#ff007a]">
+                {t('chat.nickname.description')} <span className="font-semibold text-[#ff007a]">
                   {nicknameTarget?.userName}
                 </span>
               </p>
@@ -2718,7 +2715,7 @@ const renderMensaje = useCallback((mensaje) => {
             <div className="p-6">
               <div className="mb-4">
                 <label className="block text-white text-sm font-medium mb-2">
-                  Apodo personalizado
+                  {t('chat.nickname.label')}
                 </label>
                 <input
                   type="text"
@@ -2742,14 +2739,14 @@ const renderMensaje = useCallback((mensaje) => {
                 }}
                 className="flex-1 bg-[#3a3d44] hover:bg-[#4a4d54] text-white px-4 py-2 rounded-lg transition-colors"
               >
-                Cancelar
+                {t('chat.actions.cancel')}
               </button>
               <button
                 onClick={guardarApodo}
                 disabled={!nicknameValue.trim()}
                 className="flex-1 bg-[#ff007a] hover:bg-[#e6006e] text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Guardar
+                {t('chat.actions.save')}
               </button>
             </div>
           </div>

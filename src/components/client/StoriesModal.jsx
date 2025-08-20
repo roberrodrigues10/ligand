@@ -23,6 +23,7 @@ import { useAppNotifications } from '../../contexts/NotificationContext';
 import CallingSystem from '../CallingOverlay';
 import IncomingCallOverlay from '../IncomingCallOverlay';
 import axios from '../../api/axios';
+import { useTranslation } from 'react-i18next';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -58,6 +59,7 @@ const StoriesModal = ({
 
   const DEFAULT_STORY_DURATION = 5000; // 5 segundos para imágenes
   const MAX_VIDEO_DURATION = 15000; // 15 segundos máximo para videos
+  const { t } = useTranslation();
 
   // 🔄 Cargar historias de modelos al abrir el modal
   useEffect(() => {
@@ -112,7 +114,7 @@ const StoriesModal = ({
         setStories(response.data);
               } else {
         setStories([]);
-        notifications.info("No hay historias disponibles en este momento");
+        notifications.info(t('storiesModal.noStoriesAvailable'));
       }
     } catch (error) {
             notifications.error("Error al cargar las historias");
@@ -201,10 +203,10 @@ const StoriesModal = ({
       setLikesCount(prev => hasLiked ? prev - 1 : prev + 1);
       
       if (!hasLiked) {
-        notifications.success("❤️ Te gustó esta historia");
+        notifications.success(t('storiesModal.likedStory'));
       }
     } catch (error) {
-            notifications.error("Error al procesar la reacción");
+        notifications.error(t('storiesModal.errorProcessingReaction'));
     }
   };
 
@@ -326,16 +328,16 @@ const StoriesModal = ({
         // Iniciar polling para verificar estado de la llamada
         startCallPolling(data.call_id);
         
-        notifications.success(`Llamando a ${modelo.name}...`);
+        notifications.success(t('storiesModal.callingUser', { name: modelo.name }));
         
       } else {
                 setIsCallActive(false);
         setCurrentCall(null);
         
         if (data.error.includes('bloqueado')) {
-          notifications.warning('No puedes llamar a este usuario');
+          notifications.warning(t('storiesModal.cannotCallUser'));
         } else {
-          notifications.error('No se pudo iniciar la llamada');
+          notifications.error(t('storiesModal.callStartError'));
         }
         
         // Reanudar historia
@@ -383,7 +385,7 @@ const StoriesModal = ({
             setCallPollingInterval(null);
             setIsCallActive(false);
             setCurrentCall(null);
-            notifications.warning('La llamada fue rechazada');
+            notifications.warning(t('storiesModal.callRejected'));
             startStoryProgress(); // Reanudar historia
             
           } else if (callStatus === 'cancelled') {
@@ -392,7 +394,7 @@ const StoriesModal = ({
             setCallPollingInterval(null);
             setIsCallActive(false);
             setCurrentCall(null);
-            notifications.warning('La llamada expiró sin respuesta');
+            notifications.warning(t('storiesModal.callExpired'));
             startStoryProgress(); // Reanudar historia
           }
         }
@@ -411,7 +413,7 @@ const StoriesModal = ({
         if (isCallActive) {
           setIsCallActive(false);
           setCurrentCall(null);
-          notifications.warning('Tiempo de espera agotado');
+          notifications.warning(t('storiesModal.timeoutExpired'));
           startStoryProgress(); // Reanudar historia
         }
       }
@@ -503,7 +505,7 @@ const StoriesModal = ({
       <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="bg-[#1f2125] rounded-2xl p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ff007a] mx-auto mb-4"></div>
-          <p className="text-white">Cargando historias...</p>
+          <p className="text-white">{t('storiesModal.loadingStories')}</p>
         </div>
       </div>
     );
@@ -514,15 +516,15 @@ const StoriesModal = ({
       <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="bg-[#1f2125] rounded-2xl p-8 text-center max-w-sm">
           <User className="w-16 h-16 text-white/20 mx-auto mb-4" />
-          <h3 className="text-white font-bold text-lg mb-2">No hay historias</h3>
+          <h3 className="text-white font-bold text-lg mb-2">{t('storiesModal.noStoriesTitle')}</h3>
           <p className="text-white/70 text-sm mb-6">
-            No hay historias disponibles en este momento.
+            {t('storiesModal.noStoriesAvailable')}
           </p>
           <button
             onClick={onClose}
             className="bg-[#ff007a] hover:bg-[#e6006e] text-white px-6 py-2 rounded-lg font-semibold transition-colors"
           >
-            Cerrar
+            {t('storiesModal.close')}
           </button>
         </div>
       </div>
@@ -621,11 +623,11 @@ const StoriesModal = ({
                   >
                     {currentStoryIndex < stories.length - 1 ? (
                       <>
-                        Siguiente <ChevronRight className="w-4 h-4" />
+                        {t('storiesModal.next')} <ChevronRight className="w-4 h-4" />
                       </>
                     ) : (
                       <>
-                        Reiniciar <RotateCcw className="w-4 h-4" />
+                        {t('storiesModal.restart')} <RotateCcw className="w-4 h-4" />
                       </>
                     )}
                   </button>
@@ -676,8 +678,8 @@ const StoriesModal = ({
                 <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/30">
                   <div className="text-center text-white">
                     <CheckCircle className="w-12 h-12 mx-auto mb-3 text-[#ff007a]" />
-                    <p className="text-lg font-semibold mb-1">Historia vista</p>
-                    <p className="text-sm opacity-80">Toca "Siguiente" para continuar</p>
+                    <p className="text-lg font-semibold mb-1">{t('storiesModal.storyViewed')}</p>
+                    <p className="text-sm opacity-80">{t('storiesModal.tapNextToContinue')}</p>
                   </div>
                 </div>
               )}

@@ -782,7 +782,8 @@
       "start": "Iniciar",
       "searching": "Buscando usuario...",
       "preparing": "Preparando...",
-      "connecting": "Conectando..."
+      "connecting": "Conectando...",
+      "retry": "Intentar de Nuevo"
     },
     "notices": {
       "randomUser": "Te conectarás con un usuario aleatorio",
@@ -796,7 +797,8 @@
       "enumeratingDevices": "Error enumerando dispositivos",
       "gettingStream": "Error accediendo cámara/micrófono",
       "retryVideoOnly": "Reintentando solo con video...",
-      "videoOnlyFailed": "Error incluso con solo video"
+      "videoOnlyFailed": "Error incluso con solo video",
+      "permissionDeniedTitle": "Permisos de Cámara Requeridos"
     },
     "permissions": {
       "requesting": "Solicitando permisos de media...",
@@ -805,7 +807,11 @@
       "combiningStreams": "Streams de video y audio combinados",
       "audioError": "Error obteniendo audio, continuando solo con video",
       "granted": "Permisos otorgados, obteniendo dispositivos...",
-      "streamAssigned": "Stream inicial asignado al video"
+      "streamAssigned": "Stream inicial asignado al video",
+      "howToEnable": "¿Cómo activar los permisos?",
+      "step1": "Busca el ícono de cámara 📷 en la barra de direcciones",
+      "step2": "Haz clic y selecciona \"Permitir\"",
+      "step3": "Recarga la página si es necesario"
     },
     "deviceSelection": {
       "selectCamera": "Selecciona tu cámara",
@@ -813,6 +819,26 @@
       "noDevices": "No se detectaron dispositivos",
       "testCamera": "Prueba tu cámara",
       "testMicrophone": "Prueba tu micrófono"
+    }
+  },
+  "balanceMonitor": {
+    "title": "Monitor de Saldo",
+    "timeRemaining": "Tiempo restante",
+    "minutes": "min",
+    "warnings": {
+      "limitedTime": "⏰ Tiempo Limitado",
+      "remainingMinutes": "Te quedan {{minutes}} minutos en esta sesión.",
+      "sessionEndingSoon": "🚨 La sesión terminará automáticamente muy pronto.",
+      "lowBalance": "Saldo Bajo",
+      "balanceExhausted": "Saldo Agotado"
+    },
+    "messages": {
+      "sessionEnded": "Tu sesión terminó porque se agotaron los minutos disponibles.",
+      "balanceFinished": "Se agotó tu saldo de minutos"
+    },
+    "actions": {
+      "close": "Cerrar",
+      "buyMore": "Comprar más minutos"
     }
   },
   "header": {

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, MessageSquare, Phone, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next'; // o tu sistema de traducción
+
 
 const SearchClientsModal = ({ isOpen, onClose, onMessage, onCall }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
