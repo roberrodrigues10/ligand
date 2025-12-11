@@ -432,49 +432,49 @@ export default function VerificacionIdentidad() {
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           transform: scale(0.98);
         }
-        
+
         .card-step.active {
           transform: scale(1);
           box-shadow: 0 20px 25px -5px rgba(255, 0, 122, 0.1), 0 10px 10px -5px rgba(255, 0, 122, 0.04);
         }
-        
+
         .card-step.completed {
           transform: scale(1);
           background: linear-gradient(135deg, rgba(255, 0, 122, 0.1) 0%, rgba(255, 0, 122, 0.05) 100%);
         }
-        
+
         .progress-bar {
           background: linear-gradient(90deg, #ff007a 0%, #e6006e 100%);
           box-shadow: 0 4px 15px rgba(255, 0, 122, 0.3);
         }
-        
+
         .file-input {
           transition: all 0.2s ease;
         }
-        
+
         .file-input:hover {
           transform: translateY(-1px);
         }
-        
+
         .preview-image {
           object-fit: cover;
           transform: none !important;
           image-orientation: from-image;
         }
-        
+
         .floating-action {
           animation: float 3s ease-in-out infinite;
         }
-        
+
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-5px); }
         }
-        
+
         .message-enter {
           animation: slideInFromRight 0.3s ease-out;
         }
-        
+
         @keyframes slideInFromRight {
           from {
             transform: translateX(100%);
