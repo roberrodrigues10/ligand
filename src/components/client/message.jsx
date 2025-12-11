@@ -4,10 +4,45 @@ import Header from "./headercliente.jsx";
 import { getUser } from "../../utils/auth";
 
 import {
-  useTranslation as useCustomTranslation,
+  useTranslation,
   TranslationSettings,
   TranslatedMessage
 } from '../../utils/translationSystem.jsx';
+
+// Función t simple para traducciones
+const t = (key, defaultValue = key) => {
+  const translations = {
+    'chat.searchPlaceholder': 'Buscar conversaciones...',
+    'chat.loading': 'Cargando...',
+    'chat.noConversations': 'No hay conversaciones',
+    'chat.noMessages': 'No hay mensajes',
+    'chat.you': 'Tú',
+    'chat.send': 'Enviar',
+    'chat.messagePlaceholder': 'Escribe un mensaje...',
+    'chat.status.userBlocked': 'Usuario bloqueado',
+    'chat.status.userBlockedDesc': 'No puedes enviar mensajes a este usuario',
+    'chat.status.cannotSendBlocked': 'No puedes enviar mensajes',
+    'chat.status.userBlockedYou': 'Este usuario te bloqueó',
+    'chat.status.blockedByYou': 'Bloqueado por ti',
+    'chat.status.blockedYou': 'Te bloqueó',
+    'chat.status.mutualBlock': 'Bloqueo mutuo',
+    'chat.online': 'En línea',
+    'chat.offline': 'Desconectado',
+    'chat.menu.translation': 'Traducción',
+    'chat.menu.translationActive': 'Activa',
+    'chat.menu.translationInactive': 'Inactiva',
+    'chat.menu.addFavorite': 'Agregar a favoritos',
+    'chat.menu.removeFavorite': 'Quitar de favoritos',
+    'chat.menu.changeNickname': 'Cambiar apodo',
+    'chat.menu.block': 'Bloquear',
+    'chat.menu.unblock': 'Desbloquear',
+    'chat.actions.cancel': 'Cancelar',
+    'chat.actions.save': 'Guardar',
+    'chat.nickname.description': 'Cambia cómo aparece este usuario en tus chats',
+    'chat.nickname.label': 'Apodo',
+  };
+  return translations[key] || defaultValue;
+};
 
 import {
   MessageSquare,
@@ -33,7 +68,7 @@ import { useGiftSystem, GiftMessageComponent, GiftNotificationOverlay, GiftsModa
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function ChatPrivado() {
-  const { settings: translationSettings, setSettings: setTranslationSettings, languages } = useCustomTranslation();
+  const { settings: translationSettings, setSettings: setTranslationSettings, languages } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   

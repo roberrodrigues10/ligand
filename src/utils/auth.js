@@ -420,10 +420,10 @@ export const checkAuthStatus = async () => {
       throw new Error("No hay token");
     }
 
-    const response = await axios.get(`${API_BASE_URL}/api/check-auth`, {
+    const response = await axios.get(`${API_BASE_URL}/api/profile`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    
+
     return response.data;
   } catch (error) {
         throw error;

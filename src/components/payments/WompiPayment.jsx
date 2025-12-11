@@ -114,11 +114,6 @@ export default function WompiPayment({ onClose }) {
       });
       const minutesData = await minutesResponse.json();
 
-      const giftsResponse = await fetch(`${API_BASE_URL}/api/gifts/balance`, {
-        headers: getAuthHeaders()
-      });
-      const giftsData = await giftsResponse.json();
-
       let combinedBalance = {
         purchased_coins: 0,
         gift_coins: 0,
@@ -136,10 +131,21 @@ export default function WompiPayment({ onClose }) {
         combinedBalance.minutes_available = minutesData.balance.minutes_available || 0;
       }
 
-      if (giftsData.success) {
-        combinedBalance.gift_balance = giftsData.balance.gift_balance || 0;
-        combinedBalance.total_received_gifts = giftsData.balance.total_received || 0;
-        combinedBalance.total_sent_gifts = giftsData.balance.total_sent || 0;
+      // Intentar obtener balance de gifts, pero no fallar si no está disponible
+      try {
+        const giftsResponse = await fetch(`${API_BASE_URL}/api/gifts/balance`, {
+          headers: getAuthHeaders()
+        });
+        const giftsData = await giftsResponse.json();
+
+        if (giftsData.success) {
+          combinedBalance.gift_balance = giftsData.balance.gift_balance || 0;
+          combinedBalance.total_received_gifts = giftsData.balance.total_received || 0;
+          combinedBalance.total_sent_gifts = giftsData.balance.total_sent || 0;
+        }
+      } catch (giftsError) {
+        // API de gifts no disponible, continuar sin ella
+        console.log('API de gifts no disponible, continuando sin balance de gifts');
       }
 
       setBalance(combinedBalance);

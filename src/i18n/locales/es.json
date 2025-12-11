@@ -1125,7 +1125,8 @@
   "common": {
     "coins": "monedas",
     "minutes": "Minutos",
-    "gifts": "Regalos"
+    "gifts": "Regalos",
+    "close": "Cerrar"
   },
     "gifts": {
       "sendGift": "Enviar Regalo",
